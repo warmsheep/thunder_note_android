@@ -14,12 +14,16 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.flashnote.java.FlashNoteApp;
+import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.FavoriteItem;
 import com.flashnote.java.databinding.FragmentProfileTabBinding;
 import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FlashNote;
+import com.flashnote.java.data.model.Message;
+import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.SyncRepository;
+import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 import java.io.File;
@@ -33,7 +37,11 @@ public class ProfileTabFragment extends Fragment {
     private FragmentProfileTabBinding binding;
     private SyncRepository syncRepository;
     private FileRepository fileRepository;
+    private UserRepository userRepository;
+    private TokenManager tokenManager;
     private ActivityResultLauncher<String> filePickerLauncher;
+    private UserProfile currentProfile;
+    private boolean isEditingBio = false;
 
     @Nullable
     @Override
@@ -50,14 +58,123 @@ public class ProfileTabFragment extends Fragment {
         FlashNoteApp app = FlashNoteApp.getInstance();
         syncRepository = app.getSyncRepository();
         fileRepository = app.getFileRepository();
+        userRepository = app.getUserRepository();
+        tokenManager = app.getTokenManager();
 
         filePickerLauncher = registerForActivityResult(new ActivityResultContracts.GetContent(), this::handleFilePicked);
+
+        String username = tokenManager.getUsername();
+        if (username != null) {
+            binding.usernameText.setText("用户名：" + username);
+        } else {
+            binding.usernameText.setText("用户名：未知");
+        }
+
+        userRepository.getProfile().observe(getViewLifecycleOwner(), profile -> {
+            if (profile != null) {
+                currentProfile = profile;
+                updateProfileUI(profile);
+            }
+        });
+
+        binding.refreshProfileButton.setOnClickListener(v -> fetchProfile());
+        binding.editBioButton.setOnClickListener(v -> toggleBioEdit());
+        binding.cancelEditButton.setOnClickListener(v -> cancelBioEdit());
+        binding.saveBioButton.setOnClickListener(v -> saveBio());
 
         binding.bootstrapButton.setOnClickListener(v -> syncRepository.bootstrap(syncCallback("bootstrap")));
         binding.pullButton.setOnClickListener(v -> syncRepository.pull(syncCallback("pull")));
         binding.pushButton.setOnClickListener(v -> pushCurrentData());
         binding.uploadButton.setOnClickListener(v -> filePickerLauncher.launch("*/*"));
         binding.logoutButton.setOnClickListener(v -> logout());
+
+        fetchProfile();
+    }
+
+    private void fetchProfile() {
+        userRepository.fetchProfile(new UserRepository.ProfileCallback() {
+            @Override
+            public void onSuccess(UserProfile profile) {
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                if (!isAdded()) {
+                    return;
+                }
+                requireActivity().runOnUiThread(() ->
+                    Toast.makeText(requireContext(), "获取资料失败：" + message, Toast.LENGTH_SHORT).show()
+                );
+            }
+        });
+    }
+
+    private void updateProfileUI(UserProfile profile) {
+        if (!isAdded()) {
+            return;
+        }
+        String bio = profile.getBio();
+        binding.bioText.setText("简介：" + (bio != null && !bio.isEmpty() ? bio : "暂无简介"));
+    }
+
+    private void toggleBioEdit() {
+        if (isEditingBio) {
+            return;
+        }
+        isEditingBio = true;
+
+        String currentBio = currentProfile != null ? currentProfile.getBio() : "";
+        binding.bioEditText.setText(currentBio != null ? currentBio : "");
+
+        binding.bioText.setVisibility(View.GONE);
+        binding.editBioButton.setVisibility(View.GONE);
+        binding.bioEditText.setVisibility(View.VISIBLE);
+        binding.editButtonsLayout.setVisibility(View.VISIBLE);
+    }
+
+    private void cancelBioEdit() {
+        isEditingBio = false;
+        binding.bioText.setVisibility(View.VISIBLE);
+        binding.editBioButton.setVisibility(View.VISIBLE);
+        binding.bioEditText.setVisibility(View.GONE);
+        binding.editButtonsLayout.setVisibility(View.GONE);
+    }
+
+    private void saveBio() {
+        if (currentProfile == null) {
+            Toast.makeText(requireContext(), "请先加载资料", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String newBio = binding.bioEditText.getText().toString().trim();
+        currentProfile.setBio(newBio);
+
+        userRepository.updateProfile(currentProfile, new UserRepository.ProfileCallback() {
+            @Override
+            public void onSuccess(UserProfile profile) {
+                if (!isAdded()) {
+                    return;
+                }
+                requireActivity().runOnUiThread(() -> {
+                    isEditingBio = false;
+                    binding.bioText.setVisibility(View.VISIBLE);
+                    binding.editBioButton.setVisibility(View.VISIBLE);
+                    binding.bioEditText.setVisibility(View.GONE);
+                    binding.editButtonsLayout.setVisibility(View.GONE);
+                    Toast.makeText(requireContext(), "资料已更新", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                if (!isAdded()) {
+                    return;
+                }
+                requireActivity().runOnUiThread(() ->
+                    Toast.makeText(requireContext(), "更新失败：" + message, Toast.LENGTH_SHORT).show()
+                );
+            }
+        });
     }
 
     private SyncRepository.SyncCallback syncCallback(String action) {
@@ -89,11 +206,12 @@ public class ProfileTabFragment extends Fragment {
         List<FlashNote> notes = app.getFlashNoteRepository().getNotes().getValue();
         List<Collection> collections = app.getCollectionRepository().getCollections().getValue();
         List<FavoriteItem> favorites = app.getFavoriteRepository().getFavorites().getValue();
+        List<Message> messages = app.getMessageRepository().getCachedMessages();
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("notes", notes == null ? List.of() : notes);
         payload.put("collections", collections == null ? List.of() : collections);
-        payload.put("messages", List.of());
+        payload.put("messages", messages == null ? List.of() : messages);
         payload.put("favorites", favorites == null ? List.of() : favorites);
         syncRepository.push(payload, syncCallback("push"));
     }
