@@ -42,6 +42,7 @@ public class AuthRepositoryImpl implements AuthRepository {
                         );
                         if (currentUser != null) {
                             tokenManager.saveUserId(currentUser.getId());
+                            tokenManager.saveUsername(currentUser.getUsername());
                         }
                         callback.onSuccess(loginResponse);
                     } else {

@@ -15,6 +15,7 @@ public class TokenManager {
     private static final String KEY_REFRESH_TOKEN = "refresh_token";
     private static final String KEY_TOKEN_EXPIRY = "token_expiry";
     private static final String KEY_USER_ID = "user_id";
+    private static final String KEY_USERNAME = "username";
 
     private final SharedPreferences encryptedPrefs;
     private final MasterKey masterKey;
@@ -80,12 +81,23 @@ public class TokenManager {
         return userId == -1 ? null : userId;
     }
 
+    public void saveUsername(String username) {
+        if (username != null) {
+            encryptedPrefs.edit().putString(KEY_USERNAME, username).apply();
+        }
+    }
+
+    public String getUsername() {
+        return encryptedPrefs.getString(KEY_USERNAME, null);
+    }
+
     public void clearTokens() {
         encryptedPrefs.edit()
                 .remove(KEY_ACCESS_TOKEN)
                 .remove(KEY_REFRESH_TOKEN)
                 .remove(KEY_TOKEN_EXPIRY)
                 .remove(KEY_USER_ID)
+                .remove(KEY_USERNAME)
                 .apply();
     }
 

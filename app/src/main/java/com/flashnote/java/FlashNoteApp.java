@@ -17,6 +17,8 @@ import com.flashnote.java.data.repository.MessageRepository;
 import com.flashnote.java.data.repository.MessageRepositoryImpl;
 import com.flashnote.java.data.repository.SyncRepository;
 import com.flashnote.java.data.repository.SyncRepositoryImpl;
+import com.flashnote.java.data.repository.UserRepository;
+import com.flashnote.java.data.repository.UserRepositoryImpl;
 
 public class FlashNoteApp extends Application {
 
@@ -30,6 +32,7 @@ public class FlashNoteApp extends Application {
     private SyncRepository syncRepository;
     private FileRepository fileRepository;
     private FavoriteRepository favoriteRepository;
+    private UserRepository userRepository;
 
     @Override
     public void onCreate() {
@@ -49,6 +52,7 @@ public class FlashNoteApp extends Application {
         syncRepository = new SyncRepositoryImpl(apiClient.getSyncService());
         fileRepository = new FileRepositoryImpl(apiClient.getFileService(), this);
         favoriteRepository = new FavoriteRepositoryImpl(apiClient.getFavoriteService());
+        userRepository = new UserRepositoryImpl(apiClient.getUserService());
     }
 
     public static FlashNoteApp getInstance() {
@@ -89,5 +93,9 @@ public class FlashNoteApp extends Application {
 
     public FavoriteRepository getFavoriteRepository() {
         return favoriteRepository;
+    }
+
+    public UserRepository getUserRepository() {
+        return userRepository;
     }
 }

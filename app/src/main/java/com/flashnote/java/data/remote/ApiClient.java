@@ -20,6 +20,7 @@ public class ApiClient {
     private SyncService syncService;
     private FileService fileService;
     private FavoriteService favoriteService;
+    private UserService userService;
 
     public ApiClient(TokenManager tokenManager) {
         this.tokenManager = tokenManager;
@@ -93,6 +94,13 @@ public class ApiClient {
             favoriteService = retrofit.create(FavoriteService.class);
         }
         return favoriteService;
+    }
+
+    public UserService getUserService() {
+        if (userService == null) {
+            userService = retrofit.create(UserService.class);
+        }
+        return userService;
     }
 
     public TokenManager getTokenManager() {
