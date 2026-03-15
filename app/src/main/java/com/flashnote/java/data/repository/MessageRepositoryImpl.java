@@ -9,6 +9,7 @@ import com.flashnote.java.data.model.MessageListRequest;
 import com.flashnote.java.data.remote.MessageService;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,32 @@ public class MessageRepositoryImpl implements MessageRepository {
     @Override
     public LiveData<String> getErrorMessage() {
         return errorMessage;
+    }
+
+    @Override
+    public List<Message> getCachedMessages() {
+        Map<Long, Message> deduplicated = new LinkedHashMap<>();
+        List<Message> transientMessages = new ArrayList<>();
+        for (MutableLiveData<List<Message>> liveData : conversations.values()) {
+            List<Message> messages = liveData.getValue();
+            if (messages == null) {
+                continue;
+            }
+            for (Message message : messages) {
+                if (message == null) {
+                    continue;
+                }
+                Long id = message.getId();
+                if (id == null) {
+                    transientMessages.add(message);
+                    continue;
+                }
+                deduplicated.put(id, message);
+            }
+        }
+        List<Message> result = new ArrayList<>(deduplicated.values());
+        result.addAll(transientMessages);
+        return result;
     }
 
     @Override

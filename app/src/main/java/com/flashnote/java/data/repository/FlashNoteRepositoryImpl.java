@@ -29,6 +29,10 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
         return notesLiveData;
     }
 
+    public MutableLiveData<List<FlashNote>> getNotesMutable() {
+        return notesLiveData;
+    }
+
     @Override
     public LiveData<Boolean> isLoading() {
         return isLoading;
@@ -41,35 +45,35 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
 
     @Override
     public void refresh() {
-        isLoading.setValue(true);
+        isLoading.postValue(true);
         flashNoteService.list().enqueue(new Callback<ApiResponse<List<FlashNote>>>() {
             @Override
             public void onResponse(Call<ApiResponse<List<FlashNote>>> call, 
                                  Response<ApiResponse<List<FlashNote>>> response) {
-                isLoading.setValue(false);
+                isLoading.postValue(false);
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<List<FlashNote>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
-                        notesLiveData.setValue(apiResponse.getData());
+                        notesLiveData.postValue(apiResponse.getData());
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        errorMessage.postValue(apiResponse.getMessage());
                     }
                 } else {
-                    errorMessage.setValue("Failed to load notes: " + response.code());
+                    errorMessage.postValue("Failed to load notes: " + response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<List<FlashNote>>> call, Throwable t) {
-                isLoading.setValue(false);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                isLoading.postValue(false);
+                errorMessage.postValue("Network error: " + t.getMessage());
             }
         });
     }
 
     @Override
     public void createNote(String title, String content) {
-        isLoading.setValue(true);
+        isLoading.postValue(true);
         FlashNote note = new FlashNote();
         note.setTitle(title);
         note.setContent(content);
@@ -78,33 +82,33 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
             @Override
             public void onResponse(Call<ApiResponse<FlashNote>> call, 
                                  Response<ApiResponse<FlashNote>> response) {
-                isLoading.setValue(false);
+                isLoading.postValue(false);
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<FlashNote> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         List<FlashNote> current = notesLiveData.getValue();
                         List<FlashNote> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
                         updated.add(0, apiResponse.getData());
-                        notesLiveData.setValue(updated);
+                        notesLiveData.postValue(updated);
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        errorMessage.postValue(apiResponse.getMessage());
                     }
                 } else {
-                    errorMessage.setValue("Failed to create note: " + response.code());
+                    errorMessage.postValue("Failed to create note: " + response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<FlashNote>> call, Throwable t) {
-                isLoading.setValue(false);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                isLoading.postValue(false);
+                errorMessage.postValue("Network error: " + t.getMessage());
             }
         });
     }
 
     @Override
     public void updateNote(Long id, String title, String content) {
-        isLoading.setValue(true);
+        isLoading.postValue(true);
         FlashNote note = new FlashNote();
         note.setTitle(title);
         note.setContent(content);
@@ -113,7 +117,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
             @Override
             public void onResponse(Call<ApiResponse<FlashNote>> call, 
                                  Response<ApiResponse<FlashNote>> response) {
-                isLoading.setValue(false);
+                isLoading.postValue(false);
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<FlashNote> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
@@ -127,32 +131,32 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                                     updated.add(n);
                                 }
                             }
-                            notesLiveData.setValue(updated);
+                            notesLiveData.postValue(updated);
                         }
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        errorMessage.postValue(apiResponse.getMessage());
                     }
                 } else {
-                    errorMessage.setValue("Failed to update note: " + response.code());
+                    errorMessage.postValue("Failed to update note: " + response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<FlashNote>> call, Throwable t) {
-                isLoading.setValue(false);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                isLoading.postValue(false);
+                errorMessage.postValue("Network error: " + t.getMessage());
             }
         });
     }
 
     @Override
     public void deleteNote(Long id) {
-        isLoading.setValue(true);
+        isLoading.postValue(true);
         flashNoteService.delete(id).enqueue(new Callback<ApiResponse<Void>>() {
             @Override
             public void onResponse(Call<ApiResponse<Void>> call, 
                                  Response<ApiResponse<Void>> response) {
-                isLoading.setValue(false);
+                isLoading.postValue(false);
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Void> apiResponse = response.body();
                     if (apiResponse.isSuccess()) {
@@ -164,20 +168,20 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                                     updated.add(n);
                                 }
                             }
-                            notesLiveData.setValue(updated);
+                            notesLiveData.postValue(updated);
                         }
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        errorMessage.postValue(apiResponse.getMessage());
                     }
                 } else {
-                    errorMessage.setValue("Failed to delete note: " + response.code());
+                    errorMessage.postValue("Failed to delete note: " + response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                isLoading.setValue(false);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                isLoading.postValue(false);
+                errorMessage.postValue("Network error: " + t.getMessage());
             }
         });
     }

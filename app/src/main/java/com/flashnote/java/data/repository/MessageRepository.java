@@ -13,6 +13,8 @@ public interface MessageRepository {
     
     LiveData<String> getErrorMessage();
 
+    List<Message> getCachedMessages();
+
     void bindFlashNote(long flashNoteId);
 
     void sendText(long flashNoteId, String content);
