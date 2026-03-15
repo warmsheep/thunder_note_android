@@ -1,0 +1,19 @@
+package com.flashnote.java.data.repository;
+
+import androidx.lifecycle.LiveData;
+
+import com.flashnote.java.data.model.Message;
+
+import java.util.List;
+
+public interface MessageRepository {
+    LiveData<List<Message>> getMessages(long flashNoteId);
+    
+    LiveData<Boolean> isLoading();
+    
+    LiveData<String> getErrorMessage();
+
+    void bindFlashNote(long flashNoteId);
+
+    void sendText(long flashNoteId, String content);
+}

@@ -1,0 +1,55 @@
+# === Gradle ===
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+
+# === Android Studio / IntelliJ ===
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.settings/
+.vscode/
+*.swp
+*.swo
+*~
+
+# === Android 构建产物 ===
+*.class
+*.dex
+*.ap_
+*.apk
+*.aab
+
+# === NDK ===
+obj/
+*.so
+*.o
+*.a
+
+# === 签名文件 ===
+*.jks
+*.keystore
+keystore.properties
+
+# === 系统文件 ===
+.DS_Store
+Thumbs.db
+
+# === 日志 ===
+*.log
+
+# === 配置（敏感信息）===
+*.env
+secrets.properties
+
+# === 临时文件 ===
+*.tmp
+*.temp
+*.bak
+
+# === Capture 目录（截图等）===
+captures/

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Thunder Note Java</string>
+    <string name="brand_name">闪记</string>
+
+    <string name="splash_logo">⚡</string>
+    <string name="logo_emoji">⚡</string>
+    <string name="auth_server_hint">☁️ 闪记服务器  ›</string>
+
+    <string name="login_title">欢迎回来</string>
+    <string name="login_subtitle">登录以继续使用闪记</string>
+    <string name="login_username_hint">请输入用户名</string>
+    <string name="login_password_hint">请输入密码</string>
+    <string name="action_login">登录</string>
+    <string name="action_login_loading">登录中...</string>
+    <string name="go_register">还没有账号？立即注册</string>
+
+    <string name="register_title">注册账号</string>
+    <string name="register_subtitle">创建您的闪记账号</string>
+    <string name="register_email_hint">请输入邮箱</string>
+    <string name="action_register">注册</string>
+    <string name="action_register_loading">注册中...</string>
+    <string name="go_login">已有账号？立即登录</string>
+
+    <string name="error_username_required">请输入用户名</string>
+    <string name="error_password_required">请输入密码</string>
+    <string name="error_email_required">请输入邮箱</string>
+    <string name="error_register_unavailable">当前 Java 客户端注册接口尚未接通，先用已有账号登录</string>
+    <string name="error_login_default">登录失败，请稍后重试</string>
+    <string name="error_network_prefix">网络异常：%1$s</string>
+
+    <string name="tab_flashnote">闪记</string>
+    <string name="tab_collection">合集</string>
+    <string name="tab_favorite">收藏</string>
+    <string name="tab_profile">我的</string>
+
+    <string name="title_flashnote">闪记</string>
+    <string name="title_collection">合集</string>
+    <string name="title_favorite">收藏</string>
+    <string name="title_profile">我的</string>
+
+    <string name="placeholder_flashnote">闪记列表（Java 壳）</string>
+    <string name="placeholder_collection">合集内容占位</string>
+    <string name="placeholder_favorite">收藏内容占位</string>
+    <string name="placeholder_profile">个人中心占位</string>
+    <string name="empty_flashnote_title">还没有闪记</string>
+    <string name="empty_flashnote_subtitle">点击右上角 + 创建第一个</string>
+    <string name="empty_collection_title">还没有合集</string>
+    <string name="empty_collection_subtitle">点击右上角 + 创建第一个</string>
+    <string name="empty_favorite_title">还没有收藏</string>
+    <string name="empty_favorite_subtitle">长按聊天消息即可加入收藏</string>
+    <string name="hint_collection_name">合集名称</string>
+    <string name="hint_collection_description">合集描述（可选）</string>
+    <string name="action_create">创建</string>
+    <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_delete">删除</string>
+    <string name="dialog_create_collection">创建合集</string>
+    <string name="dialog_edit_collection">编辑合集</string>
+    <string name="dialog_delete_collection">删除合集</string>
+    <string name="dialog_delete_collection_message">确定要删除这个合集吗？</string>
+    <string name="error_name_required">请输入名称</string>
+</resources>

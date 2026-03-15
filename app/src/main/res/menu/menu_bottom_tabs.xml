@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/tab_flashnote"
+        android:title="@string/tab_flashnote" />
+    <item
+        android:id="@+id/tab_collection"
+        android:title="@string/tab_collection" />
+    <item
+        android:id="@+id/tab_favorite"
+        android:title="@string/tab_favorite" />
+    <item
+        android:id="@+id/tab_profile"
+        android:title="@string/tab_profile" />
+</menu>
