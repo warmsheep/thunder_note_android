@@ -7,24 +7,31 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 
 import com.flashnote.java.FlashNoteApp;
+import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FlashNote;
+import com.flashnote.java.data.repository.CollectionRepository;
 import com.flashnote.java.data.repository.FlashNoteRepository;
 
 import java.util.List;
 
 public class FlashNoteViewModel extends AndroidViewModel {
     private final FlashNoteRepository repository;
+    private final CollectionRepository collectionRepository;
     private final LiveData<List<FlashNote>> notes;
+    private final LiveData<List<Collection>> collections;
     private final LiveData<Boolean> isLoading;
     private final LiveData<String> errorMessage;
 
     public FlashNoteViewModel(@NonNull Application application) {
         super(application);
         repository = ((FlashNoteApp) application).getFlashNoteRepository();
+        collectionRepository = ((FlashNoteApp) application).getCollectionRepository();
         notes = repository.getNotes();
+        collections = collectionRepository.getCollections();
         isLoading = repository.isLoading();
         errorMessage = repository.getErrorMessage();
         repository.refresh();
+        collectionRepository.refresh();
     }
 
     public LiveData<List<FlashNote>> getNotes() {
@@ -35,20 +42,53 @@ public class FlashNoteViewModel extends AndroidViewModel {
         return isLoading;
     }
 
+    public LiveData<List<Collection>> getCollections() {
+        return collections;
+    }
+
+    public void refresh() {
+        repository.refresh();
+        collectionRepository.refresh();
+    }
+
+    public void renameCollectionLocally(String oldName, String newName) {
+        List<FlashNote> currentNotes = notes.getValue();
+        if (currentNotes == null || oldName == null || oldName.equals(newName)) {
+            return;
+        }
+        for (FlashNote note : currentNotes) {
+            if (oldName.equals(note.getTags())) {
+                note.setTags(newName);
+            }
+        }
+    }
+
+    public void clearCollectionLocally(String collectionName) {
+        List<FlashNote> currentNotes = notes.getValue();
+        if (currentNotes == null || collectionName == null) {
+            return;
+        }
+        for (FlashNote note : currentNotes) {
+            if (collectionName.equals(note.getTags())) {
+                note.setTags(null);
+            }
+        }
+    }
+
     public LiveData<String> getErrorMessage() {
         return errorMessage;
     }
 
-    public void createNote(String title, String content) {
-        repository.createNote(title, content);
+    public void createNote(String title, String icon, String collectionName) {
+        repository.createNote(title, icon, collectionName);
     }
 
     public void createNote() {
-        repository.createNote("New flash note", "");
+        repository.createNote("New flash note", "⚡", null);
     }
     
-    public void updateNote(Long id, String title, String content) {
-        repository.updateNote(id, title, content);
+    public void updateNote(Long id, String title, String content, String icon, String collectionName) {
+        repository.updateNote(id, title, content, icon, collectionName);
     }
     
     public void deleteNote(Long id) {

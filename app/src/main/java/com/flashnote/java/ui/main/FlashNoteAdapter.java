@@ -47,12 +47,22 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
     @Override
     public void onBindViewHolder(@NonNull FlashNoteViewHolder holder, int position) {
         FlashNote item = items.get(position);
-        holder.bind(item, emojis[(int) (Math.abs(item.getId()) % emojis.length)]);
+        holder.bind(item, resolveIcon(item));
     }
 
     @Override
     public int getItemCount() {
         return items.size();
+    }
+
+    private String resolveIcon(FlashNote item) {
+        String icon = item.getIcon();
+        if (icon != null && !icon.trim().isEmpty()) {
+            return icon;
+        }
+        Long id = item.getId();
+        int index = id == null ? 0 : (int) (Math.abs(id) % emojis.length);
+        return emojis[index];
     }
 
     class FlashNoteViewHolder extends RecyclerView.ViewHolder {
@@ -67,7 +77,14 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
             binding.emojiText.setText(emoji);
             binding.titleText.setText(item.getTitle());
             String content = item.getContent();
-            binding.summaryText.setText(content != null ? content : "");
+            String collectionName = item.getTags();
+            if (content != null && !content.trim().isEmpty()) {
+                binding.summaryText.setText(content);
+            } else if (collectionName != null && !collectionName.trim().isEmpty()) {
+                binding.summaryText.setText("合集 · " + collectionName.trim());
+            } else {
+                binding.summaryText.setText("点击进入继续记录");
+            }
             binding.getRoot().setOnClickListener(v -> listener.onOpenChat(item));
             binding.getRoot().setOnLongClickListener(v -> {
                 listener.onEdit(item);
