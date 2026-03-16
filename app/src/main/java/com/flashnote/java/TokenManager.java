@@ -43,13 +43,13 @@ public class TokenManager {
                 .putString(KEY_ACCESS_TOKEN, accessToken)
                 .putString(KEY_REFRESH_TOKEN, refreshToken)
                 .putLong(KEY_TOKEN_EXPIRY, System.currentTimeMillis() + (expiresIn * 1000))
-                .apply();
+                .commit();
     }
 
     public void saveAccessToken(String accessToken) {
         encryptedPrefs.edit()
                 .putString(KEY_ACCESS_TOKEN, accessToken)
-                .apply();
+                .commit();
     }
 
     public String getAccessToken() {
@@ -65,9 +65,16 @@ public class TokenManager {
     }
 
     public boolean isTokenValid() {
-        String token = getAccessToken();
-        long expiry = getTokenExpiry();
-        return token != null && !token.isEmpty() && System.currentTimeMillis() < expiry;
+        try {
+            String token = getAccessToken();
+            long expiry = getTokenExpiry();
+            boolean hasToken = token != null && !token.isEmpty();
+            boolean hasExpiry = expiry > 0;
+            boolean notExpired = System.currentTimeMillis() < expiry;
+            return hasToken && hasExpiry && notExpired;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public void saveUserId(Long userId) {
@@ -98,7 +105,7 @@ public class TokenManager {
                 .remove(KEY_TOKEN_EXPIRY)
                 .remove(KEY_USER_ID)
                 .remove(KEY_USERNAME)
-                .apply();
+                .commit();
     }
 
     public boolean hasToken() {

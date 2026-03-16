@@ -75,13 +75,21 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
             transaction.addToBackStack(fragment.getClass().getSimpleName());
         }
 
-        transaction.commit();
+        if (fragmentManager.isStateSaved()) {
+            transaction.commitAllowingStateLoss();
+        } else {
+            transaction.commit();
+        }
     }
 
     private void clearBackStack() {
         FragmentManager fragmentManager = getSupportFragmentManager();
         if (fragmentManager.getBackStackEntryCount() > 0) {
-            fragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+            if (fragmentManager.isStateSaved()) {
+                fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+            } else {
+                fragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+            }
         }
     }
 }
