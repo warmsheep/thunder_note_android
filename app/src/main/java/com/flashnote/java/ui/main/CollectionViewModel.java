@@ -43,15 +43,15 @@ public class CollectionViewModel extends AndroidViewModel {
         repository.refresh();
     }
 
-    public void createCollection(String name, String description) {
-        repository.createCollection(name, description);
+    public void createCollection(String name, String description, Runnable onSuccess) {
+        repository.createCollection(name, description, onSuccess);
     }
 
-    public void updateCollection(Long id, String name, String description) {
-        repository.updateCollection(id, name, description);
+    public void updateCollection(Long id, String name, String description, Runnable onSuccess) {
+        repository.updateCollection(id, name, description, onSuccess);
     }
 
-    public void deleteCollection(Long id) {
-        repository.deleteCollection(id);
+    public void deleteCollection(Long id, Runnable onSuccess) {
+        repository.deleteCollection(id, onSuccess);
     }
 }

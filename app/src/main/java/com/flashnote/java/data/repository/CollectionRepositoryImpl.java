@@ -68,7 +68,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
     }
 
     @Override
-    public void createCollection(String name, String description) {
+    public void createCollection(String name, String description, Runnable onSuccess) {
         isLoading.setValue(true);
         Collection collection = new Collection();
         collection.setName(name);
@@ -86,6 +86,9 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                         List<Collection> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
                         updated.add(0, apiResponse.getData());
                         collectionsLiveData.setValue(updated);
+                        if (onSuccess != null) {
+                            onSuccess.run();
+                        }
                     } else {
                         errorMessage.setValue(apiResponse.getMessage());
                     }
@@ -103,7 +106,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
     }
 
     @Override
-    public void updateCollection(Long id, String name, String description) {
+    public void updateCollection(Long id, String name, String description, Runnable onSuccess) {
         isLoading.setValue(true);
         Collection collection = new Collection();
         collection.setName(name);
@@ -129,6 +132,9 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                             }
                             collectionsLiveData.setValue(updated);
                         }
+                        if (onSuccess != null) {
+                            onSuccess.run();
+                        }
                     } else {
                         errorMessage.setValue(apiResponse.getMessage());
                     }
@@ -146,7 +152,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
     }
 
     @Override
-    public void deleteCollection(Long id) {
+    public void deleteCollection(Long id, Runnable onSuccess) {
         isLoading.setValue(true);
         collectionService.delete(id).enqueue(new Callback<ApiResponse<Void>>() {
             @Override
@@ -165,6 +171,9 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                                 }
                             }
                             collectionsLiveData.setValue(updated);
+                        }
+                        if (onSuccess != null) {
+                            onSuccess.run();
                         }
                     } else {
                         errorMessage.setValue(apiResponse.getMessage());

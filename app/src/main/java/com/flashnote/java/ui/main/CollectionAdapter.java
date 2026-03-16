@@ -3,26 +3,59 @@ package com.flashnote.java.ui.main;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.DiffUtil;
-import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.flashnote.java.data.model.Collection;
+import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.databinding.ItemCollectionBinding;
+import com.flashnote.java.databinding.ItemCollectionNoteBinding;
 
-public class CollectionAdapter extends ListAdapter<Collection, CollectionAdapter.CollectionViewHolder> {
-    private final OnCollectionClickListener listener;
+import java.util.ArrayList;
+import java.util.List;
 
-    public interface OnCollectionClickListener {
-        void onEdit(Collection collection);
-        void onDelete(Collection collection);
+public class CollectionAdapter extends RecyclerView.Adapter<CollectionAdapter.CollectionViewHolder> {
+    public interface OnFlashNoteClickListener {
+        void onOpenFlashNote(FlashNote flashNote);
+
+        void onEditCollection(CollectionGroup group);
+
+        void onDeleteCollection(CollectionGroup group);
     }
 
-    public CollectionAdapter(OnCollectionClickListener listener) {
-        super(new CollectionDiffCallback());
+    public static class CollectionGroup {
+        private final String name;
+        private final List<FlashNote> notes;
+
+        public CollectionGroup(String name, List<FlashNote> notes) {
+            this.name = name;
+            this.notes = notes;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public List<FlashNote> getNotes() {
+            return notes;
+        }
+    }
+
+    private final List<CollectionGroup> items = new ArrayList<>();
+    private final OnFlashNoteClickListener listener;
+    private final String[] fallbackIcons = new String[]{"💼", "📚", "🌅", "📋", "💡", "✈️", "📝", "🍀", "🎯", "📷"};
+
+    public CollectionAdapter(OnFlashNoteClickListener listener) {
         this.listener = listener;
+    }
+
+    public void submitList(List<CollectionGroup> groups) {
+        items.clear();
+        if (groups != null) {
+            items.addAll(groups);
+        }
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -35,7 +68,22 @@ public class CollectionAdapter extends ListAdapter<Collection, CollectionAdapter
 
     @Override
     public void onBindViewHolder(@NonNull CollectionViewHolder holder, int position) {
-        holder.bind(getItem(position));
+        holder.bind(items.get(position));
+    }
+
+    @Override
+    public int getItemCount() {
+        return items.size();
+    }
+
+    private String resolveIcon(FlashNote note) {
+        String icon = note.getIcon();
+        if (icon != null && !icon.trim().isEmpty()) {
+            return icon;
+        }
+        Long id = note.getId();
+        int index = id == null ? 0 : (int) (Math.abs(id) % fallbackIcons.length);
+        return fallbackIcons[index];
     }
 
     class CollectionViewHolder extends RecyclerView.ViewHolder {
@@ -46,42 +94,36 @@ public class CollectionAdapter extends ListAdapter<Collection, CollectionAdapter
             this.binding = binding;
         }
 
-        void bind(Collection collection) {
-            binding.nameText.setText(collection.getName());
-            
-            String description = collection.getDescription();
-            if (description != null && !description.isEmpty()) {
-                binding.descriptionText.setText(description);
-                binding.descriptionText.setVisibility(View.VISIBLE);
-            } else {
-                binding.descriptionText.setVisibility(View.GONE);
+        void bind(CollectionGroup group) {
+            binding.nameText.setText(group.getName());
+            binding.countText.setText(String.valueOf(group.getNotes().size()));
+            binding.notesContainer.removeAllViews();
+            binding.editButton.setOnClickListener(v -> listener.onEditCollection(group));
+            binding.deleteButton.setOnClickListener(v -> listener.onDeleteCollection(group));
+
+            if (group.getNotes().isEmpty()) {
+                TextView emptyText = new TextView(binding.getRoot().getContext());
+                emptyText.setText("暂无闪记");
+                emptyText.setTextSize(14f);
+                emptyText.setTextColor(binding.getRoot().getResources().getColor(android.R.color.darker_gray));
+                binding.notesContainer.addView(emptyText);
+                return;
             }
 
-            binding.editButton.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onEdit(collection);
+            LayoutInflater inflater = LayoutInflater.from(binding.getRoot().getContext());
+            for (FlashNote note : group.getNotes()) {
+                ItemCollectionNoteBinding noteBinding = ItemCollectionNoteBinding.inflate(inflater, binding.notesContainer, false);
+                noteBinding.iconText.setText(resolveIcon(note));
+                noteBinding.nameText.setText(note.getTitle());
+                String summary = note.getContent();
+                if (summary == null || summary.trim().isEmpty()) {
+                    noteBinding.summaryText.setText("点击进入继续记录");
+                } else {
+                    noteBinding.summaryText.setText(summary);
                 }
-            });
-
-            binding.deleteButton.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onDelete(collection);
-                }
-            });
-        }
-    }
-
-    static class CollectionDiffCallback extends DiffUtil.ItemCallback<Collection> {
-        @Override
-        public boolean areItemsTheSame(@NonNull Collection oldItem, @NonNull Collection newItem) {
-            return oldItem.getId().equals(newItem.getId());
-        }
-
-        @Override
-        public boolean areContentsTheSame(@NonNull Collection oldItem, @NonNull Collection newItem) {
-            return oldItem.getName().equals(newItem.getName()) &&
-                   (oldItem.getDescription() == null ? newItem.getDescription() == null : 
-                    oldItem.getDescription().equals(newItem.getDescription()));
+                noteBinding.getRoot().setOnClickListener(v -> listener.onOpenFlashNote(note));
+                binding.notesContainer.addView(noteBinding.getRoot());
+            }
         }
     }
 }

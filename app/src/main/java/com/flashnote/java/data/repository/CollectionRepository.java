@@ -15,9 +15,9 @@ public interface CollectionRepository {
 
     void refresh();
 
-    void createCollection(String name, String description);
+    void createCollection(String name, String description, Runnable onSuccess);
     
-    void updateCollection(Long id, String name, String description);
+    void updateCollection(Long id, String name, String description, Runnable onSuccess);
     
-    void deleteCollection(Long id);
+    void deleteCollection(Long id, Runnable onSuccess);
 }
