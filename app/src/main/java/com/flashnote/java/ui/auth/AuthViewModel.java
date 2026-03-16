@@ -50,9 +50,9 @@ public class AuthViewModel extends AndroidViewModel {
         authRepository.login(username.trim(), password, new AuthRepository.AuthCallback() {
             @Override
             public void onSuccess(LoginResponse response) {
+                authState.postValue(AuthState.SUCCESS);
                 loginResponse.postValue(response);
                 currentUser.postValue(response.getUser());
-                authState.postValue(AuthState.SUCCESS);
             }
 
             @Override

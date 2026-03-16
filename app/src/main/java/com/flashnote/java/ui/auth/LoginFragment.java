@@ -38,7 +38,9 @@ public class LoginFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         FlashNoteApp app = FlashNoteApp.getInstance();
         tokenManager = app.getTokenManager();
-        authViewModel = new ViewModelProvider(requireActivity()).get(AuthViewModel.class);
+        if (getActivity() != null) {
+            authViewModel = new ViewModelProvider(getActivity()).get(AuthViewModel.class);
+        }
 
         binding.goRegisterText.setOnClickListener(v -> {
             ShellNavigator navigator = getNavigator();
@@ -48,31 +50,29 @@ public class LoginFragment extends Fragment {
         });
         binding.loginButton.setOnClickListener(v -> attemptLogin());
 
-        authViewModel.getAuthState().observe(getViewLifecycleOwner(), state -> {
-            if (state == null || binding == null) {
-                return;
-            }
-            switch (state) {
-                case LOADING:
-                    setLoading(true);
-                    break;
-                case SUCCESS:
-                    setLoading(false);
-                    ShellNavigator navigator = getNavigator();
-                    if (navigator != null) {
-                        navigator.openMainShell();
-                    }
-                    break;
-                case ERROR:
-                case IDLE:
-                default:
-                    setLoading(false);
-                    break;
-            }
-        });
+        if (authViewModel != null) {
+            authViewModel.getAuthState().observe(getViewLifecycleOwner(), state -> {
+                if (state == null || binding == null) {
+                    return;
+                }
+                switch (state) {
+                    case LOADING:
+                        setLoading(true);
+                        break;
+                    case SUCCESS:
+                        setLoading(false);
+                        break;
+                    case ERROR:
+                    case IDLE:
+                    default:
+                        setLoading(false);
+                        break;
+                }
+            });
 
-        authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), this::handleErrorFromViewModel);
-        authViewModel.getLoginResponse().observe(getViewLifecycleOwner(), this::persistToken);
+            authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), this::handleErrorFromViewModel);
+            authViewModel.getLoginResponse().observe(getViewLifecycleOwner(), this::handleLoginResponse);
+        }
     }
 
     private void attemptLogin() {
@@ -121,8 +121,8 @@ public class LoginFragment extends Fragment {
         showError(message);
     }
 
-    private void persistToken(@Nullable LoginResponse response) {
-        if (response == null || tokenManager == null) {
+    private void handleLoginResponse(@Nullable LoginResponse response) {
+        if (response == null || tokenManager == null || !isAdded()) {
             return;
         }
         String accessToken = response.getToken();
@@ -134,6 +134,11 @@ public class LoginFragment extends Fragment {
                 response.getRefreshToken(),
                 response.getExpiresIn()
         );
+
+        ShellNavigator navigator = getNavigator();
+        if (navigator != null) {
+            navigator.openMainShell();
+        }
     }
 
     private void setLoading(boolean loading) {
@@ -156,8 +161,8 @@ public class LoginFragment extends Fragment {
 
     @Nullable
     private ShellNavigator getNavigator() {
-        if (requireActivity() instanceof ShellNavigator) {
-            return (ShellNavigator) requireActivity();
+        if (getActivity() instanceof ShellNavigator navigator) {
+            return navigator;
         }
         return null;
     }
