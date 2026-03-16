@@ -15,9 +15,9 @@ public interface FlashNoteRepository {
 
     void refresh();
 
-    void createNote(String title, String content);
+    void createNote(String title, String icon, String collectionName);
     
-    void updateNote(Long id, String title, String content);
+    void updateNote(Long id, String title, String content, String icon, String collectionName);
     
     void deleteNote(Long id);
 }

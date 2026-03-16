@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentCaptor.forClass;
 
 import androidx.lifecycle.LiveData;
 
@@ -14,6 +15,7 @@ import com.flashnote.java.data.remote.FlashNoteService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
@@ -66,18 +68,28 @@ public class FlashNoteRepositoryImplTest {
 
     @Test
     public void create_callsApi() {
-        repository.createNote("Test", "Content");
+        repository.createNote("Test", "💡", "工作");
 
-        verify(flashNoteService).create(any(FlashNote.class));
+        ArgumentCaptor<FlashNote> captor = forClass(FlashNote.class);
+        verify(flashNoteService).create(captor.capture());
+        FlashNote payload = captor.getValue();
+        org.junit.Assert.assertEquals("Test", payload.getTitle());
+        org.junit.Assert.assertEquals("💡", payload.getIcon());
+        org.junit.Assert.assertEquals("工作", payload.getTags());
     }
 
     @Test
     public void update_callsApi() {
         Long noteId = 1L;
 
-        repository.updateNote(noteId, "Updated", "Content");
+        repository.updateNote(noteId, "Updated", "Content", "📚", "学习");
 
-        verify(flashNoteService).update(eq(noteId), any(FlashNote.class));
+        ArgumentCaptor<FlashNote> captor = forClass(FlashNote.class);
+        verify(flashNoteService).update(eq(noteId), captor.capture());
+        FlashNote payload = captor.getValue();
+        org.junit.Assert.assertEquals("Updated", payload.getTitle());
+        org.junit.Assert.assertEquals("📚", payload.getIcon());
+        org.junit.Assert.assertEquals("学习", payload.getTags());
     }
 
     @Test

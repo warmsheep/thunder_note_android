@@ -72,11 +72,13 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
     }
 
     @Override
-    public void createNote(String title, String content) {
+    public void createNote(String title, String icon, String collectionName) {
         isLoading.postValue(true);
         FlashNote note = new FlashNote();
         note.setTitle(title);
-        note.setContent(content);
+        note.setIcon(icon);
+        note.setContent("");
+        note.setTags(collectionName);
         
         flashNoteService.create(note).enqueue(new Callback<ApiResponse<FlashNote>>() {
             @Override
@@ -107,11 +109,13 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
     }
 
     @Override
-    public void updateNote(Long id, String title, String content) {
+    public void updateNote(Long id, String title, String content, String icon, String collectionName) {
         isLoading.postValue(true);
         FlashNote note = new FlashNote();
         note.setTitle(title);
         note.setContent(content);
+        note.setIcon(icon);
+        note.setTags(collectionName);
         
         flashNoteService.update(id, note).enqueue(new Callback<ApiResponse<FlashNote>>() {
             @Override

@@ -13,6 +13,9 @@ public class FlashNote {
     
     @SerializedName("title")
     private String title;
+
+    @SerializedName("icon")
+    private String icon;
     
     @SerializedName("content")
     private String content;
@@ -63,6 +66,14 @@ public class FlashNote {
 
     public String getContent() {
         return content;
+    }
+
+    public String getIcon() {
+        return icon;
+    }
+
+    public void setIcon(String icon) {
+        this.icon = icon;
     }
 
     public void setContent(String content) {
