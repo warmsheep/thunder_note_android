@@ -80,11 +80,20 @@ public class ChatFragment extends Fragment {
         if (viewModel.getMessages() != null) {
             viewModel.getMessages().observe(getViewLifecycleOwner(), adapter::submitList);
         }
+        viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
+            if (error != null && !error.trim().isEmpty()) {
+                Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
+            }
+        });
 
         binding.sendButton.setOnClickListener(v -> {
             String text = binding.messageInput.getText() == null ? "" : binding.messageInput.getText().toString();
-            viewModel.sendText(text);
-            binding.messageInput.setText(null);
+            viewModel.sendText(text, () -> {
+                if (!isAdded()) {
+                    return;
+                }
+                requireActivity().runOnUiThread(() -> binding.messageInput.setText(null));
+            });
         });
     }
 

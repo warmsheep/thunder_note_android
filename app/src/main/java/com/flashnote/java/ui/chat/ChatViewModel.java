@@ -33,11 +33,15 @@ public class ChatViewModel extends AndroidViewModel {
         return messages;
     }
 
-    public void sendText(String text) {
+    public LiveData<String> getErrorMessage() {
+        return repository.getErrorMessage();
+    }
+
+    public void sendText(String text, Runnable onSuccess) {
         Long id = flashNoteId.getValue();
         if (id == null || text == null || text.trim().isEmpty()) {
             return;
         }
-        repository.sendText(id, text.trim());
+        repository.sendText(id, text.trim(), onSuccess);
     }
 }

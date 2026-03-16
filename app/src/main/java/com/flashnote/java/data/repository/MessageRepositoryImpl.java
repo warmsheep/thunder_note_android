@@ -78,7 +78,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     @Override
-    public void sendText(long flashNoteId, String content) {
+    public void sendText(long flashNoteId, String content, Runnable onSuccess) {
         isLoading.setValue(true);
         Message message = new Message();
         message.setFlashNoteId(flashNoteId);
@@ -98,6 +98,9 @@ public class MessageRepositoryImpl implements MessageRepository {
                         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
                         updated.add(apiResponse.getData());
                         liveData.setValue(updated);
+                        if (onSuccess != null) {
+                            onSuccess.run();
+                        }
                     } else {
                         errorMessage.setValue(apiResponse.getMessage());
                     }

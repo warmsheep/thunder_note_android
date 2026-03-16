@@ -17,5 +17,5 @@ public interface MessageRepository {
 
     void bindFlashNote(long flashNoteId);
 
-    void sendText(long flashNoteId, String content);
+    void sendText(long flashNoteId, String content, Runnable onSuccess);
 }
