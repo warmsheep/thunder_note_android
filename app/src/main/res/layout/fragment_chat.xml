@@ -8,35 +8,38 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/surface"
-        android:gravity="center_vertical"
+        android:background="@color/top_bar_background"
+        android:gravity="center"
         android:orientation="horizontal"
         android:padding="12dp">
 
-        <TextView
+        <ImageView
             android:id="@+id/backButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:gravity="center"
-            android:text="←"
-            android:textSize="20sp" />
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_chat_back" />
 
         <TextView
             android:id="@+id/titleText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textColor="@color/text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
             android:gravity="center"
-            android:text="⋯"
-            android:textSize="20sp" />
+            android:textColor="@color/text_primary"
+            android:textSize="14sp" />
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_chat_more" />
     </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="@color/border" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
@@ -53,13 +56,12 @@
         android:orientation="horizontal"
         android:padding="12dp">
 
-        <TextView
+        <ImageView
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:background="@drawable/bg_logo_primary_soft"
-            android:gravity="center"
-            android:text="+"
-            android:textSize="20sp" />
+            android:padding="6dp"
+            android:src="@drawable/ic_chat_add" />
 
         <EditText
             android:id="@+id/messageInput"
@@ -71,27 +73,25 @@
             android:hint="输入内容..."
             android:maxLines="1"
             android:paddingLeft="14dp"
-            android:paddingRight="14dp" />
+            android:paddingRight="14dp"
+            android:textSize="13sp" />
 
-        <TextView
+        <ImageView
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/bg_logo_primary_soft"
-            android:gravity="center"
-            android:text="🎤"
-            android:textSize="16sp" />
+            android:padding="6dp"
+            android:src="@drawable/ic_chat_mic" />
 
-        <TextView
+        <ImageView
             android:id="@+id/sendButton"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/bg_button_primary_rounded"
-            android:gravity="center"
-            android:text="➤"
-            android:textColor="@color/white"
-            android:textSize="16sp" />
+            android:padding="6dp"
+            android:src="@drawable/ic_chat_send" />
     </LinearLayout>
 
 </LinearLayout>

@@ -4,7 +4,18 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingBottom="12dp">
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/timeDivider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:textColor="@color/text_time_divider"
+        android:textSize="11sp"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/leftContainer"
@@ -15,30 +26,30 @@
 
         <TextView
             android:id="@+id/avatarText"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:background="@drawable/bg_logo_primary_soft"
             android:gravity="center"
             android:text="🤖"
-            android:textSize="20sp" />
+            android:textSize="16sp" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/bubbleCard"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            app:cardCornerRadius="12dp">
+            app:cardCornerRadius="10dp">
 
             <TextView
                 android:id="@+id/messageText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:paddingLeft="14dp"
-                android:paddingTop="10dp"
-                android:paddingRight="14dp"
-                android:paddingBottom="10dp"
+                android:paddingLeft="12dp"
+                android:paddingTop="8dp"
+                android:paddingRight="12dp"
+                android:paddingBottom="8dp"
                 android:textColor="@color/text_primary"
-                android:textSize="15sp" />
+                android:textSize="13sp" />
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
@@ -50,33 +61,27 @@
         android:orientation="horizontal"
         android:visibility="gone">
 
-        <com.google.android.material.card.MaterialCardView
+        <TextView
+            android:id="@+id/rightMessageText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            app:cardBackgroundColor="@color/chat_mine"
-            app:cardCornerRadius="12dp">
-
-            <TextView
-                android:id="@+id/rightMessageText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingLeft="14dp"
-                android:paddingTop="10dp"
-                android:paddingRight="14dp"
-                android:paddingBottom="10dp"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp" />
-        </com.google.android.material.card.MaterialCardView>
+            android:background="@drawable/bg_chat_mine"
+            android:paddingLeft="12dp"
+            android:paddingTop="8dp"
+            android:paddingRight="12dp"
+            android:paddingBottom="8dp"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/rightAvatarText"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:background="@drawable/bg_logo_primary_soft"
             android:gravity="center"
             android:text="😊"
-            android:textSize="20sp" />
+            android:textSize="16sp" />
     </LinearLayout>
 
 </LinearLayout>

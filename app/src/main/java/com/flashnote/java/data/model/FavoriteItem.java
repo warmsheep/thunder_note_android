@@ -2,6 +2,8 @@ package com.flashnote.java.data.model;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.time.LocalDateTime;
+
 public class FavoriteItem {
     @SerializedName("id")
     private Long id;
@@ -20,6 +22,12 @@ public class FavoriteItem {
 
     @SerializedName("content")
     private String content;
+
+    @SerializedName("createdAt")
+    private LocalDateTime createdAt;
+
+    @SerializedName("flashNoteCreatedAt")
+    private LocalDateTime flashNoteCreatedAt;
 
     public Long getId() {
         return id;
@@ -67,5 +75,21 @@ public class FavoriteItem {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getFlashNoteCreatedAt() {
+        return flashNoteCreatedAt;
+    }
+
+    public void setFlashNoteCreatedAt(LocalDateTime flashNoteCreatedAt) {
+        this.flashNoteCreatedAt = flashNoteCreatedAt;
     }
 }

@@ -10,6 +10,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.databinding.ItemChatMessageBinding;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +20,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public interface OnMessageLongClickListener {
         void onLongClick(Message message, View clickedView);
     }
+
+    private static final long TEN_MINUTES_IN_MILLIS = 10 * 60 * 1000;
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final List<Message> items = new ArrayList<>();
     private final OnMessageLongClickListener listener;
@@ -42,7 +48,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
-        holder.bind(items.get(position));
+        holder.bind(items.get(position), position);
     }
 
     @Override
@@ -58,7 +64,27 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             this.binding = binding;
         }
 
-        void bind(Message message) {
+        void bind(Message message, int position) {
+            boolean showTimeDivider = false;
+            if (position > 0 && message.getCreatedAt() != null) {
+                Message prevMessage = items.get(position - 1);
+                if (prevMessage.getCreatedAt() != null) {
+                    LocalDateTime currentTime = message.getCreatedAt();
+                    LocalDateTime prevTime = prevMessage.getCreatedAt();
+                    Duration duration = Duration.between(prevTime, currentTime);
+                    if (duration.toMillis() >= TEN_MINUTES_IN_MILLIS) {
+                        showTimeDivider = true;
+                    }
+                }
+            }
+
+            if (showTimeDivider && message.getCreatedAt() != null) {
+                binding.timeDivider.setVisibility(View.VISIBLE);
+                binding.timeDivider.setText(message.getCreatedAt().format(TIME_FORMATTER));
+            } else {
+                binding.timeDivider.setVisibility(View.GONE);
+            }
+
             boolean mine = !"assistant".equals(message.getRole()) && !"ai".equals(message.getRole());
             binding.avatarText.setText(mine ? "😊" : "🤖");
             binding.messageText.setText(message.getContent());

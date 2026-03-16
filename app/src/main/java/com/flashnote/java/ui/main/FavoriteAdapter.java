@@ -1,6 +1,7 @@
 package com.flashnote.java.ui.main;
 
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -11,6 +12,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.flashnote.java.data.model.FavoriteItem;
 import com.flashnote.java.databinding.ItemFavoriteBinding;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.FavoriteViewHolder> {
     public interface OnFavoriteActionListener {
         void onOpen(FavoriteItem item);
@@ -19,6 +23,7 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
     }
 
     private final OnFavoriteActionListener listener;
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     public FavoriteAdapter(OnFavoriteActionListener listener) {
         super(new FavoriteDiffCallback());
@@ -48,6 +53,15 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
         void bind(FavoriteItem item) {
             binding.titleText.setText(item.getFlashNoteTitle() == null ? "已收藏消息" : item.getFlashNoteTitle());
             binding.contentText.setText(item.getContent());
+            
+            LocalDateTime displayTime = item.getFlashNoteCreatedAt() != null ? item.getFlashNoteCreatedAt() : item.getCreatedAt();
+            if (displayTime != null) {
+                binding.timeText.setText(displayTime.format(TIME_FORMATTER));
+                binding.timeText.setVisibility(View.VISIBLE);
+            } else {
+                binding.timeText.setVisibility(View.GONE);
+            }
+            
             binding.getRoot().setOnClickListener(v -> listener.onOpen(item));
             binding.removeButton.setOnClickListener(v -> listener.onRemove(item));
         }

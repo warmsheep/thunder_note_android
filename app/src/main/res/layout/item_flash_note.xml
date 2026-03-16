@@ -32,8 +32,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/text_primary"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/summaryText"
@@ -42,7 +41,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
+            android:textSize="12sp" />
     </LinearLayout>
 
 </LinearLayout>

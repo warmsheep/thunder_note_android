@@ -80,10 +80,10 @@ public class MainShellFragment extends Fragment {
     }
 
     private void applyEmojiIcons() {
-        setEmojiIcon(R.id.tab_flashnote, "⚡");
-        setEmojiIcon(R.id.tab_collection, "📁");
-        setEmojiIcon(R.id.tab_favorite, "⭐");
-        setEmojiIcon(R.id.tab_profile, "👤");
+        binding.bottomNav.getMenu().findItem(R.id.tab_flashnote).setIcon(R.drawable.ic_nav_flashnote);
+        binding.bottomNav.getMenu().findItem(R.id.tab_collection).setIcon(R.drawable.ic_nav_collection);
+        binding.bottomNav.getMenu().findItem(R.id.tab_favorite).setIcon(R.drawable.ic_nav_favorite);
+        binding.bottomNav.getMenu().findItem(R.id.tab_profile).setIcon(R.drawable.ic_nav_profile);
     }
 
     private void setEmojiIcon(int itemId, @NonNull String emoji) {

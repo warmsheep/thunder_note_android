@@ -12,15 +12,19 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="@color/border" />
+
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/surface"
-        android:elevation="8dp"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp"
-        app:itemIconTint="@null"
+        android:background="@color/nav_background"
+        android:elevation="0dp"
+        app:elevation="0dp"
+        app:itemIconTint="@color/tab_text_colors"
         app:itemTextColor="@color/tab_text_colors"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/menu_bottom_tabs" />

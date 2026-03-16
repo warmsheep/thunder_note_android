@@ -22,12 +22,10 @@
             android:orientation="vertical"
             android:padding="12dp">
 
-            <TextView
+            <ImageView
                 android:layout_width="28dp"
                 android:layout_height="28dp"
-                android:gravity="center"
-                android:text="📤"
-                android:textSize="18sp" />
+                android:src="@android:drawable/ic_menu_share" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -47,12 +45,10 @@
             android:orientation="vertical"
             android:padding="12dp">
 
-            <TextView
+            <ImageView
                 android:layout_width="28dp"
                 android:layout_height="28dp"
-                android:gravity="center"
-                android:text="⭐"
-                android:textSize="18sp" />
+                android:src="@drawable/ic_action_favorite" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -72,12 +68,10 @@
             android:orientation="vertical"
             android:padding="12dp">
 
-            <TextView
+            <ImageView
                 android:layout_width="28dp"
                 android:layout_height="28dp"
-                android:gravity="center"
-                android:text="🗑️"
-                android:textSize="18sp" />
+                android:src="@android:drawable/ic_menu_delete" />
 
             <TextView
                 android:layout_width="wrap_content"

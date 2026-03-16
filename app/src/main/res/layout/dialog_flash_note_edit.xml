@@ -42,17 +42,16 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:text="选择图标"
             android:textColor="@color/text_primary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textSize="12sp" />
 
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/iconChipGroup"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="4dp"
             app:singleSelection="true" />
 
     </LinearLayout>
