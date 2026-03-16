@@ -8,7 +8,9 @@ import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.http.Body;
+import retrofit2.http.DELETE;
 import retrofit2.http.POST;
+import retrofit2.http.Path;
 
 public interface MessageService {
     @POST("api/messages/list")
@@ -16,4 +18,7 @@ public interface MessageService {
 
     @POST("api/messages")
     Call<ApiResponse<Message>> send(@Body Message message);
+
+    @DELETE("api/messages/{id}")
+    Call<ApiResponse<Void>> delete(@Path("id") Long id);
 }

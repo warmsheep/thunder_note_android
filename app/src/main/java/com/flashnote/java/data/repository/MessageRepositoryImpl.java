@@ -154,4 +154,45 @@ public class MessageRepositoryImpl implements MessageRepository {
         conversations.put(flashNoteId, created);
         return created;
     }
+
+    @Override
+    public void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess) {
+        isLoading.setValue(true);
+        messageService.delete(messageId).enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Void>> call, 
+                                 Response<ApiResponse<Void>> response) {
+                isLoading.setValue(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    ApiResponse<Void> apiResponse = response.body();
+                    if (apiResponse.isSuccess()) {
+                        MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
+                        List<Message> current = liveData.getValue();
+                        if (current != null) {
+                            List<Message> updated = new ArrayList<>();
+                            for (Message msg : current) {
+                                if (msg.getId() == null || msg.getId() != messageId) {
+                                    updated.add(msg);
+                                }
+                            }
+                            liveData.setValue(updated);
+                        }
+                        if (onSuccess != null) {
+                            onSuccess.run();
+                        }
+                    } else {
+                        errorMessage.setValue(apiResponse.getMessage());
+                    }
+                } else {
+                    errorMessage.setValue("Failed to delete message: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                isLoading.setValue(false);
+                errorMessage.setValue("Network error: " + t.getMessage());
+            }
+        });
+    }
 }

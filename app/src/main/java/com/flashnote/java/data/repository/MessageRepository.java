@@ -18,4 +18,6 @@ public interface MessageRepository {
     void bindFlashNote(long flashNoteId);
 
     void sendText(long flashNoteId, String content, Runnable onSuccess);
+
+    void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess);
 }

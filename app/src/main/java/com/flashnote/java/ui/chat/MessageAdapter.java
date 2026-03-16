@@ -15,7 +15,7 @@ import java.util.List;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
     public interface OnMessageLongClickListener {
-        void onLongClick(Message message);
+        void onLongClick(Message message, View clickedView);
     }
 
     private final List<Message> items = new ArrayList<>();
@@ -76,7 +76,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
             binding.getRoot().setOnLongClickListener(v -> {
                 if (listener != null) {
-                    listener.onLongClick(message);
+                    listener.onLongClick(message, v);
                 }
                 return true;
             });

@@ -1,9 +1,11 @@
 package com.flashnote.java.ui.chat;
 
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -13,10 +15,12 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.flashnote.java.FlashNoteApp;
+import com.flashnote.java.R;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.repository.FavoriteRepository;
 import com.flashnote.java.databinding.FragmentChatBinding;
+import com.flashnote.java.databinding.PopupMessageActionsBinding;
 import com.flashnote.java.ui.main.FlashNoteViewModel;
 
 import java.util.ArrayList;
@@ -62,7 +66,7 @@ public class ChatFragment extends Fragment {
         FavoriteRepository favoriteRepository = FlashNoteApp.getInstance().getFavoriteRepository();
         ChatViewModel viewModel = new ViewModelProvider(this).get(ChatViewModel.class);
         FlashNoteViewModel flashNoteViewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
-        MessageAdapter adapter = new MessageAdapter(message -> showMessageActions(message, flashNoteId, favoriteRepository, viewModel, flashNoteViewModel));
+        MessageAdapter adapter = new MessageAdapter((message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, viewModel, flashNoteViewModel, clickedView));
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerView.setAdapter(adapter);
 
@@ -96,21 +100,83 @@ public class ChatFragment extends Fragment {
                                     long currentFlashNoteId,
                                     FavoriteRepository favoriteRepository,
                                     ChatViewModel chatViewModel,
-                                    FlashNoteViewModel flashNoteViewModel) {
-        if (!isAdded()) {
+                                    FlashNoteViewModel flashNoteViewModel,
+                                    View clickedView) {
+        if (!isAdded() || binding == null) {
             return;
         }
 
-        String[] actions = new String[]{"收藏", "转发"};
+        PopupMessageActionsBinding popupBinding = PopupMessageActionsBinding.inflate(getLayoutInflater());
+        
+        PopupWindow popupWindow = new PopupWindow(
+                popupBinding.getRoot(),
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                true
+        );
+        popupWindow.setBackgroundDrawable(null);
+        popupWindow.setOutsideTouchable(true);
+
+        popupBinding.actionForward.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            showForwardDialog(message, currentFlashNoteId, chatViewModel, flashNoteViewModel);
+        });
+
+        popupBinding.actionFavorite.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            handleFavorite(message, favoriteRepository);
+        });
+
+        popupBinding.actionDelete.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            handleDelete(message, chatViewModel);
+        });
+
+        popupBinding.getRoot().measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int popupWidth = popupBinding.getRoot().getMeasuredWidth();
+        int popupHeight = popupBinding.getRoot().getMeasuredHeight();
+
+        int[] location = new int[2];
+        clickedView.getLocationOnScreen(location);
+        int viewX = location[0];
+        int viewY = location[1];
+        int viewHeight = clickedView.getHeight();
+
+        int screenHeight = binding.getRoot().getResources().getDisplayMetrics().heightPixels;
+        boolean showAbove = viewY > screenHeight / 2;
+
+        int xOff = -popupWidth / 2;
+        int yOff = showAbove ? -viewHeight - popupHeight - 10 : 10;
+
+        popupWindow.showAtLocation(clickedView, Gravity.NO_GRAVITY, viewX + clickedView.getWidth() / 2 + xOff, viewY + yOff);
+    }
+
+    private void handleDelete(Message message, ChatViewModel chatViewModel) {
+        if (message.getId() == null) {
+            android.content.Context context = getContext();
+            if (context != null) {
+                Toast.makeText(context, "消息尚未保存，无法删除", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+
         new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("消息操作")
-                .setItems(actions, (dialog, which) -> {
-                    if (which == 0) {
-                        handleFavorite(message, favoriteRepository);
-                    } else if (which == 1) {
-                        showForwardDialog(message, currentFlashNoteId, chatViewModel, flashNoteViewModel);
-                    }
+                .setTitle("删除消息")
+                .setMessage("确定要删除这条消息吗？")
+                .setPositiveButton("删除", (dialog, which) -> {
+                    chatViewModel.deleteMessage(message.getId(), () -> {
+                        if (!isAdded() || getActivity() == null) {
+                            return;
+                        }
+                        getActivity().runOnUiThread(() -> {
+                            android.content.Context context = getContext();
+                            if (isAdded() && context != null) {
+                                Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    });
                 })
+                .setNegativeButton("取消", null)
                 .show();
     }
 
