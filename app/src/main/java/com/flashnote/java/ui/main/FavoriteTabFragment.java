@@ -37,10 +37,13 @@ public class FavoriteTabFragment extends Fragment {
             @Override
             public void onOpen(FavoriteItem item) {
                 if (item.getFlashNoteId() == null) {
-                    Toast.makeText(requireContext(), "该收藏未关联闪记", Toast.LENGTH_SHORT).show();
+                    android.content.Context context = getContext();
+                    if (context != null) {
+                        Toast.makeText(context, "该收藏未关联闪记", Toast.LENGTH_SHORT).show();
+                    }
                     return;
                 }
-                if (requireActivity() instanceof ShellNavigator navigator) {
+                if (getActivity() instanceof ShellNavigator navigator) {
                     String title = item.getFlashNoteTitle() == null ? "已收藏消息" : item.getFlashNoteTitle();
                     navigator.openChat(item.getFlashNoteId(), title);
                 }
@@ -51,18 +54,28 @@ public class FavoriteTabFragment extends Fragment {
                 viewModel.removeFavorite(item.getMessageId(), new FavoriteRepository.ActionCallback() {
                     @Override
                     public void onSuccess(String message) {
-                        if (!isAdded()) {
+                        if (!isAdded() || getActivity() == null) {
                             return;
                         }
-                        requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show());
+                        getActivity().runOnUiThread(() -> {
+                            android.content.Context context = getContext();
+                            if (isAdded() && context != null) {
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+                            }
+                        });
                     }
 
                     @Override
                     public void onError(String message, int code) {
-                        if (!isAdded()) {
+                        if (!isAdded() || getActivity() == null) {
                             return;
                         }
-                        requireActivity().runOnUiThread(() -> Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show());
+                        getActivity().runOnUiThread(() -> {
+                            android.content.Context context = getContext();
+                            if (isAdded() && context != null) {
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+                            }
+                        });
                     }
                 });
             }
@@ -79,8 +92,9 @@ public class FavoriteTabFragment extends Fragment {
         });
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
-            if (error != null && !error.isEmpty()) {
-                Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
+            android.content.Context context = getContext();
+            if (context != null && error != null && !error.isEmpty()) {
+                Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
             }
         });
     }

@@ -79,10 +79,13 @@ public class RegisterFragment extends Fragment {
                 authRepository.login(username, password, new AuthRepository.AuthCallback() {
                     @Override
                     public void onSuccess(LoginResponse response) {
-                        if (!isAdded()) {
+                        if (!isAdded() || getActivity() == null) {
                             return;
                         }
-                        requireActivity().runOnUiThread(() -> {
+                        getActivity().runOnUiThread(() -> {
+                            if (!isAdded()) {
+                                return;
+                            }
                             setLoading(false);
                             persistToken(response);
                             Toast.makeText(requireContext(), "注册成功", Toast.LENGTH_SHORT).show();
@@ -95,10 +98,13 @@ public class RegisterFragment extends Fragment {
 
                     @Override
                     public void onError(String message, int code) {
-                        if (!isAdded()) {
+                        if (!isAdded() || getActivity() == null) {
                             return;
                         }
-                        requireActivity().runOnUiThread(() -> {
+                        getActivity().runOnUiThread(() -> {
+                            if (!isAdded()) {
+                                return;
+                            }
                             setLoading(false);
                             renderError(getString(R.string.error_login_default));
                         });
@@ -108,10 +114,13 @@ public class RegisterFragment extends Fragment {
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded()) {
+                if (!isAdded() || getActivity() == null) {
                     return;
                 }
-                requireActivity().runOnUiThread(() -> {
+                getActivity().runOnUiThread(() -> {
+                    if (!isAdded()) {
+                        return;
+                    }
                     setLoading(false);
                     if (message == null || message.trim().isEmpty()) {
                         renderError(getString(R.string.error_register_unavailable));
@@ -158,8 +167,8 @@ public class RegisterFragment extends Fragment {
 
     @Nullable
     private ShellNavigator getNavigator() {
-        if (requireActivity() instanceof ShellNavigator) {
-            return (ShellNavigator) requireActivity();
+        if (getActivity() instanceof ShellNavigator navigator) {
+            return navigator;
         }
         return null;
     }

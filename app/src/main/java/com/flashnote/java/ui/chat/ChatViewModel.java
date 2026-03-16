@@ -44,4 +44,11 @@ public class ChatViewModel extends AndroidViewModel {
         }
         repository.sendText(id, text.trim(), onSuccess);
     }
+
+    public void sendTextToFlashNote(long targetFlashNoteId, String text, Runnable onSuccess) {
+        if (text == null || text.trim().isEmpty()) {
+            return;
+        }
+        repository.sendText(targetFlashNoteId, text.trim(), onSuccess);
+    }
 }

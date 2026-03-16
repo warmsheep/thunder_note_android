@@ -41,7 +41,7 @@ public class SplashFragment extends Fragment {
     }
 
     private void navigateNext() {
-        if (!isAdded()) {
+        if (!isAdded() || getActivity() == null || getActivity().isFinishing()) {
             return;
         }
         TokenManager tokenManager = FlashNoteApp.getInstance().getTokenManager();
@@ -49,7 +49,8 @@ public class SplashFragment extends Fragment {
         if (navigator == null) {
             return;
         }
-        if (tokenManager != null && tokenManager.isTokenValid()) {
+        boolean hasValidToken = tokenManager != null && tokenManager.isTokenValid();
+        if (hasValidToken) {
             navigator.openMainShell();
         } else {
             navigator.openLogin();
@@ -58,8 +59,8 @@ public class SplashFragment extends Fragment {
 
     @Nullable
     private ShellNavigator getNavigator() {
-        if (requireActivity() instanceof ShellNavigator) {
-            return (ShellNavigator) requireActivity();
+        if (getActivity() instanceof ShellNavigator navigator) {
+            return navigator;
         }
         return null;
     }

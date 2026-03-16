@@ -8,6 +8,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.databinding.ItemCollectionBinding;
 import com.flashnote.java.databinding.ItemCollectionNoteBinding;
@@ -25,12 +26,18 @@ public class CollectionAdapter extends RecyclerView.Adapter<CollectionAdapter.Co
     }
 
     public static class CollectionGroup {
+        private final Collection source;
         private final String name;
         private final List<FlashNote> notes;
 
-        public CollectionGroup(String name, List<FlashNote> notes) {
+        public CollectionGroup(Collection source, String name, List<FlashNote> notes) {
+            this.source = source;
             this.name = name;
             this.notes = notes;
+        }
+
+        public Collection getSource() {
+            return source;
         }
 
         public String getName() {
@@ -98,6 +105,9 @@ public class CollectionAdapter extends RecyclerView.Adapter<CollectionAdapter.Co
             binding.nameText.setText(group.getName());
             binding.countText.setText(String.valueOf(group.getNotes().size()));
             binding.notesContainer.removeAllViews();
+            boolean editable = group.getSource() != null;
+            binding.editButton.setVisibility(editable ? View.VISIBLE : View.GONE);
+            binding.deleteButton.setVisibility(editable ? View.VISIBLE : View.GONE);
             binding.editButton.setOnClickListener(v -> listener.onEditCollection(group));
             binding.deleteButton.setOnClickListener(v -> listener.onDeleteCollection(group));
 

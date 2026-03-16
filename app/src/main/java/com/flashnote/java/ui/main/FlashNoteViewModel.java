@@ -12,6 +12,7 @@ import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.repository.CollectionRepository;
 import com.flashnote.java.data.repository.FlashNoteRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FlashNoteViewModel extends AndroidViewModel {
@@ -80,7 +81,7 @@ public class FlashNoteViewModel extends AndroidViewModel {
     }
 
     public void createNote(String title, String icon, String collectionName) {
-        repository.createNote(title, icon, collectionName);
+        ensureCollectionExists(collectionName, () -> repository.createNote(title, icon, collectionName));
     }
 
     public void createNote() {
@@ -88,10 +89,45 @@ public class FlashNoteViewModel extends AndroidViewModel {
     }
     
     public void updateNote(Long id, String title, String content, String icon, String collectionName) {
-        repository.updateNote(id, title, content, icon, collectionName);
+        ensureCollectionExists(collectionName, () -> repository.updateNote(id, title, content, icon, collectionName));
     }
     
     public void deleteNote(Long id) {
         repository.deleteNote(id);
+    }
+
+    private void ensureCollectionExists(String collectionName, Runnable onReady) {
+        String normalized = normalizeCollectionName(collectionName);
+        if (normalized == null) {
+            onReady.run();
+            return;
+        }
+
+        List<Collection> currentCollections = collections.getValue();
+        if (currentCollections != null) {
+            for (Collection collection : currentCollections) {
+                if (normalized.equals(normalizeCollectionName(collection.getName()))) {
+                    onReady.run();
+                    return;
+                }
+            }
+        }
+
+        collectionRepository.createCollection(normalized, "", () -> {
+            List<Collection> current = collections.getValue();
+            List<Collection> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
+            Collection collection = new Collection();
+            collection.setName(normalized);
+            updated.add(0, collection);
+            onReady.run();
+        });
+    }
+
+    private String normalizeCollectionName(String rawName) {
+        if (rawName == null) {
+            return null;
+        }
+        String trimmed = rawName.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

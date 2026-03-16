@@ -46,7 +46,6 @@ public class MainShellFragment extends Fragment {
         }
 
         binding.bottomNav.setSelectedItemId(selectedTabId);
-        switchContent(selectedTabId);
     }
 
     private boolean onTabSelected(@NonNull MenuItem item) {
@@ -67,9 +66,17 @@ public class MainShellFragment extends Fragment {
             fragment = new FlashNoteTabFragment();
         }
 
-        getChildFragmentManager().beginTransaction()
+        if (!isAdded()) {
+            return;
+        }
+        androidx.fragment.app.FragmentTransaction transaction = getChildFragmentManager().beginTransaction()
                 .replace(R.id.mainContentContainer, fragment)
-                .commit();
+                .setReorderingAllowed(true);
+        if (getChildFragmentManager().isStateSaved()) {
+            transaction.commitAllowingStateLoss();
+        } else {
+            transaction.commit();
+        }
     }
 
     private void applyEmojiIcons() {
