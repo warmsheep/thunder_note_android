@@ -51,8 +51,8 @@ public class CollectionTabFragment extends Fragment {
         adapter = new CollectionAdapter(new CollectionAdapter.OnFlashNoteClickListener() {
             @Override
             public void onOpenFlashNote(FlashNote item) {
-                if (requireActivity() instanceof ShellNavigator) {
-                    ((ShellNavigator) requireActivity()).openChat(item.getId(), item.getTitle());
+                if (getActivity() instanceof ShellNavigator navigator) {
+                    navigator.openChat(item.getId(), item.getTitle());
                 }
             }
 
@@ -67,7 +67,10 @@ public class CollectionTabFragment extends Fragment {
             }
         });
         
-        binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        android.content.Context ctx = getContext();
+        if (ctx != null) {
+            binding.recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
+        }
         binding.recyclerView.setAdapter(adapter);
         binding.addButton.setVisibility(View.GONE);
         binding.fabAdd.setVisibility(View.GONE);
@@ -83,8 +86,9 @@ public class CollectionTabFragment extends Fragment {
         });
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
-            if (error != null && !error.isEmpty()) {
-                Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
+            android.content.Context context = getContext();
+            if (context != null && error != null && !error.isEmpty()) {
+                Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -118,10 +122,10 @@ public class CollectionTabFragment extends Fragment {
 
         List<CollectionAdapter.CollectionGroup> result = new ArrayList<>();
         for (Map.Entry<String, List<FlashNote>> entry : grouped.entrySet()) {
-            result.add(new CollectionAdapter.CollectionGroup(entry.getKey(), entry.getValue()));
+            result.add(new CollectionAdapter.CollectionGroup(findCollectionByName(entry.getKey()), entry.getKey(), entry.getValue()));
         }
         if (!uncategorized.isEmpty()) {
-            result.add(new CollectionAdapter.CollectionGroup("未分类", uncategorized));
+            result.add(new CollectionAdapter.CollectionGroup(null, "未分类", uncategorized));
         }
         return result;
     }
@@ -135,37 +139,52 @@ public class CollectionTabFragment extends Fragment {
     }
 
     private void showRenameDialog(CollectionAdapter.CollectionGroup group) {
-        EditText input = new EditText(requireContext());
+        if (!isAdded()) {
+            return;
+        }
+        android.content.Context ctx = getContext();
+        if (ctx == null) {
+            return;
+        }
+        EditText input = new EditText(ctx);
         input.setText(group.getName());
         input.setSelection(group.getName().length());
-        int padding = (int) (16 * requireContext().getResources().getDisplayMetrics().density);
+        int padding = (int) (16 * ctx.getResources().getDisplayMetrics().density);
         input.setPadding(padding, padding, padding, padding);
 
-        Collection target = findCollectionByName(group.getName());
+        Collection target = group.getSource();
         if (target == null) {
-            Toast.makeText(requireContext(), "当前合集还未同步到服务器", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        new AlertDialog.Builder(requireContext())
+        new AlertDialog.Builder(ctx)
                 .setTitle("重命名合集")
                 .setView(input)
                 .setPositiveButton("保存", (dialog, which) -> {
                     String newName = normalizeName(input.getText().toString());
                     if (newName == null) {
-                        Toast.makeText(requireContext(), "请输入合集名称", Toast.LENGTH_SHORT).show();
+                        android.content.Context context = getContext();
+                        if (context != null) {
+                            Toast.makeText(context, "请输入合集名称", Toast.LENGTH_SHORT).show();
+                        }
                         return;
                     }
                     String oldName = group.getName();
                     viewModel.updateCollection(target.getId(), newName, target.getDescription(), () -> {
-                        if (!isAdded()) {
+                        if (!isAdded() || getActivity() == null) {
                             return;
                         }
-                        requireActivity().runOnUiThread(() -> {
+                        getActivity().runOnUiThread(() -> {
+                            if (!isAdded()) {
+                                return;
+                            }
                             flashNoteViewModel.renameCollectionLocally(oldName, newName);
                             flashNoteViewModel.refresh();
                             renderGroups();
-                            Toast.makeText(requireContext(), "合集已重命名", Toast.LENGTH_SHORT).show();
+                            android.content.Context context = getContext();
+                            if (context != null) {
+                                Toast.makeText(context, "合集已重命名", Toast.LENGTH_SHORT).show();
+                            }
                         });
                     });
                 })
@@ -174,24 +193,36 @@ public class CollectionTabFragment extends Fragment {
     }
 
     private void showDeleteDialog(CollectionAdapter.CollectionGroup group) {
-        Collection target = findCollectionByName(group.getName());
+        if (!isAdded()) {
+            return;
+        }
+        android.content.Context ctx = getContext();
+        if (ctx == null) {
+            return;
+        }
+        Collection target = group.getSource();
         if (target == null) {
-            Toast.makeText(requireContext(), "当前合集还未同步到服务器", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        new AlertDialog.Builder(requireContext())
+        new AlertDialog.Builder(ctx)
                 .setTitle("删除合集")
                 .setMessage("删除后，归属到该合集的闪记会变为未分类。确定继续吗？")
                 .setPositiveButton("删除", (dialog, which) -> viewModel.deleteCollection(target.getId(), () -> {
-                    if (!isAdded()) {
+                    if (!isAdded() || getActivity() == null) {
                         return;
                     }
-                    requireActivity().runOnUiThread(() -> {
+                    getActivity().runOnUiThread(() -> {
+                        if (!isAdded()) {
+                            return;
+                        }
                         flashNoteViewModel.clearCollectionLocally(group.getName());
                         flashNoteViewModel.refresh();
                         renderGroups();
-                        Toast.makeText(requireContext(), "合集已删除", Toast.LENGTH_SHORT).show();
+                        android.content.Context context = getContext();
+                        if (context != null) {
+                            Toast.makeText(context, "合集已删除", Toast.LENGTH_SHORT).show();
+                        }
                     });
                 }))
                 .setNegativeButton("取消", null)

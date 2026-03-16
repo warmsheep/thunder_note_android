@@ -3,6 +3,7 @@ package com.flashnote.java.data.repository;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.remote.CollectionService;
@@ -62,6 +63,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
             @Override
             public void onFailure(Call<ApiResponse<List<Collection>>> call, Throwable t) {
                 isLoading.setValue(false);
+                DebugLog.e("CollectionRepo", "refresh failed", t);
                 errorMessage.setValue("Network error: " + t.getMessage());
             }
         });
@@ -100,6 +102,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
             @Override
             public void onFailure(Call<ApiResponse<Collection>> call, Throwable t) {
                 isLoading.setValue(false);
+                DebugLog.e("CollectionRepo", "create failed", t);
                 errorMessage.setValue("Network error: " + t.getMessage());
             }
         });
@@ -146,6 +149,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
             @Override
             public void onFailure(Call<ApiResponse<Collection>> call, Throwable t) {
                 isLoading.setValue(false);
+                DebugLog.e("CollectionRepo", "update failed", t);
                 errorMessage.setValue("Network error: " + t.getMessage());
             }
         });
@@ -186,6 +190,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
                 isLoading.setValue(false);
+                DebugLog.e("CollectionRepo", "delete failed", t);
                 errorMessage.setValue("Network error: " + t.getMessage());
             }
         });

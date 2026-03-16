@@ -1,6 +1,7 @@
 package com.flashnote.java.ui.main;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -49,10 +50,13 @@ public class FlashNoteTabFragment extends Fragment {
         adapter = new FlashNoteAdapter(new FlashNoteAdapter.OnItemActionListener() {
             @Override
             public void onOpenChat(FlashNote item) {
-                if (requireActivity() instanceof ShellNavigator) {
-                    ((ShellNavigator) requireActivity()).openChat(item.getId(), item.getTitle());
+                if (getActivity() instanceof ShellNavigator navigator) {
+                    navigator.openChat(item.getId(), item.getTitle());
                 } else {
-                    Toast.makeText(requireContext(), item.getTitle(), Toast.LENGTH_SHORT).show();
+                    Context ctx = getContext();
+                    if (ctx != null) {
+                        Toast.makeText(ctx, item.getTitle(), Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
 
@@ -63,15 +67,21 @@ public class FlashNoteTabFragment extends Fragment {
 
             @Override
             public void onDelete(FlashNote item) {
-                new AlertDialog.Builder(requireContext())
-                        .setTitle("删除闪记")
-                        .setMessage("确定要删除这条闪记吗？")
-                        .setPositiveButton("删除", (dialog, which) -> viewModel.deleteNote(item.getId()))
-                        .setNegativeButton("取消", null)
-                        .show();
+                Context ctx = getContext();
+                if (ctx != null) {
+                    new AlertDialog.Builder(ctx)
+                            .setTitle("删除闪记")
+                            .setMessage("确定要删除这条闪记吗？")
+                            .setPositiveButton("删除", (dialog, which) -> viewModel.deleteNote(item.getId()))
+                            .setNegativeButton("取消", null)
+                            .show();
+                }
             }
         });
-        binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        Context ctx = getContext();
+        if (ctx != null) {
+            binding.recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
+        }
         binding.recyclerView.setAdapter(adapter);
 
         binding.addButton.setOnClickListener(v -> showNoteDialog(null, viewModel));
@@ -86,13 +96,20 @@ public class FlashNoteTabFragment extends Fragment {
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
             if (error != null && !error.isEmpty()) {
-                Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
+                Context errorCtx = getContext();
+                if (errorCtx != null) {
+                    Toast.makeText(errorCtx, error, Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
 
     private void showNoteDialog(@Nullable FlashNote note, @NonNull FlashNoteViewModel viewModel) {
-        DialogFlashNoteEditBinding dialogBinding = DialogFlashNoteEditBinding.inflate(LayoutInflater.from(requireContext()));
+        if (!isAdded()) return;
+        Context ctx = getContext();
+        if (ctx == null) return;
+        
+        DialogFlashNoteEditBinding dialogBinding = DialogFlashNoteEditBinding.inflate(LayoutInflater.from(ctx));
         if (note != null && note.getTitle() != null) {
             dialogBinding.nameInput.setText(note.getTitle());
         }
@@ -101,12 +118,12 @@ public class FlashNoteTabFragment extends Fragment {
         }
 
         List<String> suggestions = buildCollectionSuggestions(viewModel.getCollections().getValue(), viewModel.getNotes().getValue());
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, suggestions);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(ctx, android.R.layout.simple_dropdown_item_1line, suggestions);
         dialogBinding.collectionInput.setAdapter(adapter);
 
         String[] selectedIcon = new String[]{resolveInitialIcon(note)};
         for (String icon : NOTE_ICONS) {
-            Chip chip = new Chip(requireContext());
+            Chip chip = new Chip(ctx);
             chip.setText(icon);
             chip.setCheckable(true);
             chip.setClickable(true);
@@ -117,7 +134,7 @@ public class FlashNoteTabFragment extends Fragment {
             dialogBinding.iconChipGroup.addView(chip);
         }
 
-        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+        AlertDialog dialog = new AlertDialog.Builder(ctx)
                 .setTitle(note == null ? "新建闪记" : "编辑闪记")
                 .setView(dialogBinding.getRoot())
                 .setPositiveButton(note == null ? "创建" : "保存", null)

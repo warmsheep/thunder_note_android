@@ -38,6 +38,7 @@ public class FlashNoteApp extends Application {
     public void onCreate() {
         super.onCreate();
         instance = this;
+        DebugLog.init();
         initializeDependencies();
     }
 

@@ -13,6 +13,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.FavoriteItem;
@@ -24,7 +25,9 @@ import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.SyncRepository;
 import com.flashnote.java.data.repository.UserRepository;
+import com.flashnote.java.ui.auth.AuthViewModel;
 import com.flashnote.java.ui.navigation.ShellNavigator;
+import androidx.lifecycle.ViewModelProvider;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -88,6 +91,13 @@ public class ProfileTabFragment extends Fragment {
         binding.uploadButton.setOnClickListener(v -> filePickerLauncher.launch("*/*"));
         binding.logoutButton.setOnClickListener(v -> logout());
 
+        binding.clearLogButton.setOnClickListener(v -> DebugLog.clear());
+        DebugLog.getLiveData().observe(getViewLifecycleOwner(), log -> {
+            if (binding != null) {
+                binding.debugLogText.setText(log == null || log.isEmpty() ? "暂无日志" : log);
+            }
+        });
+
         fetchProfile();
     }
 
@@ -99,12 +109,15 @@ public class ProfileTabFragment extends Fragment {
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded()) {
+                if (!isAdded() || getActivity() == null) {
                     return;
                 }
-                requireActivity().runOnUiThread(() ->
-                    Toast.makeText(requireContext(), "获取资料失败：" + message, Toast.LENGTH_SHORT).show()
-                );
+                getActivity().runOnUiThread(() -> {
+                    android.content.Context context = getContext();
+                    if (isAdded() && context != null) {
+                        Toast.makeText(context, "获取资料失败：" + message, Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
         });
     }
@@ -142,7 +155,10 @@ public class ProfileTabFragment extends Fragment {
 
     private void saveBio() {
         if (currentProfile == null) {
-            Toast.makeText(requireContext(), "请先加载资料", Toast.LENGTH_SHORT).show();
+            android.content.Context context = getContext();
+            if (context != null) {
+                Toast.makeText(context, "请先加载资料", Toast.LENGTH_SHORT).show();
+            }
             return;
         }
 
@@ -152,27 +168,36 @@ public class ProfileTabFragment extends Fragment {
         userRepository.updateProfile(currentProfile, new UserRepository.ProfileCallback() {
             @Override
             public void onSuccess(UserProfile profile) {
-                if (!isAdded()) {
+                if (!isAdded() || getActivity() == null) {
                     return;
                 }
-                requireActivity().runOnUiThread(() -> {
+                getActivity().runOnUiThread(() -> {
+                    if (!isAdded() || binding == null) {
+                        return;
+                    }
                     isEditingBio = false;
                     binding.bioText.setVisibility(View.VISIBLE);
                     binding.editBioButton.setVisibility(View.VISIBLE);
                     binding.bioEditText.setVisibility(View.GONE);
                     binding.editButtonsLayout.setVisibility(View.GONE);
-                    Toast.makeText(requireContext(), "资料已更新", Toast.LENGTH_SHORT).show();
+                    android.content.Context context = getContext();
+                    if (context != null) {
+                        Toast.makeText(context, "资料已更新", Toast.LENGTH_SHORT).show();
+                    }
                 });
             }
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded()) {
+                if (!isAdded() || getActivity() == null) {
                     return;
                 }
-                requireActivity().runOnUiThread(() ->
-                    Toast.makeText(requireContext(), "更新失败：" + message, Toast.LENGTH_SHORT).show()
-                );
+                getActivity().runOnUiThread(() -> {
+                    android.content.Context context = getContext();
+                    if (isAdded() && context != null) {
+                        Toast.makeText(context, "更新失败：" + message, Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
         });
     }
@@ -181,22 +206,30 @@ public class ProfileTabFragment extends Fragment {
         return new SyncRepository.SyncCallback() {
             @Override
             public void onSuccess(Map<String, Object> data) {
-                if (!isAdded()) {
+                if (!isAdded() || getActivity() == null) {
                     return;
                 }
                 FlashNoteApp app = FlashNoteApp.getInstance();
                 app.getFlashNoteRepository().refresh();
                 app.getCollectionRepository().refresh();
                 app.getFavoriteRepository().refresh();
-                requireActivity().runOnUiThread(() -> binding.statusText.setText(action + " 成功：" + data));
+                getActivity().runOnUiThread(() -> {
+                    if (binding != null) {
+                        binding.statusText.setText(action + " 成功：" + data);
+                    }
+                });
             }
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded()) {
+                if (!isAdded() || getActivity() == null) {
                     return;
                 }
-                requireActivity().runOnUiThread(() -> binding.statusText.setText(action + " 失败：" + message));
+                getActivity().runOnUiThread(() -> {
+                    if (binding != null) {
+                        binding.statusText.setText(action + " 失败：" + message);
+                    }
+                });
             }
         };
     }
@@ -241,38 +274,57 @@ public class ProfileTabFragment extends Fragment {
                     fileRepository.download(objectName, new FileRepository.FileCallback() {
                         @Override
                         public void onSuccess(String value) {
-                            if (!isAdded()) {
+                            if (!isAdded() || getActivity() == null) {
                                 return;
                             }
-                            requireActivity().runOnUiThread(() -> binding.statusText.setText("文件上传并回读成功：" + value));
+                            getActivity().runOnUiThread(() -> {
+                                if (binding != null) {
+                                    binding.statusText.setText("文件上传并回读成功：" + value);
+                                }
+                            });
                         }
 
                         @Override
                         public void onError(String message, int code) {
-                            if (!isAdded()) {
+                            if (!isAdded() || getActivity() == null) {
                                 return;
                             }
-                            requireActivity().runOnUiThread(() -> binding.statusText.setText("文件下载失败：" + message));
+                            getActivity().runOnUiThread(() -> {
+                                if (binding != null) {
+                                    binding.statusText.setText("文件下载失败：" + message);
+                                }
+                            });
                         }
                     });
                 }
 
                 @Override
                 public void onError(String message, int code) {
-                    if (!isAdded()) {
+                    if (!isAdded() || getActivity() == null) {
                         return;
                     }
-                    requireActivity().runOnUiThread(() -> binding.statusText.setText("文件上传失败：" + message));
+                    getActivity().runOnUiThread(() -> {
+                        if (binding != null) {
+                            binding.statusText.setText("文件上传失败：" + message);
+                        }
+                    });
                 }
             });
         } catch (Exception exception) {
-            Toast.makeText(requireContext(), exception.getMessage(), Toast.LENGTH_SHORT).show();
+            android.content.Context context = getContext();
+            if (isAdded() && context != null) {
+                Toast.makeText(context, exception.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
     private void logout() {
-        FlashNoteApp.getInstance().getAuthRepository().logout();
-        if (requireActivity() instanceof ShellNavigator navigator) {
+        if (!isAdded() || getActivity() == null || getActivity().isFinishing()) {
+            return;
+        }
+        AuthViewModel authViewModel = new ViewModelProvider(getActivity()).get(AuthViewModel.class);
+        authViewModel.logout();
+        if (getActivity() instanceof ShellNavigator navigator) {
             navigator.logoutToLogin();
         }
     }
