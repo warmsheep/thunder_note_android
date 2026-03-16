@@ -14,14 +14,23 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import com.flashnote.java.R;
 import com.flashnote.java.data.model.Collection;
+import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.databinding.FragmentCollectionTabBinding;
+import com.flashnote.java.ui.navigation.ShellNavigator;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class CollectionTabFragment extends Fragment {
     private FragmentCollectionTabBinding binding;
     private CollectionAdapter adapter;
     private CollectionViewModel viewModel;
+    private FlashNoteViewModel flashNoteViewModel;
+    private List<Collection> latestCollections = new ArrayList<>();
+    private List<FlashNote> latestNotes = new ArrayList<>();
 
     @Nullable
     @Override
@@ -37,30 +46,40 @@ public class CollectionTabFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         
         viewModel = new ViewModelProvider(this).get(CollectionViewModel.class);
+        flashNoteViewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
         
-        adapter = new CollectionAdapter(new CollectionAdapter.OnCollectionClickListener() {
+        adapter = new CollectionAdapter(new CollectionAdapter.OnFlashNoteClickListener() {
             @Override
-            public void onEdit(Collection collection) {
-                showEditDialog(collection);
+            public void onOpenFlashNote(FlashNote item) {
+                if (requireActivity() instanceof ShellNavigator) {
+                    ((ShellNavigator) requireActivity()).openChat(item.getId(), item.getTitle());
+                }
             }
 
             @Override
-            public void onDelete(Collection collection) {
-                showDeleteDialog(collection);
+            public void onEditCollection(CollectionAdapter.CollectionGroup group) {
+                showRenameDialog(group);
+            }
+
+            @Override
+            public void onDeleteCollection(CollectionAdapter.CollectionGroup group) {
+                showDeleteDialog(group);
             }
         });
         
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerView.setAdapter(adapter);
-
-        binding.addButton.setOnClickListener(v -> showCreateDialog());
-        binding.fabAdd.setOnClickListener(v -> showCreateDialog());
+        binding.addButton.setVisibility(View.GONE);
+        binding.fabAdd.setVisibility(View.GONE);
 
         viewModel.getCollections().observe(getViewLifecycleOwner(), collections -> {
-            adapter.submitList(collections);
-            boolean empty = collections == null || collections.isEmpty();
-            binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
-            binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+            latestCollections = collections == null ? new ArrayList<>() : new ArrayList<>(collections);
+            renderGroups();
+        });
+
+        flashNoteViewModel.getNotes().observe(getViewLifecycleOwner(), notes -> {
+            latestNotes = notes == null ? new ArrayList<>() : new ArrayList<>(notes);
+            renderGroups();
         });
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
@@ -70,64 +89,123 @@ public class CollectionTabFragment extends Fragment {
         });
     }
 
-    private void showCreateDialog() {
-        View dialogView = LayoutInflater.from(requireContext())
-                .inflate(R.layout.dialog_collection_edit, null);
-        EditText nameInput = dialogView.findViewById(R.id.nameInput);
-        EditText descriptionInput = dialogView.findViewById(R.id.descriptionInput);
-
-        new AlertDialog.Builder(requireContext())
-                .setTitle(R.string.dialog_create_collection)
-                .setView(dialogView)
-                .setPositiveButton(R.string.action_create, (dialog, which) -> {
-                    String name = nameInput.getText().toString().trim();
-                    String description = descriptionInput.getText().toString().trim();
-                    if (!name.isEmpty()) {
-                        viewModel.createCollection(name, description);
-                    } else {
-                        Toast.makeText(requireContext(), R.string.error_name_required, Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton(R.string.action_cancel, null)
-                .show();
+    private void renderGroups() {
+        List<CollectionAdapter.CollectionGroup> groups = buildGroups(latestCollections, latestNotes);
+        adapter.submitList(groups);
+        boolean empty = groups.isEmpty();
+        binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
+        binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
     }
 
-    private void showEditDialog(Collection collection) {
-        View dialogView = LayoutInflater.from(requireContext())
-                .inflate(R.layout.dialog_collection_edit, null);
-        EditText nameInput = dialogView.findViewById(R.id.nameInput);
-        EditText descriptionInput = dialogView.findViewById(R.id.descriptionInput);
-        
-        nameInput.setText(collection.getName());
-        if (collection.getDescription() != null) {
-            descriptionInput.setText(collection.getDescription());
+    private List<CollectionAdapter.CollectionGroup> buildGroups(List<Collection> collections, List<FlashNote> notes) {
+        Map<String, List<FlashNote>> grouped = new LinkedHashMap<>();
+        for (Collection collection : collections) {
+            String name = normalizeName(collection.getName());
+            if (name != null && !grouped.containsKey(name)) {
+                grouped.put(name, new ArrayList<>());
+            }
+        }
+
+        List<FlashNote> uncategorized = new ArrayList<>();
+        for (FlashNote note : notes) {
+            String collectionName = normalizeName(note.getTags());
+            if (collectionName == null) {
+                uncategorized.add(note);
+                continue;
+            }
+            grouped.computeIfAbsent(collectionName, key -> new ArrayList<>()).add(note);
+        }
+
+        List<CollectionAdapter.CollectionGroup> result = new ArrayList<>();
+        for (Map.Entry<String, List<FlashNote>> entry : grouped.entrySet()) {
+            result.add(new CollectionAdapter.CollectionGroup(entry.getKey(), entry.getValue()));
+        }
+        if (!uncategorized.isEmpty()) {
+            result.add(new CollectionAdapter.CollectionGroup("未分类", uncategorized));
+        }
+        return result;
+    }
+
+    private String normalizeName(String rawName) {
+        if (rawName == null) {
+            return null;
+        }
+        String trimmed = rawName.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void showRenameDialog(CollectionAdapter.CollectionGroup group) {
+        EditText input = new EditText(requireContext());
+        input.setText(group.getName());
+        input.setSelection(group.getName().length());
+        int padding = (int) (16 * requireContext().getResources().getDisplayMetrics().density);
+        input.setPadding(padding, padding, padding, padding);
+
+        Collection target = findCollectionByName(group.getName());
+        if (target == null) {
+            Toast.makeText(requireContext(), "当前合集还未同步到服务器", Toast.LENGTH_SHORT).show();
+            return;
         }
 
         new AlertDialog.Builder(requireContext())
-                .setTitle(R.string.dialog_edit_collection)
-                .setView(dialogView)
-                .setPositiveButton(R.string.action_save, (dialog, which) -> {
-                    String name = nameInput.getText().toString().trim();
-                    String description = descriptionInput.getText().toString().trim();
-                    if (!name.isEmpty()) {
-                        viewModel.updateCollection(collection.getId(), name, description);
-                    } else {
-                        Toast.makeText(requireContext(), R.string.error_name_required, Toast.LENGTH_SHORT).show();
+                .setTitle("重命名合集")
+                .setView(input)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String newName = normalizeName(input.getText().toString());
+                    if (newName == null) {
+                        Toast.makeText(requireContext(), "请输入合集名称", Toast.LENGTH_SHORT).show();
+                        return;
                     }
+                    String oldName = group.getName();
+                    viewModel.updateCollection(target.getId(), newName, target.getDescription(), () -> {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        requireActivity().runOnUiThread(() -> {
+                            flashNoteViewModel.renameCollectionLocally(oldName, newName);
+                            flashNoteViewModel.refresh();
+                            renderGroups();
+                            Toast.makeText(requireContext(), "合集已重命名", Toast.LENGTH_SHORT).show();
+                        });
+                    });
                 })
-                .setNegativeButton(R.string.action_cancel, null)
+                .setNegativeButton("取消", null)
                 .show();
     }
 
-    private void showDeleteDialog(Collection collection) {
+    private void showDeleteDialog(CollectionAdapter.CollectionGroup group) {
+        Collection target = findCollectionByName(group.getName());
+        if (target == null) {
+            Toast.makeText(requireContext(), "当前合集还未同步到服务器", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         new AlertDialog.Builder(requireContext())
-                .setTitle(R.string.dialog_delete_collection)
-                .setMessage(R.string.dialog_delete_collection_message)
-                .setPositiveButton(R.string.action_delete, (dialog, which) -> {
-                    viewModel.deleteCollection(collection.getId());
-                })
-                .setNegativeButton(R.string.action_cancel, null)
+                .setTitle("删除合集")
+                .setMessage("删除后，归属到该合集的闪记会变为未分类。确定继续吗？")
+                .setPositiveButton("删除", (dialog, which) -> viewModel.deleteCollection(target.getId(), () -> {
+                    if (!isAdded()) {
+                        return;
+                    }
+                    requireActivity().runOnUiThread(() -> {
+                        flashNoteViewModel.clearCollectionLocally(group.getName());
+                        flashNoteViewModel.refresh();
+                        renderGroups();
+                        Toast.makeText(requireContext(), "合集已删除", Toast.LENGTH_SHORT).show();
+                    });
+                }))
+                .setNegativeButton("取消", null)
                 .show();
+    }
+
+    @Nullable
+    private Collection findCollectionByName(String name) {
+        for (Collection collection : latestCollections) {
+            if (name.equals(normalizeName(collection.getName()))) {
+                return collection;
+            }
+        }
+        return null;
     }
 
     @Override

@@ -45,8 +45,8 @@
     <string name="placeholder_profile">个人中心占位</string>
     <string name="empty_flashnote_title">还没有闪记</string>
     <string name="empty_flashnote_subtitle">点击右上角 + 创建第一个</string>
-    <string name="empty_collection_title">还没有合集</string>
-    <string name="empty_collection_subtitle">点击右上角 + 创建第一个</string>
+    <string name="empty_collection_title">还没有合集分类</string>
+    <string name="empty_collection_subtitle">请先在闪记中选择或输入合集</string>
     <string name="empty_favorite_title">还没有收藏</string>
     <string name="empty_favorite_subtitle">长按聊天消息即可加入收藏</string>
     <string name="hint_collection_name">合集名称</string>
