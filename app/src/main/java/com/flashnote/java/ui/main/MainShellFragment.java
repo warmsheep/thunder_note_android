@@ -37,7 +37,7 @@ public class MainShellFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        binding.bottomNav.setItemIconTintList(null);
+        binding.bottomNav.setItemActiveIndicatorEnabled(false);
         applyEmojiIcons();
         binding.bottomNav.setOnItemSelectedListener(this::onTabSelected);
 

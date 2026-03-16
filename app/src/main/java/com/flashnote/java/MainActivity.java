@@ -54,6 +54,11 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     }
 
     @Override
+    public void openChat(long flashNoteId, String title, long scrollToMessageId) {
+        replaceRootFragment(ChatFragment.newInstance(flashNoteId, title, scrollToMessageId), true, false);
+    }
+
+    @Override
     public void logoutToLogin() {
         openLogin();
     }

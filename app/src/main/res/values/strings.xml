@@ -55,9 +55,19 @@
     <string name="action_save">保存</string>
     <string name="action_cancel">取消</string>
     <string name="action_delete">删除</string>
+    <string name="action_search">搜索</string>
+    <string name="action_clear">清空</string>
     <string name="dialog_create_collection">创建合集</string>
     <string name="dialog_edit_collection">编辑合集</string>
     <string name="dialog_delete_collection">删除合集</string>
     <string name="dialog_delete_collection_message">确定要删除这个合集吗？</string>
     <string name="error_name_required">请输入名称</string>
+    <string name="dialog_search_flashnote">搜索闪记</string>
+    <string name="hint_search_flashnote">输入标题或内容关键词</string>
+    <string name="hint_flashnote_title">闪记标题</string>
+    <string name="hint_flashnote_collection">加入合集（可选）</string>
+    <string name="label_flashnote_icon">选择图标</string>
+    <string name="flashnote_dialog_helper">标题保持简洁，内容可在聊天页继续补充。</string>
+    <string name="flashnote_dialog_preview_title">新闪记预览</string>
+    <string name="flashnote_dialog_preview_subtitle">创建后可继续在聊天中完善内容</string>
 </resources>

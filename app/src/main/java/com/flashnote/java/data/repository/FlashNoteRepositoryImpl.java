@@ -6,6 +6,8 @@ import androidx.lifecycle.MutableLiveData;
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.FlashNote;
+import com.flashnote.java.data.model.FlashNoteSearchRequest;
+import com.flashnote.java.data.model.FlashNoteSearchResult;
 import com.flashnote.java.data.remote.FlashNoteService;
 
 import java.util.ArrayList;
@@ -69,6 +71,35 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                 isLoading.postValue(false);
                 DebugLog.e("FlashNoteRepo", "refresh failed", t);
                 errorMessage.postValue("Network error: " + t.getMessage());
+            }
+        });
+    }
+
+    @Override
+    public void searchNotes(String query, SearchCallback callback) {
+        isLoading.postValue(true);
+        flashNoteService.search(new FlashNoteSearchRequest(query)).enqueue(new Callback<ApiResponse<List<FlashNoteSearchResult>>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<List<FlashNoteSearchResult>>> call,
+                                   Response<ApiResponse<List<FlashNoteSearchResult>>> response) {
+                isLoading.postValue(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    ApiResponse<List<FlashNoteSearchResult>> apiResponse = response.body();
+                    if (apiResponse.isSuccess()) {
+                        callback.onSuccess(apiResponse.getData() == null ? new ArrayList<>() : apiResponse.getData());
+                        return;
+                    }
+                    callback.onError(apiResponse.getMessage());
+                    return;
+                }
+                callback.onError("Failed to search notes: " + response.code());
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<List<FlashNoteSearchResult>>> call, Throwable t) {
+                isLoading.postValue(false);
+                DebugLog.e("FlashNoteRepo", "search failed", t);
+                callback.onError("Network error: " + t.getMessage());
             }
         });
     }

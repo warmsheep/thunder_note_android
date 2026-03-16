@@ -7,6 +7,7 @@ import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.FavoriteItem;
 import com.flashnote.java.data.remote.FavoriteService;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,7 +48,9 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
             public void onResponse(Call<ApiResponse<List<FavoriteItem>>> call, Response<ApiResponse<List<FavoriteItem>>> response) {
                 isLoading.setValue(false);
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    favoritesLiveData.setValue(response.body().getData() == null ? new ArrayList<>() : response.body().getData());
+                    List<FavoriteItem> data = response.body().getData() == null ? new ArrayList<>() : new ArrayList<>(response.body().getData());
+                    sortFavorites(data);
+                    favoritesLiveData.setValue(data);
                     return;
                 }
                 String message = response.body() == null ? "加载收藏失败" : response.body().getMessage();
@@ -81,6 +84,7 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
                         }
                         if (!exists) {
                             updated.add(0, item);
+                            sortFavorites(updated);
                             favoritesLiveData.setValue(updated);
                         }
                     }
@@ -128,5 +132,55 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
                 callback.onError("Network error: " + t.getMessage(), -1);
             }
         });
+    }
+
+    private void sortFavorites(List<FavoriteItem> items) {
+        items.sort((left, right) -> {
+            LocalDateTime leftTime = resolveFavoriteSortTime(left);
+            LocalDateTime rightTime = resolveFavoriteSortTime(right);
+            if (leftTime == null && rightTime == null) {
+                Long leftId = left.getId();
+                Long rightId = right.getId();
+                if (leftId == null && rightId == null) {
+                    return 0;
+                }
+                if (leftId == null) {
+                    return 1;
+                }
+                if (rightId == null) {
+                    return -1;
+                }
+                return rightId.compareTo(leftId);
+            }
+            if (leftTime == null) {
+                return 1;
+            }
+            if (rightTime == null) {
+                return -1;
+            }
+            int compareTime = rightTime.compareTo(leftTime);
+            if (compareTime != 0) {
+                return compareTime;
+            }
+            Long leftId = left.getId();
+            Long rightId = right.getId();
+            if (leftId == null && rightId == null) {
+                return 0;
+            }
+            if (leftId == null) {
+                return 1;
+            }
+            if (rightId == null) {
+                return -1;
+            }
+            return rightId.compareTo(leftId);
+        });
+    }
+
+    private static LocalDateTime resolveFavoriteSortTime(FavoriteItem item) {
+        if (item.getFavoritedAt() != null) {
+            return item.getFavoritedAt();
+        }
+        return item.getMessageCreatedAt();
     }
 }

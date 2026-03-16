@@ -23,11 +23,11 @@ public class FavoriteItem {
     @SerializedName("content")
     private String content;
 
-    @SerializedName("createdAt")
-    private LocalDateTime createdAt;
+    @SerializedName(value = "favoritedAt", alternate = {"createdAt"})
+    private LocalDateTime favoritedAt;
 
-    @SerializedName("flashNoteCreatedAt")
-    private LocalDateTime flashNoteCreatedAt;
+    @SerializedName(value = "messageCreatedAt", alternate = {"flashNoteCreatedAt"})
+    private LocalDateTime messageCreatedAt;
 
     public Long getId() {
         return id;
@@ -77,19 +77,19 @@ public class FavoriteItem {
         this.content = content;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public LocalDateTime getFavoritedAt() {
+        return favoritedAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    public void setFavoritedAt(LocalDateTime favoritedAt) {
+        this.favoritedAt = favoritedAt;
     }
 
-    public LocalDateTime getFlashNoteCreatedAt() {
-        return flashNoteCreatedAt;
+    public LocalDateTime getMessageCreatedAt() {
+        return messageCreatedAt;
     }
 
-    public void setFlashNoteCreatedAt(LocalDateTime flashNoteCreatedAt) {
-        this.flashNoteCreatedAt = flashNoteCreatedAt;
+    public void setMessageCreatedAt(LocalDateTime messageCreatedAt) {
+        this.messageCreatedAt = messageCreatedAt;
     }
 }

@@ -14,16 +14,22 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/top_bar_background"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="16dp">
+            android:paddingLeft="14dp"
+            android:paddingTop="10dp"
+            android:paddingRight="14dp"
+            android:paddingBottom="10dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
                 android:text="@string/title_collection"
                 android:textColor="@color/text_primary"
-                android:textSize="14sp" />
+                android:textSize="13sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/addButton"
@@ -33,6 +39,15 @@
                 android:text="+"
                 android:textColor="@color/primary"
                 android:textSize="18sp" />
+
+            <ImageView
+                android:id="@+id/searchButton"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:contentDescription="@string/action_search"
+                android:padding="4dp"
+                android:src="@drawable/ic_action_search"
+                android:tint="@color/text_secondary" />
         </LinearLayout>
 
         <View

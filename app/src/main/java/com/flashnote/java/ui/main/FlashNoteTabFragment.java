@@ -2,11 +2,18 @@ package com.flashnote.java.ui.main;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.os.Bundle;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.ArrayAdapter;
+import android.widget.GridLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -15,8 +22,11 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.flashnote.java.R;
 import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FlashNote;
+import com.flashnote.java.data.model.FlashNoteSearchResult;
+import com.flashnote.java.data.model.MatchedMessageInfo;
 import com.flashnote.java.databinding.DialogFlashNoteEditBinding;
 import com.flashnote.java.databinding.FragmentFlashNoteTabBinding;
 import com.flashnote.java.ui.navigation.ShellNavigator;
@@ -32,6 +42,11 @@ public class FlashNoteTabFragment extends Fragment {
 
     private FragmentFlashNoteTabBinding binding;
     private FlashNoteAdapter adapter;
+    private FlashNoteViewModel viewModel;
+    private List<FlashNote> latestNotes = new ArrayList<>();
+    private List<FlashNote> searchedNotes = new ArrayList<>();
+    private List<FlashNoteSearchResult> latestSearchResults = new ArrayList<>();
+    private String currentQuery = "";
 
     @Nullable
     @Override
@@ -45,11 +60,21 @@ public class FlashNoteTabFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        FlashNoteViewModel viewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
+        viewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
 
         adapter = new FlashNoteAdapter(new FlashNoteAdapter.OnItemActionListener() {
             @Override
             public void onOpenChat(FlashNote item) {
+                if (!currentQuery.isEmpty() && !latestSearchResults.isEmpty()) {
+                    for (FlashNoteSearchResult result : latestSearchResults) {
+                        if (result.getFlashNote() != null && result.getFlashNote().getId() != null 
+                            && result.getFlashNote().getId().equals(item.getId())
+                            && result.getMatchedMessages() != null && !result.getMatchedMessages().isEmpty()) {
+                            showMatchedMessagesDialog(item, result.getMatchedMessages());
+                            return;
+                        }
+                    }
+                }
                 if (getActivity() instanceof ShellNavigator navigator) {
                     navigator.openChat(item.getId(), item.getTitle());
                 } else {
@@ -86,12 +111,11 @@ public class FlashNoteTabFragment extends Fragment {
 
         binding.addButton.setOnClickListener(v -> showNoteDialog(null, viewModel));
         binding.fabAdd.setOnClickListener(v -> showNoteDialog(null, viewModel));
+        binding.searchButton.setOnClickListener(v -> showSearchDialog());
 
         viewModel.getNotes().observe(getViewLifecycleOwner(), notes -> {
-            adapter.submitList(notes);
-            boolean empty = notes == null || notes.isEmpty();
-            binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
-            binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+            latestNotes = notes == null ? new ArrayList<>() : new ArrayList<>(notes);
+            renderNotes();
         });
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
@@ -102,6 +126,82 @@ public class FlashNoteTabFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void renderNotes() {
+        List<FlashNote> displayed = currentQuery.isEmpty() ? latestNotes : searchedNotes;
+        adapter.submitList(displayed);
+        boolean empty = displayed == null || displayed.isEmpty();
+        binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
+        binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+    }
+
+    private void showSearchDialog() {
+        Context ctx = getContext();
+        if (ctx == null) {
+            return;
+        }
+        EditText input = new EditText(ctx);
+        input.setHint(R.string.hint_search_flashnote);
+        input.setText(currentQuery);
+        input.setSelection(input.getText().length());
+        input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        int padding = (int) (10 * ctx.getResources().getDisplayMetrics().density);
+        input.setPadding(padding, padding, padding, padding);
+        input.setBackgroundResource(R.drawable.bg_input_rounded);
+
+        new AlertDialog.Builder(ctx)
+                .setCustomTitle(createDialogTitle(ctx, R.string.dialog_search_flashnote))
+                .setView(input)
+                .setPositiveButton(R.string.action_search, (dialog, which) -> {
+                    String query = normalizeQuery(input.getText() == null ? "" : input.getText().toString());
+                    if (query.isEmpty()) {
+                        currentQuery = "";
+                        searchedNotes = new ArrayList<>();
+                        renderNotes();
+                        return;
+                    }
+                    viewModel.searchNotes(query, new com.flashnote.java.data.repository.FlashNoteRepository.SearchCallback() {
+                        @Override
+                        public void onSuccess(List<FlashNoteSearchResult> results) {
+                            if (!isAdded() || getActivity() == null) {
+                                return;
+                            }
+                            getActivity().runOnUiThread(() -> {
+                                currentQuery = query;
+                                latestSearchResults = results == null ? new ArrayList<>() : new ArrayList<>(results);
+                                searchedNotes = new ArrayList<>();
+                                for (FlashNoteSearchResult result : latestSearchResults) {
+                                    if (result.getFlashNote() != null) {
+                                        searchedNotes.add(result.getFlashNote());
+                                    }
+                                }
+                                renderNotes();
+                            });
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            if (!isAdded() || getActivity() == null) {
+                                return;
+                            }
+                            getActivity().runOnUiThread(() -> {
+                                Context errorCtx = getContext();
+                                if (errorCtx != null) {
+                                    Toast.makeText(errorCtx, message, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+                })
+                .setNeutralButton(R.string.action_clear, (dialog, which) -> {
+                    currentQuery = "";
+                    searchedNotes = new ArrayList<>();
+                    latestSearchResults = new ArrayList<>();
+                    renderNotes();
+                })
+                .setNegativeButton(R.string.action_cancel, null)
+                .show();
     }
 
     private void showNoteDialog(@Nullable FlashNote note, @NonNull FlashNoteViewModel viewModel) {
@@ -122,6 +222,21 @@ public class FlashNoteTabFragment extends Fragment {
         dialogBinding.collectionInput.setAdapter(adapter);
 
         String[] selectedIcon = new String[]{resolveInitialIcon(note)};
+        updateDialogPreview(dialogBinding, note, selectedIcon[0]);
+        dialogBinding.nameInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                updateDialogPreview(dialogBinding, note, selectedIcon[0]);
+            }
+        });
         for (String icon : NOTE_ICONS) {
             Chip chip = new Chip(ctx);
             chip.setText(icon);
@@ -129,8 +244,28 @@ public class FlashNoteTabFragment extends Fragment {
             chip.setClickable(true);
             chip.setCheckedIconVisible(false);
             chip.setEnsureMinTouchTargetSize(false);
+            chip.setGravity(Gravity.CENTER);
+            chip.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+            chip.setChipStartPadding(0f);
+            chip.setChipEndPadding(0f);
+            chip.setTextStartPadding(0f);
+            chip.setTextEndPadding(0f);
+            chip.setIconStartPadding(0f);
+            chip.setIconEndPadding(0f);
+            chip.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+            chip.setMinHeight((int) (36 * ctx.getResources().getDisplayMetrics().density));
             chip.setChecked(icon.equals(selectedIcon[0]));
-            chip.setOnClickListener(v -> selectedIcon[0] = icon);
+            chip.setOnClickListener(v -> {
+                selectedIcon[0] = icon;
+                updateDialogPreview(dialogBinding, note, icon);
+                syncChipSelection(dialogBinding.iconChipGroup, chip);
+            });
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            int margin = (int) (4 * ctx.getResources().getDisplayMetrics().density);
+            params.setMargins(margin, margin, margin, margin);
+            chip.setLayoutParams(params);
             dialogBinding.iconChipGroup.addView(chip);
         }
 
@@ -197,6 +332,75 @@ public class FlashNoteTabFragment extends Fragment {
             }
         }
         return NOTE_ICONS[0];
+    }
+
+    private void updateDialogPreview(@NonNull DialogFlashNoteEditBinding dialogBinding,
+                                     @Nullable FlashNote note,
+                                     @NonNull String selectedIcon) {
+        dialogBinding.iconPreviewText.setText(selectedIcon);
+        String inputTitle = dialogBinding.nameInput.getText() == null ? "" : dialogBinding.nameInput.getText().toString().trim();
+        if (!inputTitle.isEmpty()) {
+            dialogBinding.previewTitleText.setText(inputTitle);
+            return;
+        }
+        if (note != null && note.getTitle() != null && !note.getTitle().trim().isEmpty()) {
+            dialogBinding.previewTitleText.setText(note.getTitle().trim());
+            return;
+        }
+        dialogBinding.previewTitleText.setText(getString(R.string.flashnote_dialog_preview_title));
+    }
+
+    @NonNull
+    private String normalizeQuery(@Nullable String query) {
+        return query == null ? "" : query.trim();
+    }
+
+    private void showMatchedMessagesDialog(FlashNote item, List<MatchedMessageInfo> matchedMessages) {
+        Context ctx = getContext();
+        if (ctx == null || matchedMessages == null || matchedMessages.isEmpty()) return;
+
+        String[] snippets = new String[matchedMessages.size() + 1];
+        snippets[0] = "打开聊天（从头开始）";
+        for (int i = 0; i < matchedMessages.size(); i++) {
+            MatchedMessageInfo info = matchedMessages.get(i);
+            snippets[i + 1] = info.getSnippet() != null ? info.getSnippet() : "匹配的消息";
+        }
+
+        new AlertDialog.Builder(ctx)
+                .setTitle("\"" + item.getTitle() + "\" 中的匹配")
+                .setItems(snippets, (dialog, which) -> {
+                    if (getActivity() instanceof ShellNavigator navigator) {
+                        if (which == 0) {
+                            navigator.openChat(item.getId(), item.getTitle());
+                        } else {
+                            MatchedMessageInfo selectedMessage = matchedMessages.get(which - 1);
+                            navigator.openChat(item.getId(), item.getTitle(), selectedMessage.getMessageId());
+                        }
+                    }
+                })
+                .show();
+    }
+
+    private void syncChipSelection(@NonNull GridLayout chipGroup, @NonNull Chip selectedChip) {
+        for (int index = 0; index < chipGroup.getChildCount(); index++) {
+            View child = chipGroup.getChildAt(index);
+            if (child instanceof Chip chip) {
+                chip.setChecked(chip == selectedChip);
+            }
+        }
+    }
+
+    @NonNull
+    private TextView createDialogTitle(@NonNull Context context, int textResId) {
+        TextView titleView = new TextView(context);
+        int horizontal = (int) (20 * context.getResources().getDisplayMetrics().density);
+        int top = (int) (18 * context.getResources().getDisplayMetrics().density);
+        int bottom = (int) (6 * context.getResources().getDisplayMetrics().density);
+        titleView.setPadding(horizontal, top, horizontal, bottom);
+        titleView.setText(textResId);
+        titleView.setTextColor(getResources().getColor(R.color.text_primary));
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        return titleView;
     }
 
     @Override

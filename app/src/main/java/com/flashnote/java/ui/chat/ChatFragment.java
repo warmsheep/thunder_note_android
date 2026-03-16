@@ -1,10 +1,12 @@
 package com.flashnote.java.ui.chat;
 
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.widget.PopupWindow;
 import android.widget.Toast;
 
@@ -13,6 +15,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
@@ -29,6 +32,7 @@ import java.util.List;
 public class ChatFragment extends Fragment {
     private static final String ARG_FLASH_NOTE_ID = "flashNoteId";
     private static final String ARG_TITLE = "title";
+    private static final String ARG_SCROLL_TO_MESSAGE_ID = "scrollToMessageId";
 
     private FragmentChatBinding binding;
 
@@ -37,6 +41,16 @@ public class ChatFragment extends Fragment {
         Bundle args = new Bundle();
         args.putLong(ARG_FLASH_NOTE_ID, flashNoteId);
         args.putString(ARG_TITLE, title);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
+    public static ChatFragment newInstance(long flashNoteId, String title, long scrollToMessageId) {
+        ChatFragment fragment = new ChatFragment();
+        Bundle args = new Bundle();
+        args.putLong(ARG_FLASH_NOTE_ID, flashNoteId);
+        args.putString(ARG_TITLE, title);
+        args.putLong(ARG_SCROLL_TO_MESSAGE_ID, scrollToMessageId);
         fragment.setArguments(args);
         return fragment;
     }
@@ -71,8 +85,26 @@ public class ChatFragment extends Fragment {
         binding.recyclerView.setAdapter(adapter);
 
         viewModel.bindFlashNote(flashNoteId);
+        long scrollToMessageId = getArguments() == null ? 0L : getArguments().getLong(ARG_SCROLL_TO_MESSAGE_ID, 0L);
+        
         if (viewModel.getMessages() != null) {
-            viewModel.getMessages().observe(getViewLifecycleOwner(), adapter::submitList);
+            viewModel.getMessages().observe(getViewLifecycleOwner(), messages -> {
+                adapter.submitList(messages);
+                // Scroll to target message if specified
+                if (scrollToMessageId > 0 && messages != null) {
+                    for (int i = 0; i < messages.size(); i++) {
+                        if (messages.get(i).getId() != null && messages.get(i).getId() == scrollToMessageId) {
+                            final int position = i;
+                            binding.recyclerView.post(() -> {
+                                binding.recyclerView.scrollToPosition(position);
+                                // Highlight after scroll completes
+                                binding.recyclerView.postDelayed(() -> highlightMessage(position), 300);
+                            });
+                            break;
+                        }
+                    }
+                }
+            });
         }
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
             android.content.Context context = getContext();
@@ -81,19 +113,63 @@ public class ChatFragment extends Fragment {
             }
         });
 
-        binding.sendButton.setOnClickListener(v -> {
-            String text = binding.messageInput.getText() == null ? "" : binding.messageInput.getText().toString();
-            viewModel.sendText(text, () -> {
-                if (!isAdded() || getActivity() == null || binding == null) {
-                    return;
+        setupMessageInput(viewModel);
+        binding.sendButton.setOnClickListener(v -> sendMessage(viewModel));
+    }
+
+    private void setupMessageInput(@NonNull ChatViewModel viewModel) {
+        int maxHeight = getResources().getDisplayMetrics().heightPixels / 3;
+        binding.messageInput.setMaxHeight(maxHeight);
+        binding.messageInput.setHorizontallyScrolling(false);
+        binding.messageInput.setVerticalScrollBarEnabled(true);
+        binding.messageInput.setOnEditorActionListener((textView, actionId, event) -> {
+            if (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER) {
+                if (event.isShiftPressed()) {
+                    return false;
                 }
-                getActivity().runOnUiThread(() -> {
-                    if (binding != null) {
-                        binding.messageInput.setText(null);
-                    }
-                });
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    sendMessage(viewModel);
+                }
+                return true;
+            }
+            if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_DONE) {
+                sendMessage(viewModel);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private void sendMessage(@NonNull ChatViewModel viewModel) {
+        if (binding == null) {
+            return;
+        }
+        String text = binding.messageInput.getText() == null ? "" : binding.messageInput.getText().toString();
+        viewModel.sendText(text, () -> {
+            if (!isAdded() || getActivity() == null || binding == null) {
+                return;
+            }
+            getActivity().runOnUiThread(() -> {
+                if (binding != null) {
+                    binding.messageInput.setText(null);
+                }
             });
         });
+    }
+
+    private void highlightMessage(int position) {
+        RecyclerView.ViewHolder holder = binding.recyclerView.findViewHolderForAdapterPosition(position);
+        if (holder != null) {
+            View itemView = holder.itemView;
+            int highlightColor = getResources().getColor(R.color.search_highlight, null);
+            int originalColor = android.graphics.Color.TRANSPARENT;
+            android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofArgb(highlightColor, originalColor);
+            animator.setDuration(1500);
+            animator.setRepeatCount(1);
+            animator.setRepeatMode(android.animation.ValueAnimator.REVERSE);
+            animator.addUpdateListener(animation -> itemView.setBackgroundColor((int) animation.getAnimatedValue()));
+            animator.start();
+        }
     }
 
     private void showMessageActions(Message message,

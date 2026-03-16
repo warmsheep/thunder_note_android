@@ -54,7 +54,7 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
             binding.titleText.setText(item.getFlashNoteTitle() == null ? "已收藏消息" : item.getFlashNoteTitle());
             binding.contentText.setText(item.getContent());
             
-            LocalDateTime displayTime = item.getFlashNoteCreatedAt() != null ? item.getFlashNoteCreatedAt() : item.getCreatedAt();
+            LocalDateTime displayTime = item.getFavoritedAt() != null ? item.getFavoritedAt() : item.getMessageCreatedAt();
             if (displayTime != null) {
                 binding.timeText.setText(displayTime.format(TIME_FORMATTER));
                 binding.timeText.setVisibility(View.VISIBLE);

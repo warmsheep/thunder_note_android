@@ -66,14 +66,21 @@
         <EditText
             android:id="@+id/messageInput"
             android:layout_width="0dp"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:background="@drawable/bg_input_rounded"
+            android:gravity="top|start"
             android:hint="输入内容..."
-            android:maxLines="1"
+            android:imeOptions="actionSend"
+            android:inputType="textCapSentences|textMultiLine"
+            android:minHeight="40dp"
+            android:overScrollMode="ifContentScrolls"
             android:paddingLeft="14dp"
+            android:paddingTop="10dp"
             android:paddingRight="14dp"
+            android:paddingBottom="10dp"
+            android:scrollbars="vertical"
             android:textSize="13sp" />
 
         <ImageView

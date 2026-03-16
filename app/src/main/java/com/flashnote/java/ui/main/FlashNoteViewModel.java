@@ -52,6 +52,10 @@ public class FlashNoteViewModel extends AndroidViewModel {
         collectionRepository.refresh();
     }
 
+    public void searchNotes(String query, FlashNoteRepository.SearchCallback callback) {
+        repository.searchNotes(query, callback);
+    }
+
     public void renameCollectionLocally(String oldName, String newName) {
         List<FlashNote> currentNotes = notes.getValue();
         if (currentNotes == null || oldName == null || oldName.equals(newName)) {

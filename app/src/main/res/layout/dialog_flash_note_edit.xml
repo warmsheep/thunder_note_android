@@ -8,51 +8,113 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="20dp">
 
-        <com.google.android.material.textfield.TextInputLayout
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="闪记名称">
+            android:background="@drawable/bg_placeholder_card"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="14dp">
+
+            <TextView
+                android:id="@+id/iconPreviewText"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_logo_primary_soft"
+                android:gravity="center"
+                android:text="⚡"
+                android:textSize="28sp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/previewTitleText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/flashnote_dialog_preview_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/flashnote_dialog_preview_subtitle"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/flashnote_dialog_helper"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:hint="@string/hint_flashnote_title">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/nameInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
                 android:inputType="text"
-                android:maxLines="1" />
+                android:maxLines="1"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:textSize="14sp" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="加入合集（可选）">
+            android:layout_marginTop="14dp"
+            android:hint="@string/hint_flashnote_collection">
 
-            <AutoCompleteTextView
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/collectionInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
                 android:inputType="text"
-                android:maxLines="1" />
+                android:maxLines="1"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:textSize="14sp" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="选择图标"
+            android:layout_marginTop="16dp"
+            android:text="@string/label_flashnote_icon"
             android:textColor="@color/text_primary"
-            android:textSize="12sp" />
+            android:textSize="14sp" />
 
-        <com.google.android.material.chip.ChipGroup
+        <GridLayout
             android:id="@+id/iconChipGroup"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            app:singleSelection="true" />
+            android:layout_marginTop="8dp"
+            android:columnCount="4"
+            android:useDefaultMargins="false" />
 
     </LinearLayout>
 </ScrollView>
