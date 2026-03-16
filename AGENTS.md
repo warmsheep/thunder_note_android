@@ -17,17 +17,18 @@
 - 其他通用规则遵循根目录 `AGENTS.md`。
 - 优先保持 Java 代码可读、传统、易调试。
 - 页面流转优先看 `MainActivity` 与各 Fragment 之间的导航关系。
-- 当前 `auth`、`flashnote`、`chat` 已有可编译主链；`collection`、`favorite`、`profile` 仍偏占位壳层。
+- 当前 `auth`、`flashnote`、`chat`、`collection`、`favorite` 已有真实主链；`profile` 已接真实资料/sync/file/logout，但仍是操作台式页面。
 - 判断 Android 是否已真实接通后端时，优先检查 repository 是否仍只返回内存数据。
 
 ## 当前成熟度
 - `AuthRepositoryImpl` 已有真实网络调用基础层。
-- `FlashNote`、`Chat` 当前仍主要依赖内存仓储种子数据。
-- `Collection`、`Favorite`、`Profile` 仍是 Java 占位页。
-- `Sync`、`File` 尚未进入 Java 主链。
+- `FlashNoteRepositoryImpl`、`MessageRepositoryImpl`、`CollectionRepositoryImpl`、`FavoriteRepositoryImpl` 已接真实接口，不再是纯内存种子数据主链。
+- `ProfileTabFragment` 已接 `UserRepositoryImpl`，并提供 bio 编辑、手动 sync/file/logout 入口，但仍不是完整个人中心。
+- `SyncRepositoryImpl`、`FileRepositoryImpl` 已进入 Java 主链，当前定位是 MVP 最小闭环，不是完整离线体系。
 
 ## 反模式
 - 不要把 Java 页面存在直接当成后端已接通的证据。
 
 ## 备注
 - 当前项目使用纯 Java 客户端，不涉及其他语言。
+- 若要判断 MVP 是否还有缺口，先看 `docs/Android客户端Java重启基线.md` 中的“模块成熟度快照”和“页面与导航范围快照”，再回到具体 repository/controller 核实。

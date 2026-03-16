@@ -25,7 +25,7 @@
     <string name="error_username_required">请输入用户名</string>
     <string name="error_password_required">请输入密码</string>
     <string name="error_email_required">请输入邮箱</string>
-    <string name="error_register_unavailable">当前 Java 客户端注册接口尚未接通，先用已有账号登录</string>
+    <string name="error_register_unavailable">注册失败，请稍后重试</string>
     <string name="error_login_default">登录失败，请稍后重试</string>
     <string name="error_network_prefix">网络异常：%1$s</string>
 
