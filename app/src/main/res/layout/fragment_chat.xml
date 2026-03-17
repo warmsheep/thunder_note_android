@@ -192,6 +192,69 @@
                     android:textSize="@dimen/text_size_tiny" />
             </LinearLayout>
         </LinearLayout>
+
+        <!-- Recording overlay - shown during/after recording -->
+        <FrameLayout
+            android:id="@+id/recordingOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/surface"
+            android:visibility="gone"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Cancel button (X) -->
+                <ImageButton
+                    android:id="@+id/recordCancelBtn"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_record_cancel"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:scaleType="centerInside"
+                    android:contentDescription="Cancel" />
+
+                <!-- Waveform area -->
+                <LinearLayout
+                    android:id="@+id/recordWaveformContainer"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="16dp"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <!-- Recording waveform visualization -->
+                    <com.flashnote.java.ui.chat.RecordingWaveView
+                        android:id="@+id/recordWaveView"
+                        android:layout_width="match_parent"
+                        android:layout_height="32dp" />
+
+                    <!-- Recording timer -->
+                    <TextView
+                        android:id="@+id/recordTimerText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:text="0:00" />
+                </LinearLayout>
+
+                <!-- Send button -->
+                <ImageButton
+                    android:id="@+id/recordSendBtn"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_record_send"
+                    android:src="@android:drawable/ic_menu_send"
+                    android:scaleType="centerInside"
+                    android:contentDescription="Send" />
+            </LinearLayout>
+        </FrameLayout>
     </LinearLayout>
 
 </LinearLayout>
