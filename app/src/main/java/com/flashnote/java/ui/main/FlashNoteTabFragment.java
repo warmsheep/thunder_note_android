@@ -148,26 +148,24 @@ public class FlashNoteTabFragment extends Fragment {
 
             @Override
             public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
-                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
-                
                 View itemView = viewHolder.itemView;
                 
                 if (dX < 0) {
                     int itemHeight = itemView.getHeight();
                     int squareSize = Math.min(itemHeight, (int) (60 * itemView.getResources().getDisplayMetrics().density));
                     
-                    // Draw small square background anchored to right edge
-                    int squareLeft = itemView.getRight() - squareSize;
+                    float revealWidth = Math.min(Math.abs(dX), squareSize);
+                    
+                    int squareLeft = itemView.getRight() - (int) revealWidth;
                     int squareTop = itemView.getTop() + (itemHeight - squareSize) / 2;
                     int squareBottom = squareTop + squareSize;
                     
-                    // Only show when swiped enough
-                    if (Math.abs(dX) > squareSize / 3f) {
+                    if (revealWidth > squareSize / 3f) {
                         background.setBounds(squareLeft, squareTop, itemView.getRight(), squareBottom);
                         background.draw(c);
                         
                         int iconSize = deleteIcon.getIntrinsicHeight();
-                        int iconLeft = squareLeft + (squareSize - iconSize) / 2;
+                        int iconLeft = squareLeft + ((int) revealWidth - iconSize) / 2;
                         int iconTop = squareTop + (squareSize - iconSize) / 2;
                         deleteIcon.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize);
                         deleteIcon.setTint(Color.WHITE);

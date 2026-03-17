@@ -9,6 +9,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.databinding.ItemFlashNoteBinding;
 
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,6 +68,26 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
         return emojis[index];
     }
 
+    private String formatTime(LocalDateTime dateTime) {
+        if (dateTime == null) {
+            return "";
+        }
+        
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime today = now.toLocalDate().atStartOfDay();
+        LocalDateTime yesterday = today.minusDays(1);
+        
+        if (dateTime.isAfter(today)) {
+            return dateTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+        } else if (dateTime.isAfter(yesterday)) {
+            return "昨天";
+        } else if (dateTime.getYear() == now.getYear()) {
+            return dateTime.format(java.time.format.DateTimeFormatter.ofPattern("M月d日"));
+        } else {
+            return dateTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy/M/d"));
+        }
+    }
+
     class FlashNoteViewHolder extends RecyclerView.ViewHolder {
         private final ItemFlashNoteBinding binding;
 
@@ -85,6 +108,10 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
             } else {
                 binding.summaryText.setText("点击进入继续记录");
             }
+            
+            LocalDateTime time = item.getUpdatedAt() != null ? item.getUpdatedAt() : item.getCreatedAt();
+            binding.timeText.setText(formatTime(time));
+            
             binding.getRoot().setOnClickListener(v -> listener.onOpenChat(item));
             binding.getRoot().setOnLongClickListener(v -> {
                 listener.onEdit(item);

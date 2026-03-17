@@ -44,4 +44,12 @@
             android:textSize="@dimen/text_size_caption" />
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/timeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="@dimen/text_size_tiny" />
+
 </LinearLayout>
