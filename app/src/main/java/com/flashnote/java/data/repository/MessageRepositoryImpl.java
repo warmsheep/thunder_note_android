@@ -24,6 +24,9 @@ public class MessageRepositoryImpl implements MessageRepository {
     private final Map<Long, MutableLiveData<List<Message>>> conversations = new HashMap<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+    private final Map<Long, Integer> currentPages = new HashMap<>();
+    private final Map<Long, Boolean> hasMoreMap = new HashMap<>();
+    private final Map<Long, MutableLiveData<Boolean>> hasMoreLiveDataMap = new HashMap<>();
 
     public MessageRepositoryImpl(MessageService messageService) {
         this.messageService = messageService;
@@ -74,7 +77,9 @@ public class MessageRepositoryImpl implements MessageRepository {
     public void bindFlashNote(long flashNoteId) {
         MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
         if (liveData.getValue() == null || liveData.getValue().isEmpty()) {
-            loadMessages(flashNoteId);
+            currentPages.put(flashNoteId, 1);
+            hasMoreMap.put(flashNoteId, true);
+            loadMessages(flashNoteId, 1, 30);
         }
     }
 
@@ -118,9 +123,10 @@ public class MessageRepositoryImpl implements MessageRepository {
         });
     }
 
-    private void loadMessages(long flashNoteId) {
+    private void loadMessages(long flashNoteId, int page, int limit) {
         isLoading.setValue(true);
-        messageService.list(new MessageListRequest(flashNoteId)).enqueue(new Callback<ApiResponse<List<Message>>>() {
+        MessageListRequest request = new MessageListRequest(flashNoteId, page, limit);
+        messageService.list(request).enqueue(new Callback<ApiResponse<List<Message>>>() {
             @Override
             public void onResponse(Call<ApiResponse<List<Message>>> call, 
                                  Response<ApiResponse<List<Message>>> response) {
@@ -129,7 +135,23 @@ public class MessageRepositoryImpl implements MessageRepository {
                     ApiResponse<List<Message>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
-                        liveData.setValue(apiResponse.getData());
+                        List<Message> newMessages = apiResponse.getData();
+                        
+                        if (page == 1) {
+                            liveData.setValue(newMessages);
+                        } else {
+                            List<Message> current = liveData.getValue();
+                            List<Message> updated = new ArrayList<>(newMessages);
+                            if (current != null) {
+                                updated.addAll(current);
+                            }
+                            liveData.setValue(updated);
+                        }
+                        
+                        boolean hasMore = newMessages.size() >= limit;
+                        hasMoreMap.put(flashNoteId, hasMore);
+                        MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(flashNoteId);
+                        hasMoreLiveData.setValue(hasMore);
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("MessageRepo", errMsg);
@@ -150,6 +172,43 @@ public class MessageRepositoryImpl implements MessageRepository {
                 errorMessage.setValue(errMsg);
             }
         });
+    }
+
+    @Override
+    public void loadMoreMessages(long flashNoteId) {
+        Boolean hasMore = hasMoreMap.get(flashNoteId);
+        if (hasMore == null || !hasMore) {
+            return;
+        }
+        
+        Boolean loading = isLoading.getValue();
+        if (loading != null && loading) {
+            return;
+        }
+        
+        int currentPage = currentPages.getOrDefault(flashNoteId, 1);
+        int nextPage = currentPage + 1;
+        currentPages.put(flashNoteId, nextPage);
+        loadMessages(flashNoteId, nextPage, 20);
+    }
+
+    @Override
+    public LiveData<Boolean> getHasMore() {
+        return isLoading;
+    }
+
+    private MutableLiveData<Boolean> ensureHasMoreLiveData(long flashNoteId) {
+        MutableLiveData<Boolean> existing = hasMoreLiveDataMap.get(flashNoteId);
+        if (existing != null) {
+            return existing;
+        }
+        MutableLiveData<Boolean> created = new MutableLiveData<>(true);
+        hasMoreLiveDataMap.put(flashNoteId, created);
+        return created;
+    }
+
+    public LiveData<Boolean> getHasMoreForFlashNote(long flashNoteId) {
+        return ensureHasMoreLiveData(flashNoteId);
     }
 
     private MutableLiveData<List<Message>> ensureLiveData(long flashNoteId) {

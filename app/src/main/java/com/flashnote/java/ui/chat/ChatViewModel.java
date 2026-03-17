@@ -67,4 +67,15 @@ public class ChatViewModel extends AndroidViewModel {
         }
         repository.sendMessage(id, message, onSuccess);
     }
+
+    public void loadMore() {
+        Long id = flashNoteId.getValue();
+        if (id != null) {
+            repository.loadMoreMessages(id);
+        }
+    }
+
+    public LiveData<Boolean> getHasMore() {
+        return repository.getHasMore();
+    }
 }

@@ -22,4 +22,8 @@ public interface MessageRepository {
     void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess);
 
     void sendMessage(long flashNoteId, Message message, Runnable onSuccess);
+
+    void loadMoreMessages(long flashNoteId);
+
+    LiveData<Boolean> getHasMore();
 }

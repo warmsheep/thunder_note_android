@@ -59,6 +59,7 @@ public class ChatFragment extends Fragment {
     private FragmentChatBinding binding;
     private ChatViewModel chatViewModel;
     private FileRepository fileRepository;
+    private MessageAdapter adapter;
     private boolean isToolsPanelVisible = false;
     private boolean isRecording = false;
     private MediaRecorder mediaRecorder;
@@ -159,9 +160,19 @@ public class ChatFragment extends Fragment {
         fileRepository = FlashNoteApp.getInstance().getFileRepository();
         chatViewModel = new ViewModelProvider(this).get(ChatViewModel.class);
         FlashNoteViewModel flashNoteViewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
-        MessageAdapter adapter = new MessageAdapter((message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView));
+        adapter = new MessageAdapter((message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView));
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerView.setAdapter(adapter);
+
+        binding.recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+                if (layoutManager != null && layoutManager.findFirstVisibleItemPosition() == 0) {
+                    chatViewModel.loadMore();
+                }
+            }
+        });
 
         chatViewModel.bindFlashNote(flashNoteId);
         long scrollToMessageId = getArguments() == null ? 0L : getArguments().getLong(ARG_SCROLL_TO_MESSAGE_ID, 0L);
@@ -169,6 +180,11 @@ public class ChatFragment extends Fragment {
         if (chatViewModel.getMessages() != null) {
             chatViewModel.getMessages().observe(getViewLifecycleOwner(), messages -> {
                 adapter.submitList(messages);
+                // Scroll to bottom if not search location scenario
+                if (scrollToMessageId <= 0 && messages != null && !messages.isEmpty()) {
+                    binding.recyclerView.post(() -> 
+                        binding.recyclerView.scrollToPosition(messages.size() - 1));
+                }
                 // Scroll to target message if specified
                 if (scrollToMessageId > 0 && messages != null) {
                     for (int i = 0; i < messages.size(); i++) {
@@ -234,6 +250,14 @@ public class ChatFragment extends Fragment {
                 if (binding != null) {
                     binding.messageInput.setText(null);
                 }
+                if (binding != null && binding.recyclerView != null) {
+                    binding.recyclerView.post(() -> {
+                        int count = adapter.getItemCount();
+                        if (count > 0) {
+                            binding.recyclerView.scrollToPosition(count - 1);
+                        }
+                    });
+                }
             });
         });
     }
@@ -261,6 +285,12 @@ public class ChatFragment extends Fragment {
             animator.setRepeatCount(1);
             animator.setRepeatMode(android.animation.ValueAnimator.REVERSE);
             animator.addUpdateListener(animation -> targetView.setBackgroundColor((int) animation.getAnimatedValue()));
+            animator.addListener(new android.animation.AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(android.animation.Animator animation) {
+                    targetView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+                }
+            });
             animator.start();
         }
     }
@@ -596,7 +626,17 @@ public class ChatFragment extends Fragment {
 
                 chatViewModel.sendMedia(message, () -> {
                     if (!isAdded()) return;
-                    requireActivity().runOnUiThread(() -> showToast("发送成功"));
+                    requireActivity().runOnUiThread(() -> {
+                        showToast("发送成功");
+                        if (binding != null && binding.recyclerView != null) {
+                            binding.recyclerView.post(() -> {
+                                int count = adapter.getItemCount();
+                                if (count > 0) {
+                                    binding.recyclerView.scrollToPosition(count - 1);
+                                }
+                            });
+                        }
+                    });
                 });
             }
 
@@ -688,7 +728,17 @@ public class ChatFragment extends Fragment {
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> showToast("发送成功"));
+                        requireActivity().runOnUiThread(() -> {
+                            showToast("发送成功");
+                            if (binding != null && binding.recyclerView != null) {
+                                binding.recyclerView.post(() -> {
+                                    int count = adapter.getItemCount();
+                                    if (count > 0) {
+                                        binding.recyclerView.scrollToPosition(count - 1);
+                                    }
+                                });
+                            }
+                        });
                     });
                 }
 
@@ -723,7 +773,17 @@ public class ChatFragment extends Fragment {
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> showToast("发送成功"));
+                        requireActivity().runOnUiThread(() -> {
+                            showToast("发送成功");
+                            if (binding != null && binding.recyclerView != null) {
+                                binding.recyclerView.post(() -> {
+                                    int count = adapter.getItemCount();
+                                    if (count > 0) {
+                                        binding.recyclerView.scrollToPosition(count - 1);
+                                    }
+                                });
+                            }
+                        });
                     });
                 }
 
@@ -758,7 +818,17 @@ public class ChatFragment extends Fragment {
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> showToast("发送成功"));
+                        requireActivity().runOnUiThread(() -> {
+                            showToast("发送成功");
+                            if (binding != null && binding.recyclerView != null) {
+                                binding.recyclerView.post(() -> {
+                                    int count = adapter.getItemCount();
+                                    if (count > 0) {
+                                        binding.recyclerView.scrollToPosition(count - 1);
+                                    }
+                                });
+                            }
+                        });
                     });
                 }
 
@@ -793,7 +863,17 @@ public class ChatFragment extends Fragment {
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> showToast("发送成功"));
+                        requireActivity().runOnUiThread(() -> {
+                            showToast("发送成功");
+                            if (binding != null && binding.recyclerView != null) {
+                                binding.recyclerView.post(() -> {
+                                    int count = adapter.getItemCount();
+                                    if (count > 0) {
+                                        binding.recyclerView.scrollToPosition(count - 1);
+                                    }
+                                });
+                            }
+                        });
                     });
                 }
 
