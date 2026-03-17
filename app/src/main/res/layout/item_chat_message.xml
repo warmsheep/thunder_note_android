@@ -70,6 +70,13 @@
                         android:layout_gravity="center"
                         android:src="@drawable/ic_play_circle"
                         android:visibility="gone" />
+
+                    <ProgressBar
+                        android:id="@+id/uploadProgress"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_gravity="center"
+                        android:visibility="gone" />
                 </FrameLayout>
 
                 <LinearLayout
@@ -103,6 +110,13 @@
                         android:layout_marginStart="@dimen/chat_media_spacing_small"
                         android:textColor="@color/text_secondary"
                         android:textSize="@dimen/text_size_caption" />
+
+                    <ProgressBar
+                        android:id="@+id/voiceUploadProgress"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="4dp"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -146,6 +160,13 @@
                             android:textColor="@color/text_secondary"
                             android:textSize="@dimen/text_size_tiny" />
                     </LinearLayout>
+
+                    <ProgressBar
+                        android:id="@+id/fileUploadProgress"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="8dp"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <TextView
@@ -198,6 +219,13 @@
                     android:layout_gravity="center"
                     android:src="@drawable/ic_play_circle"
                     android:visibility="gone" />
+
+                <ProgressBar
+                    android:id="@+id/rightUploadProgress"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="center"
+                    android:visibility="gone" />
             </FrameLayout>
 
             <LinearLayout
@@ -231,6 +259,13 @@
                     android:layout_marginStart="@dimen/chat_media_spacing_small"
                     android:textColor="@color/text_secondary"
                     android:textSize="@dimen/text_size_caption" />
+
+                <ProgressBar
+                    android:id="@+id/rightVoiceUploadProgress"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginStart="4dp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <LinearLayout
@@ -274,6 +309,13 @@
                         android:textColor="@color/text_secondary"
                         android:textSize="@dimen/text_size_tiny" />
                 </LinearLayout>
+
+                <ProgressBar
+                    android:id="@+id/rightFileUploadProgress"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginStart="8dp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <TextView

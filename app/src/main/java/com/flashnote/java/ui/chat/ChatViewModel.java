@@ -78,4 +78,8 @@ public class ChatViewModel extends AndroidViewModel {
     public LiveData<Boolean> getHasMore() {
         return repository.getHasMore();
     }
+
+    public void addLocalMessage(Message message) {
+        repository.addLocalMessage(message);
+    }
 }

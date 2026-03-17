@@ -46,6 +46,8 @@ public class Message {
     
     @SerializedName("fileSize")
     private Long fileSize;
+    
+    private transient boolean uploading = false;
 
     public Message() {}
 
@@ -166,5 +168,13 @@ public class Message {
     
     public void setFileSize(Long fileSize) {
         this.fileSize = fileSize;
+    }
+    
+    public boolean isUploading() {
+        return uploading;
+    }
+    
+    public void setUploading(boolean uploading) {
+        this.uploading = uploading;
     }
 }

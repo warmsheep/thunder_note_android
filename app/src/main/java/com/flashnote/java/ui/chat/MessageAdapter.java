@@ -10,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -134,20 +135,23 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
         refs.imageContainer.setVisibility(View.VISIBLE);
         refs.playIcon.setVisibility(View.GONE);
+        refs.uploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
         bindTextForMediaMessage(refs.messageText, message.getContent());
 
-        Glide.with(holder.binding.getRoot().getContext())
-                .load(buildGlideUrl(holder.binding.getRoot().getContext(), message.getMediaUrl()))
-                .placeholder(R.drawable.bg_placeholder_card)
-                .error(R.drawable.bg_placeholder_card)
-                .into(refs.imageView);
+        if (!message.isUploading()) {
+            Glide.with(holder.binding.getRoot().getContext())
+                    .load(buildGlideUrl(holder.binding.getRoot().getContext(), message.getMediaUrl()))
+                    .placeholder(R.drawable.bg_placeholder_card)
+                    .error(R.drawable.bg_placeholder_card)
+                    .into(refs.imageView);
 
-        refs.imageContainer.setOnClickListener(v -> {
-            Context context = v.getContext();
-            Intent intent = new Intent(context, ImageViewerActivity.class);
-            intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
-            context.startActivity(intent);
-        });
+            refs.imageContainer.setOnClickListener(v -> {
+                Context context = v.getContext();
+                Intent intent = new Intent(context, ImageViewerActivity.class);
+                intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
+                context.startActivity(intent);
+            });
+        }
     }
 
     private void showVideoMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -156,21 +160,24 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
         refs.imageContainer.setVisibility(View.VISIBLE);
         refs.playIcon.setVisibility(View.VISIBLE);
+        refs.uploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
         bindTextForMediaMessage(refs.messageText, message.getContent());
 
-        String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
-        Glide.with(holder.binding.getRoot().getContext())
-                .load(buildGlideUrl(holder.binding.getRoot().getContext(), preview))
-                .placeholder(R.drawable.bg_placeholder_card)
-                .error(R.drawable.bg_placeholder_card)
-                .into(refs.imageView);
+        if (!message.isUploading()) {
+            String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
+            Glide.with(holder.binding.getRoot().getContext())
+                    .load(buildGlideUrl(holder.binding.getRoot().getContext(), preview))
+                    .placeholder(R.drawable.bg_placeholder_card)
+                    .error(R.drawable.bg_placeholder_card)
+                    .into(refs.imageView);
 
-        refs.imageContainer.setOnClickListener(v -> {
-            Context context = v.getContext();
-            Intent intent = new Intent(context, VideoPlayerActivity.class);
-            intent.putExtra(VideoPlayerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
-            context.startActivity(intent);
-        });
+            refs.imageContainer.setOnClickListener(v -> {
+                Context context = v.getContext();
+                Intent intent = new Intent(context, VideoPlayerActivity.class);
+                intent.putExtra(VideoPlayerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
+                context.startActivity(intent);
+            });
+        }
     }
 
     private void showVoiceMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -178,28 +185,28 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         FrameRefs refs = getRefs(holder, mine);
 
         refs.voiceContainer.setVisibility(View.VISIBLE);
+        refs.voiceUploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
         bindTextForMediaMessage(refs.messageText, message.getContent());
 
         Integer duration = message.getMediaDuration();
         refs.voiceDuration.setText((duration == null || duration <= 0 ? 0 : duration) + "s");
 
-        // 隐藏播放按钮，改为点击整个语音容器播放
-        refs.voicePlayBtn.setVisibility(View.GONE);
-        
-        // 给语音容器添加点击事件
-        refs.voiceContainer.setOnClickListener(v -> toggleVoicePlayback(v.getContext(), message, refs.voiceContainer, refs.voiceWaveform));
-        
-        // 更新播放状态
-        boolean isPlayingThis = message.getId() != null
-                && currentPlayingMessageId != null
-                && currentPlayingMessageId.equals(message.getId())
-                && mediaPlayer != null
-                && mediaPlayer.isPlaying();
-        
-        if (isPlayingThis) {
-            startVoiceWaveAnimation(refs.voiceWaveform);
-        } else {
-            stopVoiceWaveAnimation(refs.voiceWaveform);
+        if (!message.isUploading()) {
+            refs.voicePlayBtn.setVisibility(View.GONE);
+            
+            refs.voiceContainer.setOnClickListener(v -> toggleVoicePlayback(v.getContext(), message, refs.voiceContainer, refs.voiceWaveform));
+            
+            boolean isPlayingThis = message.getId() != null
+                    && currentPlayingMessageId != null
+                    && currentPlayingMessageId.equals(message.getId())
+                    && mediaPlayer != null
+                    && mediaPlayer.isPlaying();
+            
+            if (isPlayingThis) {
+                startVoiceWaveAnimation(refs.voiceWaveform);
+            } else {
+                stopVoiceWaveAnimation(refs.voiceWaveform);
+            }
         }
     }
 
@@ -208,14 +215,17 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         FrameRefs refs = getRefs(holder, mine);
 
         refs.fileContainer.setVisibility(View.VISIBLE);
+        refs.fileUploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
         bindTextForMediaMessage(refs.messageText, message.getContent());
 
-        String fileName = !TextUtils.isEmpty(message.getFileName()) ? message.getFileName() : fallbackFileName(message.getMediaUrl());
-        refs.fileNameText.setText(fileName);
-        refs.fileSizeText.setText(formatFileSize(message.getFileSize()));
-        refs.fileIcon.setImageResource(resolveFileIcon(fileName));
+        if (!message.isUploading()) {
+            String fileName = !TextUtils.isEmpty(message.getFileName()) ? message.getFileName() : fallbackFileName(message.getMediaUrl());
+            refs.fileNameText.setText(fileName);
+            refs.fileSizeText.setText(formatFileSize(message.getFileSize()));
+            refs.fileIcon.setImageResource(resolveFileIcon(fileName));
 
-        refs.fileContainer.setOnClickListener(v -> openFileMessage(v.getContext(), message));
+            refs.fileContainer.setOnClickListener(v -> openFileMessage(v.getContext(), message));
+        }
     }
 
     private void toggleVoicePlayback(Context context, Message message, View voiceContainer, View voiceWaveform) {
@@ -274,30 +284,39 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         currentPlayingMessageId = null;
     }
 
-    private android.animation.ValueAnimator voiceWaveAnimator;
+    private java.util.Map<View, android.animation.AnimatorSet> waveAnimators = new java.util.WeakHashMap<>();
 
     private void startVoiceWaveAnimation(View voiceWaveform) {
         stopVoiceWaveAnimation(voiceWaveform);
-        voiceWaveAnimator = android.animation.ValueAnimator.ofFloat(1f, 0.3f, 1f);
-        voiceWaveAnimator.setDuration(1000);
-        voiceWaveAnimator.setRepeatCount(android.animation.ValueAnimator.INFINITE);
-        voiceWaveAnimator.addUpdateListener(animation -> {
-            Float value = (Float) animation.getAnimatedValue();
-            if (voiceWaveform != null) {
-                voiceWaveform.setAlpha(value);
-            }
-        });
-        voiceWaveAnimator.start();
+        
+        android.animation.ObjectAnimator scaleX = android.animation.ObjectAnimator.ofFloat(voiceWaveform, "scaleX", 1f, 1.15f, 0.9f, 1f);
+        scaleX.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+        scaleX.setDuration(1200);
+        
+        android.animation.ObjectAnimator scaleY = android.animation.ObjectAnimator.ofFloat(voiceWaveform, "scaleY", 1f, 1.2f, 0.85f, 1f);
+        scaleY.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+        scaleY.setDuration(1200);
+        
+        android.animation.ObjectAnimator alpha = android.animation.ObjectAnimator.ofFloat(voiceWaveform, "alpha", 1f, 0.6f, 1f);
+        alpha.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+        alpha.setDuration(1200);
+        
+        android.animation.AnimatorSet animatorSet = new android.animation.AnimatorSet();
+        animatorSet.playTogether(scaleX, scaleY, alpha);
+        animatorSet.start();
+        
+        waveAnimators.put(voiceWaveform, animatorSet);
     }
 
     private void stopVoiceWaveAnimation(View voiceWaveform) {
-        if (voiceWaveAnimator != null) {
-            voiceWaveAnimator.cancel();
-            voiceWaveAnimator = null;
+        if (voiceWaveform == null) return;
+        android.animation.AnimatorSet animator = waveAnimators.remove(voiceWaveform);
+        if (animator != null) {
+            animator.cancel();
         }
-        if (voiceWaveform != null) {
-            voiceWaveform.setAlpha(1f);
-        }
+        voiceWaveform.setScaleX(1f);
+        voiceWaveform.setScaleY(1f);
+        voiceWaveform.setAlpha(1f);
     }
 
     private void openFileMessage(Context context, Message message) {
@@ -391,8 +410,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         FrameRefs refs = getRefs(holder, mine);
         refs.imageContainer.setVisibility(View.GONE);
         refs.playIcon.setVisibility(View.GONE);
+        refs.uploadProgress.setVisibility(View.GONE);
         refs.voiceContainer.setVisibility(View.GONE);
+        refs.voiceUploadProgress.setVisibility(View.GONE);
         refs.fileContainer.setVisibility(View.GONE);
+        refs.fileUploadProgress.setVisibility(View.GONE);
         stopVoiceWaveAnimation(refs.voiceWaveform);
     }
 
@@ -402,14 +424,17 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     holder.binding.rightMediaImageContainer,
                     holder.binding.rightMediaImage,
                     holder.binding.rightPlayIcon,
+                    holder.binding.rightUploadProgress,
                     holder.binding.rightVoiceContainer,
                     holder.binding.rightVoicePlayBtn,
                     holder.binding.rightVoiceDuration,
                     holder.binding.rightVoiceWaveform,
+                    holder.binding.rightVoiceUploadProgress,
                     holder.binding.rightFileContainer,
                     holder.binding.rightFileIcon,
                     holder.binding.rightFileNameText,
                     holder.binding.rightFileSizeText,
+                    holder.binding.rightFileUploadProgress,
                     holder.binding.rightMessageText
             );
         }
@@ -417,14 +442,17 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 holder.binding.mediaImageContainer,
                 holder.binding.mediaImage,
                 holder.binding.playIcon,
+                holder.binding.uploadProgress,
                 holder.binding.voiceContainer,
                 holder.binding.voicePlayBtn,
                 holder.binding.voiceDuration,
                 holder.binding.voiceWaveform,
+                holder.binding.voiceUploadProgress,
                 holder.binding.fileContainer,
                 holder.binding.fileIcon,
                 holder.binding.fileNameText,
                 holder.binding.fileSizeText,
+                holder.binding.fileUploadProgress,
                 holder.binding.messageText
         );
     }
@@ -615,39 +643,48 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         final View imageContainer;
         final ImageView imageView;
         final ImageView playIcon;
+        final ProgressBar uploadProgress;
         final View voiceContainer;
         final ImageView voicePlayBtn;
         final TextView voiceDuration;
         final View voiceWaveform;
+        final ProgressBar voiceUploadProgress;
         final View fileContainer;
         final ImageView fileIcon;
         final TextView fileNameText;
         final TextView fileSizeText;
+        final ProgressBar fileUploadProgress;
         final TextView messageText;
 
         FrameRefs(View imageContainer,
                   ImageView imageView,
                   ImageView playIcon,
+                  ProgressBar uploadProgress,
                   View voiceContainer,
                   ImageView voicePlayBtn,
                   TextView voiceDuration,
                   View voiceWaveform,
+                  ProgressBar voiceUploadProgress,
                   View fileContainer,
                   ImageView fileIcon,
                   TextView fileNameText,
                   TextView fileSizeText,
+                  ProgressBar fileUploadProgress,
                   TextView messageText) {
             this.imageContainer = imageContainer;
             this.imageView = imageView;
             this.playIcon = playIcon;
+            this.uploadProgress = uploadProgress;
             this.voiceContainer = voiceContainer;
             this.voicePlayBtn = voicePlayBtn;
             this.voiceDuration = voiceDuration;
             this.voiceWaveform = voiceWaveform;
+            this.voiceUploadProgress = voiceUploadProgress;
             this.fileContainer = fileContainer;
             this.fileIcon = fileIcon;
             this.fileNameText = fileNameText;
             this.fileSizeText = fileSizeText;
+            this.fileUploadProgress = fileUploadProgress;
             this.messageText = messageText;
         }
     }
