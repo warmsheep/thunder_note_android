@@ -24,5 +24,5 @@ public interface MessageService {
     Call<ApiResponse<Void>> delete(@Path("id") Long id);
 
     @GET("api/messages/count")
-    Call<ApiResponse<Long>> countMessages();
+    Call<ApiResponse<Integer>> countMessages();
 }

@@ -33,4 +33,6 @@ public interface MessageRepository {
     LiveData<Boolean> getHasMore();
 
     void countMessages(CountCallback callback);
+
+    void addLocalMessage(Message message);
 }

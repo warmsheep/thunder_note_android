@@ -41,6 +41,7 @@ import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.databinding.FragmentChatBinding;
 import com.flashnote.java.databinding.PopupMessageActionsBinding;
 import com.flashnote.java.ui.main.FlashNoteViewModel;
+import com.flashnote.java.util.VideoCompressor;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -357,15 +358,25 @@ public class ChatFragment extends Fragment {
         clickedView.getLocationOnScreen(location);
         int viewX = location[0];
         int viewY = location[1];
+        int viewWidth = clickedView.getWidth();
         int viewHeight = clickedView.getHeight();
 
-        int screenHeight = binding.getRoot().getResources().getDisplayMetrics().heightPixels;
+        float density = getResources().getDisplayMetrics().density;
+        int gap = (int) (4 * density);
+
+        int screenHeight = getResources().getDisplayMetrics().heightPixels;
         boolean showAbove = viewY > screenHeight / 2;
 
-        int xOff = -popupWidth / 2;
-        int yOff = showAbove ? -viewHeight - popupHeight - 10 : 10;
+        int popupX = viewX + viewWidth / 2 - popupWidth / 2;
+        int popupY = showAbove ? viewY - popupHeight - gap : viewY + viewHeight + gap;
 
-        popupWindow.showAtLocation(clickedView, Gravity.NO_GRAVITY, viewX + clickedView.getWidth() / 2 + xOff, viewY + yOff);
+        // Ensure popup stays within screen bounds
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        if (popupX < 0) popupX = 0;
+        if (popupX + popupWidth > screenWidth) popupX = screenWidth - popupWidth;
+        if (popupY < 0) popupY = 0;
+
+        popupWindow.showAtLocation(binding.getRoot(), Gravity.NO_GRAVITY, popupX, popupY);
     }
 
     private void handleDelete(Message message, ChatViewModel chatViewModel) {
@@ -617,28 +628,49 @@ public class ChatFragment extends Fragment {
             return;
         }
 
+        long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        
+        Message message = new Message();
+        message.setMediaType("VOICE");
+        message.setMediaUrl(file.getAbsolutePath());
+        message.setFileName(file.getName());
+        message.setFileSize(file.length());
+        message.setFlashNoteId(flashNoteId);
+        message.setRole("user");
+        message.setUploading(true);
+        
+        try {
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(filePath);
+            String duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+            if (duration != null) {
+                message.setMediaDuration(Integer.parseInt(duration) / 1000);
+            }
+            retriever.release();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        chatViewModel.addLocalMessage(message);
+        
+        requireActivity().runOnUiThread(() -> {
+            if (binding != null && binding.recyclerView != null) {
+                binding.recyclerView.post(() -> {
+                    int count = adapter.getItemCount();
+                    if (count > 0) {
+                        binding.recyclerView.scrollToPosition(count - 1);
+                    }
+                });
+            }
+        });
+
         fileRepository.upload(file, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String mediaUrl) {
                 if (!isAdded()) return;
                 
-                Message message = new Message();
-                message.setMediaType("VOICE");
                 message.setMediaUrl(mediaUrl);
-                message.setFileName(file.getName());
-                message.setFileSize(file.length());
-                
-                try {
-                    MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-                    retriever.setDataSource(filePath);
-                    String duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-                    if (duration != null) {
-                        message.setMediaDuration(Integer.parseInt(duration) / 1000);
-                    }
-                    retriever.release();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                message.setUploading(false);
 
                 chatViewModel.sendMedia(message, () -> {
                     if (!isAdded()) return;
@@ -658,6 +690,7 @@ public class ChatFragment extends Fragment {
             @Override
             public void onError(String errorMessage, int code) {
                 if (!isAdded()) return;
+                message.setUploading(false);
                 requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
             }
         });
@@ -726,27 +759,47 @@ public class ChatFragment extends Fragment {
 
     private void handleImagePicked(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
+        long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
             }
             
+            Message message = new Message();
+            message.setMediaType("IMAGE");
+            message.setMediaUrl(file.getAbsolutePath());
+            message.setFileName(originalFileName != null ? originalFileName : file.getName());
+            message.setFileSize(file.length());
+            message.setFlashNoteId(flashNoteId);
+            message.setRole("user");
+            message.setUploading(true);
+            
+            chatViewModel.addLocalMessage(message);
+            
+            requireActivity().runOnUiThread(() -> {
+                if (binding != null && binding.recyclerView != null) {
+                    binding.recyclerView.post(() -> {
+                        int count = adapter.getItemCount();
+                        if (count > 0) {
+                            binding.recyclerView.scrollToPosition(count - 1);
+                        }
+                    });
+                }
+            });
+            
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
                 public void onSuccess(String mediaUrl) {
                     if (!isAdded()) return;
                     
-                    Message message = new Message();
-                    message.setMediaType("IMAGE");
                     message.setMediaUrl(mediaUrl);
-                    message.setFileName(originalFileName != null ? originalFileName : file.getName());
-                    message.setFileSize(file.length());
+                    message.setUploading(false);
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
                         requireActivity().runOnUiThread(() -> {
-                            showToast("发送成功");
                             if (binding != null && binding.recyclerView != null) {
                                 binding.recyclerView.post(() -> {
                                     int count = adapter.getItemCount();
@@ -762,6 +815,7 @@ public class ChatFragment extends Fragment {
                 @Override
                 public void onError(String errorMessage, int code) {
                     if (!isAdded()) return;
+                    message.setUploading(false);
                     requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
                 }
             });
@@ -770,42 +824,86 @@ public class ChatFragment extends Fragment {
 
     private void handleVideoPicked(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
+        long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+
         copyUriToTempFile(uri, "video", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
             }
-            
-            fileRepository.upload(file, new FileRepository.FileCallback() {
-                @Override
-                public void onSuccess(String mediaUrl) {
-                    if (!isAdded()) return;
-                    
-                    Message message = new Message();
-                    message.setMediaType("IMAGE");
-                    message.setMediaUrl(mediaUrl);
-                    message.setFileName(originalFileName != null ? originalFileName : file.getName());
-                    message.setFileSize(file.length());
 
-                    chatViewModel.sendMedia(message, () -> {
-                        if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> {
-                            if (binding != null && binding.recyclerView != null) {
-                                binding.recyclerView.post(() -> {
-                                    int count = adapter.getItemCount();
-                                    if (count > 0) {
-                                        binding.recyclerView.scrollToPosition(count - 1);
+            Message message = new Message();
+            message.setMediaType("VIDEO");
+            message.setMediaUrl(file.getAbsolutePath());
+            message.setFileName(originalFileName != null ? originalFileName : file.getName());
+            message.setFileSize(file.length());
+            message.setFlashNoteId(flashNoteId);
+            message.setRole("user");
+            message.setUploading(true);
+
+            chatViewModel.addLocalMessage(message);
+
+            requireActivity().runOnUiThread(() -> {
+                if (binding != null && binding.recyclerView != null) {
+                    binding.recyclerView.post(() -> {
+                        int count = adapter.getItemCount();
+                        if (count > 0) {
+                            binding.recyclerView.scrollToPosition(count - 1);
+                        }
+                    });
+                }
+            });
+
+            VideoCompressor.compress(requireContext(), file, new VideoCompressor.CompressCallback() {
+                @Override
+                public void onSuccess(File compressedFile) {
+                    fileRepository.upload(compressedFile, new FileRepository.FileCallback() {
+                        @Override
+                        public void onSuccess(String mediaUrl) {
+                            if (!isAdded()) {
+                                return;
+                            }
+
+                            message.setMediaUrl(mediaUrl);
+                            message.setFileName(originalFileName != null ? originalFileName : compressedFile.getName());
+                            message.setFileSize(compressedFile.length());
+                            message.setUploading(false);
+
+                            chatViewModel.sendMedia(message, () -> {
+                                if (!isAdded()) {
+                                    return;
+                                }
+                                requireActivity().runOnUiThread(() -> {
+                                    if (binding != null && binding.recyclerView != null) {
+                                        binding.recyclerView.post(() -> {
+                                            int count = adapter.getItemCount();
+                                            if (count > 0) {
+                                                binding.recyclerView.scrollToPosition(count - 1);
+                                            }
+                                        });
                                     }
                                 });
+                            });
+                        }
+
+                        @Override
+                        public void onError(String errorMessage, int code) {
+                            if (!isAdded()) {
+                                return;
                             }
-                        });
+                            message.setUploading(false);
+                            requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                        }
                     });
                 }
 
                 @Override
-                public void onError(String errorMessage, int code) {
-                    if (!isAdded()) return;
-                    requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                public void onError(String errorMessage) {
+                    if (!isAdded()) {
+                        return;
+                    }
+                    message.setUploading(false);
+                    requireActivity().runOnUiThread(() -> showToast("视频压缩失败: " + errorMessage));
                 }
             });
         });
@@ -813,22 +911,43 @@ public class ChatFragment extends Fragment {
 
     private void handleFilePicked(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
+        long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        
         copyUriToTempFile(uri, "file", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
             }
             
+            Message message = new Message();
+            message.setMediaType("FILE");
+            message.setMediaUrl(file.getAbsolutePath());
+            message.setFileName(originalFileName != null ? originalFileName : file.getName());
+            message.setFileSize(file.length());
+            message.setFlashNoteId(flashNoteId);
+            message.setRole("user");
+            message.setUploading(true);
+            
+            chatViewModel.addLocalMessage(message);
+            
+            requireActivity().runOnUiThread(() -> {
+                if (binding != null && binding.recyclerView != null) {
+                    binding.recyclerView.post(() -> {
+                        int count = adapter.getItemCount();
+                        if (count > 0) {
+                            binding.recyclerView.scrollToPosition(count - 1);
+                        }
+                    });
+                }
+            });
+            
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
                 public void onSuccess(String mediaUrl) {
                     if (!isAdded()) return;
                     
-                    Message message = new Message();
-                    message.setMediaType("FILE");
                     message.setMediaUrl(mediaUrl);
-                    message.setFileName(originalFileName != null ? originalFileName : file.getName());
-                    message.setFileSize(file.length());
+                    message.setUploading(false);
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
@@ -848,6 +967,7 @@ public class ChatFragment extends Fragment {
                 @Override
                 public void onError(String errorMessage, int code) {
                     if (!isAdded()) return;
+                    message.setUploading(false);
                     requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
                 }
             });
@@ -856,22 +976,43 @@ public class ChatFragment extends Fragment {
 
     private void handleCameraPhoto(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
+        long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
             }
             
+            Message message = new Message();
+            message.setMediaType("IMAGE");
+            message.setMediaUrl(file.getAbsolutePath());
+            message.setFileName(originalFileName != null ? originalFileName : file.getName());
+            message.setFileSize(file.length());
+            message.setFlashNoteId(flashNoteId);
+            message.setRole("user");
+            message.setUploading(true);
+            
+            chatViewModel.addLocalMessage(message);
+            
+            requireActivity().runOnUiThread(() -> {
+                if (binding != null && binding.recyclerView != null) {
+                    binding.recyclerView.post(() -> {
+                        int count = adapter.getItemCount();
+                        if (count > 0) {
+                            binding.recyclerView.scrollToPosition(count - 1);
+                        }
+                    });
+                }
+            });
+            
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
                 public void onSuccess(String mediaUrl) {
                     if (!isAdded()) return;
                     
-                    Message message = new Message();
-                    message.setMediaType("IMAGE");
                     message.setMediaUrl(mediaUrl);
-                    message.setFileName(originalFileName != null ? originalFileName : file.getName());
-                    message.setFileSize(file.length());
+                    message.setUploading(false);
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
@@ -891,6 +1032,7 @@ public class ChatFragment extends Fragment {
                 @Override
                 public void onError(String errorMessage, int code) {
                     if (!isAdded()) return;
+                    message.setUploading(false);
                     requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
                 }
             });

@@ -314,11 +314,11 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void countMessages(CountCallback callback) {
-        messageService.countMessages().enqueue(new Callback<ApiResponse<Long>>() {
+        messageService.countMessages().enqueue(new Callback<ApiResponse<Integer>>() {
             @Override
-            public void onResponse(Call<ApiResponse<Long>> call, Response<ApiResponse<Long>> response) {
+            public void onResponse(Call<ApiResponse<Integer>> call, Response<ApiResponse<Integer>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    callback.onSuccess(response.body().getData());
+                    callback.onSuccess(response.body().getData().longValue());
                 } else {
                     int code = response.body() == null ? response.code() : response.body().getCode();
                     String message = response.body() == null ? "Failed to get count" : response.body().getMessage();
@@ -327,9 +327,22 @@ public class MessageRepositoryImpl implements MessageRepository {
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<Long>> call, Throwable t) {
+            public void onFailure(Call<ApiResponse<Integer>> call, Throwable t) {
                 callback.onError("Network error: " + t.getMessage(), -1);
             }
         });
+    }
+
+    @Override
+    public void addLocalMessage(Message message) {
+        Long flashNoteId = message.getFlashNoteId();
+        if (flashNoteId == null) {
+            return;
+        }
+        MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
+        List<Message> current = liveData.getValue();
+        List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
+        updated.add(message);
+        liveData.setValue(updated);
     }
 }
