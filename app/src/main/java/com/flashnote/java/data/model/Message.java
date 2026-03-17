@@ -28,6 +28,24 @@ public class Message {
     
     @SerializedName("createdAt")
     private LocalDateTime createdAt;
+    
+    @SerializedName("mediaType")
+    private String mediaType;
+    
+    @SerializedName("mediaUrl")
+    private String mediaUrl;
+    
+    @SerializedName("mediaDuration")
+    private Integer mediaDuration;
+    
+    @SerializedName("thumbnailUrl")
+    private String thumbnailUrl;
+    
+    @SerializedName("fileName")
+    private String fileName;
+    
+    @SerializedName("fileSize")
+    private Long fileSize;
 
     public Message() {}
 
@@ -100,5 +118,53 @@ public class Message {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+    
+    public String getMediaType() {
+        return mediaType;
+    }
+    
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
+    }
+    
+    public String getMediaUrl() {
+        return mediaUrl;
+    }
+    
+    public void setMediaUrl(String mediaUrl) {
+        this.mediaUrl = mediaUrl;
+    }
+    
+    public Integer getMediaDuration() {
+        return mediaDuration;
+    }
+    
+    public void setMediaDuration(Integer mediaDuration) {
+        this.mediaDuration = mediaDuration;
+    }
+    
+    public String getThumbnailUrl() {
+        return thumbnailUrl;
+    }
+    
+    public void setThumbnailUrl(String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
+    }
+    
+    public String getFileName() {
+        return fileName;
+    }
+    
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+    
+    public Long getFileSize() {
+        return fileSize;
+    }
+    
+    public void setFileSize(Long fileSize) {
+        this.fileSize = fileSize;
     }
 }

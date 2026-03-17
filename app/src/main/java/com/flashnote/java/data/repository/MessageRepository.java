@@ -20,4 +20,6 @@ public interface MessageRepository {
     void sendText(long flashNoteId, String content, Runnable onSuccess);
 
     void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess);
+
+    void sendMessage(long flashNoteId, Message message, Runnable onSuccess);
 }

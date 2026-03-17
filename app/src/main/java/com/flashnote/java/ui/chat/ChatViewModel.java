@@ -59,4 +59,12 @@ public class ChatViewModel extends AndroidViewModel {
         }
         repository.deleteMessage(id, messageId, onSuccess);
     }
+
+    public void sendMedia(Message message, Runnable onSuccess) {
+        Long id = flashNoteId.getValue();
+        if (id == null || message == null) {
+            return;
+        }
+        repository.sendMessage(id, message, onSuccess);
+    }
 }

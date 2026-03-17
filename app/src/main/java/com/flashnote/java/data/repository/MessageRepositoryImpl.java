@@ -195,4 +195,42 @@ public class MessageRepositoryImpl implements MessageRepository {
             }
         });
     }
+
+    @Override
+    public void sendMessage(long flashNoteId, Message message, Runnable onSuccess) {
+        isLoading.setValue(true);
+        message.setFlashNoteId(flashNoteId);
+        message.setRole("user");
+        
+        messageService.send(message).enqueue(new Callback<ApiResponse<Message>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Message>> call, 
+                                 Response<ApiResponse<Message>> response) {
+                isLoading.setValue(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    ApiResponse<Message> apiResponse = response.body();
+                    if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
+                        List<Message> current = liveData.getValue();
+                        List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
+                        updated.add(apiResponse.getData());
+                        liveData.setValue(updated);
+                        if (onSuccess != null) {
+                            onSuccess.run();
+                        }
+                    } else {
+                        errorMessage.setValue(apiResponse.getMessage());
+                    }
+                } else {
+                    errorMessage.setValue("Failed to send message: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Message>> call, Throwable t) {
+                isLoading.setValue(false);
+                errorMessage.setValue("Network error: " + t.getMessage());
+            }
+        });
+    }
 }
