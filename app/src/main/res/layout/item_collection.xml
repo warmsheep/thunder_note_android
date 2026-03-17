@@ -18,14 +18,14 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:textColor="@color/text_primary"
-            android:textSize="14sp" />
+            android:textSize="@dimen/text_size_body" />
 
         <TextView
             android:id="@+id/countText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/primary"
-            android:textSize="14sp"
+            android:textSize="@dimen/text_size_body"
             android:visibility="gone" />
 
         <ImageButton

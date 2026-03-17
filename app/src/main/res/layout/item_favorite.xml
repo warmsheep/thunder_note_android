@@ -28,7 +28,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@color/text_primary"
-                android:textSize="14sp" />
+                android:textSize="@dimen/text_size_body" />
 
             <TextView
                 android:id="@+id/contentText"
@@ -36,7 +36,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                android:textSize="@dimen/text_size_caption" />
 
             <TextView
                 android:id="@+id/timeText"
@@ -44,7 +44,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:textColor="@color/text_hint"
-                android:textSize="10sp" />
+                android:textSize="@dimen/text_size_tiny" />
         </LinearLayout>
 
         <TextView
@@ -58,7 +58,7 @@
             android:paddingBottom="6dp"
             android:text="移除"
             android:textColor="@color/text_secondary"
-            android:textSize="11sp" />
+            android:textSize="@dimen/text_size_button_small" />
     </LinearLayout>
 
 </LinearLayout>

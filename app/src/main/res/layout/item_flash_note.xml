@@ -11,12 +11,12 @@
 
     <TextView
         android:id="@+id/emojiText"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
+        android:layout_width="@dimen/icon_size_flashnote"
+        android:layout_height="@dimen/icon_size_flashnote"
         android:background="@drawable/bg_logo_primary_soft"
         android:gravity="center"
         android:text="⚡"
-        android:textSize="26sp" />
+        android:textSize="@dimen/icon_text_size_flashnote" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -32,7 +32,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/text_primary"
-            android:textSize="14sp" />
+            android:textSize="@dimen/text_size_body" />
 
         <TextView
             android:id="@+id/summaryText"
@@ -41,7 +41,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:textSize="@dimen/text_size_caption" />
     </LinearLayout>
 
 </LinearLayout>

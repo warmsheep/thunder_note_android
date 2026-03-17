@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 文字大小 -->
+    <dimen name="text_size_page_title">18sp</dimen>        <!-- 页面标题 (之前混用13-24sp) -->
+    <dimen name="text_size_section_title">16sp</dimen>     <!-- 区块标题 -->
+    <dimen name="text_size_body">14sp</dimen>              <!-- 正文/列表标题 -->
+    <dimen name="text_size_body_small">13sp</dimen>        <!-- 聊天消息等正文 -->
+    <dimen name="text_size_caption">12sp</dimen>           <!-- 辅助说明文字 -->
+    <dimen name="text_size_tiny">11sp</dimen>              <!-- 时间戳/极小文字 -->
+    <dimen name="text_size_button_primary">16sp</dimen>    <!-- 主按钮(登录/注册) -->
+    <dimen name="text_size_button_secondary">14sp</dimen>  <!-- 次按钮 -->
+    <dimen name="text_size_button_small">12sp</dimen>      <!-- 小按钮/操作文字 -->
+    <dimen name="text_size_input">14sp</dimen>             <!-- 输入框文字 -->
+    <dimen name="text_size_hint">14sp</dimen>              <!-- 提示文字 -->
+    <dimen name="text_size_error">13sp</dimen>             <!-- 错误信息 -->
+    <dimen name="text_size_tab_title">16sp</dimen>         <!-- 顶部Tab标题 -->
+    <dimen name="text_size_popup_action">12sp</dimen>      <!-- 弹出菜单操作文字 -->
+    <dimen name="text_size_empty_title">16sp</dimen>       <!-- 空状态标题 -->
+    <dimen name="text_size_empty_subtitle">12sp</dimen>    <!-- 空状态副标题 -->
+    <dimen name="text_size_auth_title">24sp</dimen>        <!-- 登录/注册页面大标题 -->
+    <dimen name="text_size_auth_subtitle">14sp</dimen>     <!-- 登录/注册页面副标题 -->
+    <dimen name="text_size_link">14sp</dimen>              <!-- 可点击链接文字 -->
+    <dimen name="text_size_debug_log">11sp</dimen>         <!-- 调试日志(monospace) -->
+
+    <!-- 图标/Emoji 大小 -->
+    <dimen name="icon_size_logo_large">80dp</dimen>        <!-- 登录页面Logo -->
+    <dimen name="icon_text_size_logo_large">40sp</dimen>   <!-- 登录页面Logo emoji -->
+    <dimen name="icon_size_flashnote">40dp</dimen>         <!-- 闪记列表项/合集内闪记图标 -->
+    <dimen name="icon_text_size_flashnote">20sp</dimen>    <!-- 闪记列表项/合集内闪记 emoji -->
+    <dimen name="icon_size_avatar">32dp</dimen>            <!-- 聊天头像 -->
+    <dimen name="icon_text_size_avatar">16sp</dimen>       <!-- 聊天头像 emoji -->
+    <dimen name="icon_size_chat_button">36dp</dimen>       <!-- 聊天底部按钮 -->
+    <dimen name="icon_size_toolbar">28dp</dimen>           <!-- 工具栏图标 -->
+    <dimen name="icon_size_popup_action">28dp</dimen>      <!-- 弹出菜单图标 -->
+    <dimen name="icon_size_empty_state">48sp</dimen>       <!-- 空状态大 emoji -->
+    <dimen name="icon_size_dialog_preview">48dp</dimen>    <!-- 对话框预览图标 -->
+    <dimen name="icon_text_size_dialog_preview">24sp</dimen> <!-- 对话框预览 emoji -->
+
+    <!-- 间距 -->
+    <dimen name="spacing_page_padding">16dp</dimen>
+    <dimen name="spacing_item_padding_vertical">14dp</dimen>
+    <dimen name="spacing_item_padding_horizontal">16dp</dimen>
+</resources>

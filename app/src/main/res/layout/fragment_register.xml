@@ -16,13 +16,13 @@
 
         <TextView
             android:id="@+id/logoText"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
+            android:layout_width="@dimen/icon_size_logo_large"
+            android:layout_height="@dimen/icon_size_logo_large"
             android:layout_gravity="center_horizontal"
             android:background="@drawable/bg_logo_primary_soft"
             android:gravity="center"
             android:text="@string/logo_emoji"
-            android:textSize="40sp" />
+            android:textSize="@dimen/icon_text_size_logo_large" />
 
         <TextView
             android:id="@+id/registerTitle"
@@ -32,7 +32,7 @@
             android:layout_marginTop="30dp"
             android:text="@string/register_title"
             android:textColor="@color/text_primary"
-            android:textSize="24sp"
+            android:textSize="@dimen/text_size_auth_title"
             android:textStyle="bold" />
 
         <TextView
@@ -43,7 +43,7 @@
             android:layout_marginTop="8dp"
             android:text="@string/register_subtitle"
             android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
+            android:textSize="@dimen/text_size_auth_subtitle" />
 
         <EditText
             android:id="@+id/usernameInput"
@@ -99,7 +99,7 @@
             android:text="@string/action_register"
             android:textAllCaps="false"
             android:textColor="@color/white"
-            android:textSize="16sp"
+            android:textSize="@dimen/text_size_button_primary"
             android:textStyle="bold" />
 
         <TextView
@@ -108,7 +108,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:textColor="@color/danger"
-            android:textSize="13sp"
+            android:textSize="@dimen/text_size_error"
             android:visibility="gone" />
 
         <TextView
@@ -121,7 +121,7 @@
             android:paddingBottom="8dp"
             android:text="@string/go_login"
             android:textColor="@color/primary"
-            android:textSize="14sp" />
+            android:textSize="@dimen/text_size_link" />
 
     </LinearLayout>
 </ScrollView>

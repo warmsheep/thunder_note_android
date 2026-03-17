@@ -20,12 +20,12 @@
 
             <TextView
                 android:id="@+id/iconPreviewText"
-                android:layout_width="52dp"
-                android:layout_height="52dp"
+                android:layout_width="@dimen/icon_size_dialog_preview"
+                android:layout_height="@dimen/icon_size_dialog_preview"
                 android:background="@drawable/bg_logo_primary_soft"
                 android:gravity="center"
                 android:text="⚡"
-                android:textSize="28sp" />
+                android:textSize="@dimen/icon_text_size_dialog_preview" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -40,7 +40,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/flashnote_dialog_preview_title"
                     android:textColor="@color/text_primary"
-                    android:textSize="14sp" />
+                    android:textSize="@dimen/text_size_body" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -48,7 +48,7 @@
                     android:layout_marginTop="4dp"
                     android:text="@string/flashnote_dialog_preview_subtitle"
                     android:textColor="@color/text_secondary"
-                    android:textSize="14sp" />
+                    android:textSize="@dimen/text_size_body" />
             </LinearLayout>
         </LinearLayout>
 
@@ -58,7 +58,7 @@
             android:layout_marginTop="14dp"
             android:text="@string/flashnote_dialog_helper"
             android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
+            android:textSize="@dimen/text_size_body" />
 
         <com.google.android.material.textfield.TextInputLayout
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
@@ -76,7 +76,7 @@
                 android:maxLines="1"
                 android:paddingTop="12dp"
                 android:paddingBottom="12dp"
-                android:textSize="14sp" />
+                android:textSize="@dimen/text_size_input" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -96,7 +96,7 @@
                 android:maxLines="1"
                 android:paddingTop="12dp"
                 android:paddingBottom="12dp"
-                android:textSize="14sp" />
+                android:textSize="@dimen/text_size_input" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -106,7 +106,7 @@
             android:layout_marginTop="16dp"
             android:text="@string/label_flashnote_icon"
             android:textColor="@color/text_primary"
-            android:textSize="14sp" />
+            android:textSize="@dimen/text_size_body" />
 
         <GridLayout
             android:id="@+id/iconChipGroup"
