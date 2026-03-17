@@ -32,6 +32,9 @@
             android:name=".ui.media.FilePreviewActivity"
             android:exported="false"
             android:theme="@style/Theme.FlashNoteJava" />
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:theme="@style/Theme.FlashNoteJava" />
 
         <activity
             android:name=".MainActivity"

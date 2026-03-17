@@ -69,6 +69,9 @@ dependencies {
     // 图片缩放手势
     implementation("com.github.chrisbanes:PhotoView:2.3.0")
 
+    // 图片裁剪
+    implementation("com.github.yalantis:ucrop:2.2.8")
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.8.0")
     testImplementation("org.robolectric:robolectric:4.11.1")
