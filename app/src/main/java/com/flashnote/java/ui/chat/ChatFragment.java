@@ -242,13 +242,25 @@ public class ChatFragment extends Fragment {
         RecyclerView.ViewHolder holder = binding.recyclerView.findViewHolderForAdapterPosition(position);
         if (holder != null) {
             View itemView = holder.itemView;
+            View leftContainer = itemView.findViewById(R.id.leftContainer);
+            View rightContainer = itemView.findViewById(R.id.rightContainer);
+            
+            View targetView;
+            if (rightContainer != null && rightContainer.getVisibility() == View.VISIBLE) {
+                targetView = rightContainer;
+            } else if (leftContainer != null) {
+                targetView = leftContainer;
+            } else {
+                targetView = itemView;
+            }
+            
             int highlightColor = getResources().getColor(R.color.search_highlight, null);
             int originalColor = android.graphics.Color.TRANSPARENT;
             android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofArgb(highlightColor, originalColor);
             animator.setDuration(1500);
             animator.setRepeatCount(1);
             animator.setRepeatMode(android.animation.ValueAnimator.REVERSE);
-            animator.addUpdateListener(animation -> itemView.setBackgroundColor((int) animation.getAnimatedValue()));
+            animator.addUpdateListener(animation -> targetView.setBackgroundColor((int) animation.getAnimatedValue()));
             animator.start();
         }
     }
