@@ -26,6 +26,21 @@ public class FavoriteItem {
     @SerializedName("flashNoteIcon")
     private String flashNoteIcon;
 
+    @SerializedName("mediaType")
+    private String mediaType;
+
+    @SerializedName("mediaUrl")
+    private String mediaUrl;
+
+    @SerializedName("fileName")
+    private String fileName;
+
+    @SerializedName("fileSize")
+    private Long fileSize;
+
+    @SerializedName("mediaDuration")
+    private Integer mediaDuration;
+
     @SerializedName(value = "favoritedAt", alternate = {"createdAt"})
     private LocalDateTime favoritedAt;
 
@@ -86,6 +101,46 @@ public class FavoriteItem {
 
     public void setFlashNoteIcon(String flashNoteIcon) {
         this.flashNoteIcon = flashNoteIcon;
+    }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
+    }
+
+    public String getMediaUrl() {
+        return mediaUrl;
+    }
+
+    public void setMediaUrl(String mediaUrl) {
+        this.mediaUrl = mediaUrl;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
+    public Long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(Long fileSize) {
+        this.fileSize = fileSize;
+    }
+
+    public Integer getMediaDuration() {
+        return mediaDuration;
+    }
+
+    public void setMediaDuration(Integer mediaDuration) {
+        this.mediaDuration = mediaDuration;
     }
 
     public LocalDateTime getFavoritedAt() {

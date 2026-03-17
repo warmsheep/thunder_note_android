@@ -47,8 +47,89 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="2"
                 android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_caption" />
+
+            <FrameLayout
+                android:id="@+id/mediaPreviewContainer"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_marginTop="4dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/mediaPreviewImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_placeholder_card"
+                    android:scaleType="centerCrop" />
+
+                <ImageView
+                    android:id="@+id/mediaPlayIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_play_circle"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:id="@+id/fileInfoContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/fileInfoIcon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_file_generic" />
+
+                <TextView
+                    android:id="@+id/fileInfoName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:ellipsize="middle"
+                    android:singleLine="true"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_size_caption" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/voiceInfoContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_play_arrow" />
+
+                <View
+                    android:layout_width="40dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="4dp"
+                    android:background="@drawable/bg_voice_waveform" />
+
+                <TextView
+                    android:id="@+id/voiceInfoDuration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_size_caption" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/timeText"
