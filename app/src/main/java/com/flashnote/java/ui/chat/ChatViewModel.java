@@ -52,6 +52,13 @@ public class ChatViewModel extends AndroidViewModel {
         repository.sendText(targetFlashNoteId, text.trim(), onSuccess);
     }
 
+    public void sendMessageToFlashNote(long targetFlashNoteId, Message message, Runnable onSuccess) {
+        if (targetFlashNoteId <= 0 || message == null) {
+            return;
+        }
+        repository.sendMessage(targetFlashNoteId, message, onSuccess);
+    }
+
     public void deleteMessage(long messageId, Runnable onSuccess) {
         Long id = flashNoteId.getValue();
         if (id == null || messageId <= 0) {

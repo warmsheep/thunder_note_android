@@ -11,6 +11,8 @@ import android.media.MediaMetadataRetriever;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -67,6 +69,11 @@ public class ChatFragment extends Fragment {
     private MediaRecorder mediaRecorder;
     private String currentRecordingPath;
     private Uri cameraPhotoUri;
+    
+    // Recording UI state
+    private Handler recordingTimerHandler;
+    private Runnable recordingTimerRunnable;
+    private int recordingSeconds = 0;
 
     public static ChatFragment newInstance(long flashNoteId, String title) {
         ChatFragment fragment = new ChatFragment();
@@ -168,7 +175,7 @@ public class ChatFragment extends Fragment {
 
         FlashNoteApp.getInstance().getUserRepository().getProfile().observe(getViewLifecycleOwner(), profile -> {
             if (profile != null && profile.getAvatar() != null && !profile.getAvatar().isEmpty()) {
-                adapter.setUserAvatar(profile.getAvatar());
+                adapter.setUserAvatarUrl(profile.getAvatar(), requireContext());
                 adapter.notifyDataSetChanged();
             }
         });
@@ -480,17 +487,42 @@ public class ChatFragment extends Fragment {
                 .setTitle("转发到闪记")
                 .setItems(titles.toArray(new String[0]), (dialog, which) -> {
                     FlashNote target = targets.get(which);
-                    chatViewModel.sendTextToFlashNote(target.getId(), message.getContent(), () -> {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
-                            android.content.Context context = getContext();
-                            if (isAdded() && context != null) {
-                                Toast.makeText(context, "已转发到 " + target.getTitle(), Toast.LENGTH_SHORT).show();
+                    String mediaType = message.getMediaType();
+                    if (mediaType != null && !mediaType.isEmpty() && !"TEXT".equalsIgnoreCase(mediaType)) {
+                        Message forwardMsg = new Message();
+                        forwardMsg.setMediaType(message.getMediaType());
+                        forwardMsg.setMediaUrl(message.getMediaUrl());
+                        forwardMsg.setFileName(message.getFileName());
+                        forwardMsg.setFileSize(message.getFileSize());
+                        forwardMsg.setMediaDuration(message.getMediaDuration());
+                        forwardMsg.setThumbnailUrl(message.getThumbnailUrl());
+                        forwardMsg.setContent(message.getContent());
+                        forwardMsg.setFlashNoteId(target.getId());
+                        forwardMsg.setRole("user");
+                        chatViewModel.sendMessageToFlashNote(target.getId(), forwardMsg, () -> {
+                            if (!isAdded() || getActivity() == null) {
+                                return;
                             }
+                            getActivity().runOnUiThread(() -> {
+                                android.content.Context context = getContext();
+                                if (isAdded() && context != null) {
+                                    Toast.makeText(context, "已转发到 " + target.getTitle(), Toast.LENGTH_SHORT).show();
+                                }
+                            });
                         });
-                    });
+                    } else {
+                        chatViewModel.sendTextToFlashNote(target.getId(), message.getContent(), () -> {
+                            if (!isAdded() || getActivity() == null) {
+                                return;
+                            }
+                            getActivity().runOnUiThread(() -> {
+                                android.content.Context context = getContext();
+                                if (isAdded() && context != null) {
+                                    Toast.makeText(context, "已转发到 " + target.getTitle(), Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        });
+                    }
                 })
                 .show();
     }
@@ -525,29 +557,21 @@ public class ChatFragment extends Fragment {
     }
 
     private void setupMicButton() {
-        binding.micButton.setOnClickListener(v -> {
-            if (!isRecording) {
-                if (checkRecordPermission()) {
-                    startRecording();
-                } else {
-                    requestRecordPermission();
-                }
-            }
-        });
-
         binding.micButton.setOnLongClickListener(v -> {
             if (checkRecordPermission()) {
-                if (isRecording) {
-                    stopRecording();
-                    showRecordingDialog();
-                } else {
-                    startRecording();
-                }
+                startRecordingWithUI();
             } else {
                 requestRecordPermission();
             }
             return true;
         });
+        
+        binding.micButton.setOnClickListener(v -> {
+            showToast("长按开始录音");
+        });
+        
+        binding.recordCancelBtn.setOnClickListener(v -> cancelRecording());
+        binding.recordSendBtn.setOnClickListener(v -> confirmSendRecording());
     }
 
     private boolean checkRecordPermission() {
@@ -594,6 +618,90 @@ public class ChatFragment extends Fragment {
         }
         isRecording = false;
         binding.micButton.clearColorFilter();
+    }
+
+    private void startRecordingWithUI() {
+        startRecording();
+        if (!isRecording) {
+            return;
+        }
+        
+        binding.recordingOverlay.setVisibility(View.VISIBLE);
+        binding.toolsPanel.setVisibility(View.GONE);
+        binding.messageInput.setVisibility(View.GONE);
+        binding.addButton.setVisibility(View.GONE);
+        binding.sendButton.setVisibility(View.GONE);
+        binding.micButton.setVisibility(View.GONE);
+        
+        binding.recordWaveView.startWave();
+        
+        recordingSeconds = 0;
+        binding.recordTimerText.setText("0:00");
+        
+        recordingTimerHandler = new Handler(Looper.getMainLooper());
+        recordingTimerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                recordingSeconds++;
+                binding.recordTimerText.setText(formatRecordingTime(recordingSeconds));
+                
+                if (mediaRecorder != null) {
+                    try {
+                        float amp = mediaRecorder.getMaxAmplitude() / 32768f;
+                        binding.recordWaveView.updateAmplitude(amp);
+                    } catch (Exception e) {
+                    }
+                }
+                
+                recordingTimerHandler.postDelayed(this, 100);
+            }
+        };
+        recordingTimerHandler.postDelayed(recordingTimerRunnable, 100);
+    }
+
+    private void cancelRecording() {
+        stopRecordingUI();
+        stopRecording();
+        if (currentRecordingPath != null) {
+            File file = new File(currentRecordingPath);
+            if (file.exists()) {
+                file.delete();
+            }
+            currentRecordingPath = null;
+        }
+    }
+
+    private void confirmSendRecording() {
+        stopRecordingUI();
+        if (isRecording) {
+            stopRecording();
+        }
+        if (currentRecordingPath != null) {
+            sendVoiceMessage(currentRecordingPath);
+            currentRecordingPath = null;
+        }
+    }
+
+    private void stopRecordingUI() {
+        binding.recordingOverlay.setVisibility(View.GONE);
+        binding.toolsPanel.setVisibility(View.GONE);
+        binding.messageInput.setVisibility(View.VISIBLE);
+        binding.addButton.setVisibility(View.VISIBLE);
+        binding.sendButton.setVisibility(View.VISIBLE);
+        binding.micButton.setVisibility(View.VISIBLE);
+        binding.recordWaveView.stopWave();
+        
+        if (recordingTimerHandler != null && recordingTimerRunnable != null) {
+            recordingTimerHandler.removeCallbacks(recordingTimerRunnable);
+            recordingTimerHandler = null;
+            recordingTimerRunnable = null;
+        }
+    }
+
+    private String formatRecordingTime(int seconds) {
+        int mins = seconds / 60;
+        int secs = seconds % 60;
+        return String.format(Locale.getDefault(), "%d:%02d", mins, secs);
     }
 
     private void showRecordingDialog() {
@@ -1143,6 +1251,11 @@ public class ChatFragment extends Fragment {
         super.onDestroyView();
         if (isRecording) {
             stopRecording();
+        }
+        if (recordingTimerHandler != null && recordingTimerRunnable != null) {
+            recordingTimerHandler.removeCallbacks(recordingTimerRunnable);
+            recordingTimerHandler = null;
+            recordingTimerRunnable = null;
         }
         binding = null;
     }
