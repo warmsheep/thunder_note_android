@@ -57,7 +57,7 @@ public class FavoriteTabFragment extends Fragment {
                 }
                 if (getActivity() instanceof ShellNavigator navigator) {
                     String title = item.getFlashNoteTitle() == null ? "已收藏消息" : item.getFlashNoteTitle();
-                    navigator.openChat(item.getFlashNoteId(), title);
+                    navigator.openChat(item.getFlashNoteId(), title, item.getMessageId());
                 }
             }
 

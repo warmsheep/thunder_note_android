@@ -27,7 +27,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:textColor="@color/text_primary"
-            android:textSize="14sp" />
+            android:textSize="@dimen/text_size_body" />
 
         <ImageView
             android:layout_width="36dp"
@@ -52,53 +52,146 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/surface"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
+        android:gravity="bottom"
+        android:orientation="vertical"
         android:padding="12dp">
 
-        <ImageView
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="@drawable/bg_logo_primary_soft"
-            android:padding="6dp"
-            android:src="@drawable/ic_chat_add" />
-
-        <EditText
-            android:id="@+id/messageInput"
-            android:layout_width="0dp"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_input_rounded"
-            android:gravity="top|start"
-            android:hint="输入内容..."
-            android:imeOptions="actionSend"
-            android:inputType="textCapSentences|textMultiLine"
-            android:minHeight="40dp"
-            android:overScrollMode="ifContentScrolls"
-            android:paddingLeft="14dp"
-            android:paddingTop="10dp"
-            android:paddingRight="14dp"
-            android:paddingBottom="10dp"
-            android:scrollbars="vertical"
-            android:textSize="13sp" />
+            android:gravity="bottom"
+            android:orientation="horizontal">
 
-        <ImageView
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_logo_primary_soft"
-            android:padding="6dp"
-            android:src="@drawable/ic_chat_mic" />
+            <ImageView
+                android:id="@+id/addButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_logo_primary_soft"
+                android:padding="6dp"
+                android:src="@drawable/ic_chat_add" />
 
-        <ImageView
-            android:id="@+id/sendButton"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_button_primary_rounded"
-            android:padding="6dp"
-            android:src="@drawable/ic_chat_send" />
+            <EditText
+                android:id="@+id/messageInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input_rounded"
+                android:gravity="top|start"
+                android:hint="输入内容..."
+                android:imeOptions="flagNoEnterAction"
+                android:inputType="textCapSentences|textMultiLine"
+                android:minHeight="40dp"
+                android:overScrollMode="ifContentScrolls"
+                android:paddingLeft="14dp"
+                android:paddingTop="10dp"
+                android:paddingRight="14dp"
+                android:paddingBottom="10dp"
+                android:scrollbars="vertical"
+                android:textSize="@dimen/text_size_body_small" />
+
+            <ImageView
+                android:id="@+id/micButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_logo_primary_soft"
+                android:padding="6dp"
+                android:src="@drawable/ic_chat_mic" />
+
+            <ImageView
+                android:id="@+id/sendButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_button_primary_rounded"
+                android:padding="6dp"
+                android:src="@drawable/ic_chat_send" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/toolsPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@color/surface"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/toolImageVideo"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="6dp"
+                    android:src="@android:drawable/ic_menu_gallery" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="图片/视频"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_size_tiny" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/toolFile"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="6dp"
+                    android:src="@android:drawable/ic_menu_upload" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="文件"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_size_tiny" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/toolCamera"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:padding="6dp"
+                    android:src="@android:drawable/ic_menu_camera" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="拍照"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_size_tiny" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 
 </LinearLayout>

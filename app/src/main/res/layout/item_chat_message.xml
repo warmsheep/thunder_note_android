@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
+    android:paddingTop="4dp"
     android:paddingBottom="8dp">
 
     <TextView
@@ -14,7 +15,7 @@
         android:paddingTop="8dp"
         android:paddingBottom="8dp"
         android:textColor="@color/text_time_divider"
-        android:textSize="11sp"
+        android:textSize="@dimen/text_size_tiny"
         android:visibility="gone" />
 
     <LinearLayout
@@ -26,12 +27,12 @@
 
         <TextView
             android:id="@+id/avatarText"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="@dimen/icon_size_avatar"
+            android:layout_height="@dimen/icon_size_avatar"
             android:background="@drawable/bg_logo_primary_soft"
             android:gravity="center"
             android:text="🤖"
-            android:textSize="16sp" />
+            android:textSize="@dimen/icon_text_size_avatar" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/bubbleCard"
@@ -49,7 +50,7 @@
                 android:paddingRight="12dp"
                 android:paddingBottom="8dp"
                 android:textColor="@color/text_primary"
-                android:textSize="13sp" />
+                android:textSize="@dimen/text_size_body_small" />
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
@@ -72,16 +73,16 @@
             android:paddingRight="12dp"
             android:paddingBottom="8dp"
             android:textColor="@color/text_primary"
-            android:textSize="13sp" />
+            android:textSize="@dimen/text_size_body_small" />
 
         <TextView
             android:id="@+id/rightAvatarText"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="@dimen/icon_size_avatar"
+            android:layout_height="@dimen/icon_size_avatar"
             android:background="@drawable/bg_logo_primary_soft"
             android:gravity="center"
             android:text="😊"
-            android:textSize="16sp" />
+            android:textSize="@dimen/icon_text_size_avatar" />
     </LinearLayout>
 
 </LinearLayout>
