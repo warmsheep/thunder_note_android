@@ -54,6 +54,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private final FileRepository fileRepository;
 
     private String userAvatar = "😊";
+    private String userAvatarUrl = null;
+    private File localAvatarFile = null;
 
     private MediaPlayer mediaPlayer;
     private Long currentPlayingMessageId;
@@ -76,6 +78,24 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public void setUserAvatar(String avatar) {
         if (avatar != null && !avatar.isEmpty()) {
             this.userAvatar = avatar;
+        }
+    }
+
+    public void setUserAvatarUrl(String avatarUrl, Context context) {
+        if (avatarUrl != null && !avatarUrl.isEmpty()) {
+            if (avatarUrl.startsWith("http") || avatarUrl.contains("/")) {
+                this.userAvatarUrl = avatarUrl;
+                this.userAvatar = null;
+            } else {
+                this.userAvatar = avatarUrl;
+                this.userAvatarUrl = null;
+            }
+        }
+        if (context != null) {
+            File avatarFile = new File(context.getFilesDir(), "avatar.jpg");
+            if (avatarFile.exists()) {
+                this.localAvatarFile = avatarFile;
+            }
         }
     }
 
@@ -289,34 +309,25 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private void startVoiceWaveAnimation(View voiceWaveform) {
         stopVoiceWaveAnimation(voiceWaveform);
         
-        android.animation.ObjectAnimator scaleX = android.animation.ObjectAnimator.ofFloat(voiceWaveform, "scaleX", 1f, 1.15f, 0.9f, 1f);
-        scaleX.setRepeatCount(android.animation.ValueAnimator.INFINITE);
-        scaleX.setDuration(1200);
-        
-        android.animation.ObjectAnimator scaleY = android.animation.ObjectAnimator.ofFloat(voiceWaveform, "scaleY", 1f, 1.2f, 0.85f, 1f);
-        scaleY.setRepeatCount(android.animation.ValueAnimator.INFINITE);
-        scaleY.setDuration(1200);
-        
-        android.animation.ObjectAnimator alpha = android.animation.ObjectAnimator.ofFloat(voiceWaveform, "alpha", 1f, 0.6f, 1f);
-        alpha.setRepeatCount(android.animation.ValueAnimator.INFINITE);
-        alpha.setDuration(1200);
-        
-        android.animation.AnimatorSet animatorSet = new android.animation.AnimatorSet();
-        animatorSet.playTogether(scaleX, scaleY, alpha);
-        animatorSet.start();
-        
-        waveAnimators.put(voiceWaveform, animatorSet);
+        if (voiceWaveform instanceof VoiceWaveView) {
+            ((VoiceWaveView) voiceWaveform).startAnimation();
+        }
     }
 
     private void stopVoiceWaveAnimation(View voiceWaveform) {
         if (voiceWaveform == null) return;
-        android.animation.AnimatorSet animator = waveAnimators.remove(voiceWaveform);
-        if (animator != null) {
-            animator.cancel();
+        
+        if (voiceWaveform instanceof VoiceWaveView) {
+            ((VoiceWaveView) voiceWaveform).stopAnimation();
+        } else {
+            android.animation.AnimatorSet animator = waveAnimators.remove(voiceWaveform);
+            if (animator != null) {
+                animator.cancel();
+            }
+            voiceWaveform.setScaleX(1f);
+            voiceWaveform.setScaleY(1f);
+            voiceWaveform.setAlpha(1f);
         }
-        voiceWaveform.setScaleX(1f);
-        voiceWaveform.setScaleY(1f);
-        voiceWaveform.setAlpha(1f);
     }
 
     private void openFileMessage(Context context, Message message) {
@@ -604,7 +615,32 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             binding.leftContainer.setVisibility(mine ? View.GONE : View.VISIBLE);
             binding.rightContainer.setVisibility(mine ? View.VISIBLE : View.GONE);
             binding.avatarText.setText("🤖");
-            binding.rightAvatarText.setText(userAvatar);
+            
+            if (mine) {
+                if (userAvatarUrl != null) {
+                    binding.rightAvatarText.setVisibility(View.GONE);
+                    binding.rightAvatarImage.setVisibility(View.VISIBLE);
+                    Glide.with(binding.getRoot().getContext())
+                            .load(userAvatarUrl)
+                            .placeholder(R.drawable.bg_avatar_circle)
+                            .error(R.drawable.bg_avatar_circle)
+                            .circleCrop()
+                            .into(binding.rightAvatarImage);
+                } else if (localAvatarFile != null && localAvatarFile.exists()) {
+                    binding.rightAvatarText.setVisibility(View.GONE);
+                    binding.rightAvatarImage.setVisibility(View.VISIBLE);
+                    Glide.with(binding.getRoot().getContext())
+                            .load(localAvatarFile)
+                            .placeholder(R.drawable.bg_avatar_circle)
+                            .error(R.drawable.bg_avatar_circle)
+                            .circleCrop()
+                            .into(binding.rightAvatarImage);
+                } else {
+                    binding.rightAvatarImage.setVisibility(View.GONE);
+                    binding.rightAvatarText.setVisibility(View.VISIBLE);
+                    binding.rightAvatarText.setText(userAvatar);
+                }
+            }
 
             String mediaType = message.getMediaType();
             if (TextUtils.isEmpty(mediaType) || "TEXT".equalsIgnoreCase(mediaType)) {
@@ -647,7 +683,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         final View voiceContainer;
         final ImageView voicePlayBtn;
         final TextView voiceDuration;
-        final View voiceWaveform;
+        final VoiceWaveView voiceWaveform;
         final ProgressBar voiceUploadProgress;
         final View fileContainer;
         final ImageView fileIcon;
@@ -663,7 +699,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                   View voiceContainer,
                   ImageView voicePlayBtn,
                   TextView voiceDuration,
-                  View voiceWaveform,
+                  VoiceWaveView voiceWaveform,
                   ProgressBar voiceUploadProgress,
                   View fileContainer,
                   ImageView fileIcon,

@@ -96,12 +96,11 @@
                         android:layout_height="@dimen/chat_voice_play_btn_size"
                         android:src="@drawable/ic_play_arrow" />
 
-                    <View
+                    <com.flashnote.java.ui.chat.VoiceWaveView
                         android:id="@+id/voiceWaveform"
                         android:layout_width="@dimen/chat_voice_waveform_width"
                         android:layout_height="@dimen/chat_voice_waveform_height"
-                        android:layout_marginStart="@dimen/chat_media_spacing_small"
-                        android:background="@drawable/bg_voice_waveform" />
+                        android:layout_marginStart="@dimen/chat_media_spacing_small" />
 
                     <TextView
                         android:id="@+id/voiceDuration"
@@ -245,12 +244,11 @@
                     android:layout_height="@dimen/chat_voice_play_btn_size"
                     android:src="@drawable/ic_play_arrow" />
 
-                <View
+                <com.flashnote.java.ui.chat.VoiceWaveView
                     android:id="@+id/rightVoiceWaveform"
                     android:layout_width="@dimen/chat_voice_waveform_width"
                     android:layout_height="@dimen/chat_voice_waveform_height"
-                    android:layout_marginStart="@dimen/chat_media_spacing_small"
-                    android:background="@drawable/bg_voice_waveform" />
+                    android:layout_marginStart="@dimen/chat_media_spacing_small" />
 
                 <TextView
                     android:id="@+id/rightVoiceDuration"
@@ -335,6 +333,13 @@
             android:gravity="center"
             android:text="😊"
             android:textSize="@dimen/icon_text_size_avatar" />
+
+        <ImageView
+            android:id="@+id/rightAvatarImage"
+            android:layout_width="@dimen/icon_size_avatar"
+            android:layout_height="@dimen/icon_size_avatar"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
     </LinearLayout>
 
 </LinearLayout>
