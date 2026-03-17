@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.GridLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -45,6 +47,8 @@ public class ProfileTabFragment extends Fragment {
     private ActivityResultLauncher<String> filePickerLauncher;
     private UserProfile currentProfile;
     private boolean isEditingBio = false;
+    
+    private static final String[] AVATAR_EMOJIS = {"💼", "📚", "❤️", "🌟", "🎯", "🚀", "🎨", "🎵", "📷", "🍕", "⚽", "😊"};
 
     @Nullable
     @Override
@@ -89,6 +93,9 @@ public class ProfileTabFragment extends Fragment {
         binding.pullButton.setOnClickListener(v -> syncRepository.pull(syncCallback("pull")));
         binding.pushButton.setOnClickListener(v -> pushCurrentData());
         binding.uploadButton.setOnClickListener(v -> filePickerLauncher.launch("*/*"));
+        binding.avatarContainer.setOnClickListener(v -> showAvatarPicker());
+        binding.changePasswordButton.setOnClickListener(v -> openChangePassword());
+        binding.settingsButton.setOnClickListener(v -> openSettings());
         binding.logoutButton.setOnClickListener(v -> logout());
 
         binding.clearLogButton.setOnClickListener(v -> DebugLog.clear());
@@ -126,8 +133,19 @@ public class ProfileTabFragment extends Fragment {
         if (!isAdded()) {
             return;
         }
+        
         String bio = profile.getBio();
         binding.bioText.setText("简介：" + (bio != null && !bio.isEmpty() ? bio : "暂无简介"));
+        
+        String avatar = profile.getAvatar();
+        if (avatar != null && !avatar.isEmpty()) {
+            binding.avatarText.setText(avatar);
+        } else {
+            String username = tokenManager.getUsername();
+            if (username != null && !username.isEmpty()) {
+                binding.avatarText.setText(String.valueOf(username.charAt(0)));
+            }
+        }
     }
 
     private void toggleBioEdit() {
@@ -326,6 +344,101 @@ public class ProfileTabFragment extends Fragment {
         authViewModel.logout();
         if (getActivity() instanceof ShellNavigator navigator) {
             navigator.logoutToLogin();
+        }
+    }
+
+    private void showAvatarPicker() {
+        if (!isAdded() || getContext() == null) {
+            return;
+        }
+        
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
+        builder.setTitle("选择头像");
+        
+        GridLayout gridLayout = new GridLayout(getContext());
+        gridLayout.setColumnCount(4);
+        gridLayout.setPadding(32, 32, 32, 32);
+        
+        for (String emoji : AVATAR_EMOJIS) {
+            TextView textView = new TextView(getContext());
+            textView.setText(emoji);
+            textView.setTextSize(28f);
+            textView.setGravity(android.view.Gravity.CENTER);
+            
+            int size = (int) (56 * getResources().getDisplayMetrics().density);
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = size;
+            params.height = size;
+            params.setMargins(8, 8, 8, 8);
+            textView.setLayoutParams(params);
+            
+            textView.setOnClickListener(v -> {
+                if (builder.create() != null) {
+                    builder.create().dismiss();
+                }
+                updateAvatar(emoji);
+            });
+            
+            gridLayout.addView(textView);
+        }
+        
+        builder.setView(gridLayout);
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void updateAvatar(String emoji) {
+        if (userRepository == null) {
+            return;
+        }
+        
+        userRepository.updateAvatar(emoji, new UserRepository.ProfileCallback() {
+            @Override
+            public void onSuccess(UserProfile profile) {
+                if (!isAdded() || getActivity() == null) {
+                    return;
+                }
+                getActivity().runOnUiThread(() -> {
+                    if (binding != null && binding.avatarText != null) {
+                        binding.avatarText.setText(emoji);
+                    }
+                    android.content.Context context = getContext();
+                    if (context != null) {
+                        Toast.makeText(context, "头像已更新", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                if (!isAdded() || getActivity() == null) {
+                    return;
+                }
+                getActivity().runOnUiThread(() -> {
+                    android.content.Context context = getContext();
+                    if (isAdded() && context != null) {
+                        Toast.makeText(context, "更新头像失败：" + message, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+
+    private void openChangePassword() {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        if (getActivity() instanceof ShellNavigator navigator) {
+            navigator.openChangePassword();
+        }
+    }
+
+    private void openSettings() {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        if (getActivity() instanceof ShellNavigator navigator) {
+            navigator.openSettings();
         }
     }
 

@@ -8,6 +8,7 @@ public interface UserRepository {
     LiveData<UserProfile> getProfile();
     void fetchProfile(ProfileCallback callback);
     void updateProfile(UserProfile profile, ProfileCallback callback);
+    void updateAvatar(String avatar, ProfileCallback callback);
     void refresh();
 
     interface ProfileCallback {

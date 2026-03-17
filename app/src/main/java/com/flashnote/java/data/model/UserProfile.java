@@ -15,6 +15,9 @@ public class UserProfile {
     @SerializedName("preferencesJson")
     private String preferencesJson;
 
+    @SerializedName("avatar")
+    private String avatar;
+
     @SerializedName("createdAt")
     private String createdAt;
 
@@ -53,6 +56,14 @@ public class UserProfile {
 
     public void setPreferencesJson(String preferencesJson) {
         this.preferencesJson = preferencesJson;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
     }
 
     public String getCreatedAt() {
