@@ -70,4 +70,12 @@
     <string name="flashnote_dialog_helper">标题保持简洁，内容可在聊天页继续补充。</string>
     <string name="flashnote_dialog_preview_title">新闪记预览</string>
     <string name="flashnote_dialog_preview_subtitle">创建后可继续在聊天中完善内容</string>
+
+    <string name="file_preview_title_fallback">文件预览</string>
+    <string name="file_preview_open_external">外部打开</string>
+    <string name="file_preview_unsupported">当前文件格式暂不支持应用内预览</string>
+    <string name="file_preview_empty_text">文件内容为空</string>
+    <string name="file_preview_read_failed">文件读取失败</string>
+    <string name="file_preview_pdf_failed">PDF 预览失败，已为你保留外部打开</string>
+    <string name="file_preview_back">返回</string>
 </resources>

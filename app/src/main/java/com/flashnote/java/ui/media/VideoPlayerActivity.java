@@ -1,6 +1,10 @@
 package com.flashnote.java.ui.media;
 
+import android.net.Uri;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.view.View;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -10,9 +14,12 @@ import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
+import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.TokenManager;
+import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.databinding.ActivityVideoPlayerBinding;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,6 +28,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
 
     private ActivityVideoPlayerBinding binding;
     private ExoPlayer player;
+    private String mediaUrl;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -33,7 +41,57 @@ public class VideoPlayerActivity extends AppCompatActivity {
     }
 
     private void initializePlayer() {
-        String mediaUrl = getIntent().getStringExtra(EXTRA_MEDIA_URL);
+        mediaUrl = getIntent().getStringExtra(EXTRA_MEDIA_URL);
+        if (TextUtils.isEmpty(mediaUrl)) {
+            Toast.makeText(this, "视频地址无效", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        File cacheFile = new File(getCacheDir(), mediaUrl.replace('/', '_'));
+        if (cacheFile.exists() && cacheFile.length() > 0) {
+            playLocalFile(cacheFile);
+            return;
+        }
+
+        binding.playerView.setVisibility(View.GONE);
+        Toast.makeText(this, "正在加载视频...", Toast.LENGTH_SHORT).show();
+        FileRepository repository = FlashNoteApp.getInstance().getFileRepository();
+        repository.download(mediaUrl, new FileRepository.FileCallback() {
+            @Override
+            public void onSuccess(String path) {
+                runOnUiThread(() -> {
+                    File localFile = new File(path);
+                    if (localFile.exists() && localFile.length() > 0) {
+                        binding.playerView.setVisibility(View.VISIBLE);
+                        playLocalFile(localFile);
+                    } else {
+                        playFromNetwork(mediaUrl);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                runOnUiThread(() -> {
+                    binding.playerView.setVisibility(View.VISIBLE);
+                    playFromNetwork(mediaUrl);
+                });
+            }
+        });
+    }
+
+    private void playLocalFile(File file) {
+        releasePlayer();
+        player = new ExoPlayer.Builder(this).build();
+        binding.playerView.setPlayer(player);
+        player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)));
+        player.prepare();
+        player.play();
+    }
+
+    private void playFromNetwork(String mediaUrl) {
+        releasePlayer();
         String requestUrl = MediaUrlResolver.resolve(mediaUrl);
         String token = new TokenManager(this).getAccessToken();
 

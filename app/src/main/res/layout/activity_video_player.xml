@@ -14,7 +14,7 @@
         android:id="@+id/closeBtn"
         android:layout_width="@dimen/media_overlay_button_size"
         android:layout_height="@dimen/media_overlay_button_size"
-        android:layout_gravity="top|end"
+        android:layout_gravity="top|start"
         android:layout_margin="@dimen/media_overlay_button_margin"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="关闭"

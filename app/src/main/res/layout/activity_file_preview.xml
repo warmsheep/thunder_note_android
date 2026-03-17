@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/surface"
+        android:paddingStart="@dimen/spacing_page_padding"
+        android:paddingEnd="@dimen/spacing_page_padding"
+        android:paddingTop="@dimen/chat_media_spacing_small"
+        android:paddingBottom="@dimen/chat_media_spacing_small">
+
+        <ImageButton
+            android:id="@+id/backBtn"
+            android:layout_width="@dimen/icon_size_toolbar"
+            android:layout_height="@dimen/icon_size_toolbar"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/file_preview_back"
+            android:src="@drawable/ic_chat_back"
+            android:tint="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/fileNameText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/chat_media_spacing_small"
+            android:layout_marginEnd="@dimen/chat_media_spacing_small"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/file_preview_title_fallback"
+            android:textColor="@color/text_primary"
+            android:textSize="@dimen/text_size_body" />
+
+        <TextView
+            android:id="@+id/openExternalBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="@dimen/chat_media_spacing_small"
+            android:paddingEnd="@dimen/chat_media_spacing_small"
+            android:paddingTop="@dimen/chat_media_spacing_small"
+            android:paddingBottom="@dimen/chat_media_spacing_small"
+            android:text="@string/file_preview_open_external"
+            android:textColor="@color/primary"
+            android:textSize="@dimen/text_size_caption" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/previewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="@dimen/spacing_page_padding">
+
+        <ScrollView
+            android:id="@+id/textPreviewContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/textPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_placeholder_card"
+                android:lineSpacingExtra="@dimen/file_preview_line_spacing_extra"
+                android:padding="@dimen/spacing_page_padding"
+                android:textColor="@color/text_primary"
+                android:textSize="@dimen/text_size_caption" />
+        </ScrollView>
+
+        <ImageView
+            android:id="@+id/pdfPreviewImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:adjustViewBounds="true"
+            android:background="@color/surface"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/unsupportedText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:text="@string/file_preview_unsupported"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/text_size_body_small"
+            android:visibility="gone" />
+    </FrameLayout>
+
+</LinearLayout>

@@ -1,6 +1,7 @@
 package com.flashnote.java.ui.media;
 
 import android.os.Bundle;
+import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -11,8 +12,11 @@ import com.bumptech.glide.load.model.LazyHeaders;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.databinding.ActivityImageViewerBinding;
 
+import java.io.File;
+
 public class ImageViewerActivity extends AppCompatActivity {
     public static final String EXTRA_MEDIA_URL = "extra_media_url";
+    public static final String EXTRA_FILE_PATH = "extra_file_path";
 
     private ActivityImageViewerBinding binding;
 
@@ -23,6 +27,14 @@ public class ImageViewerActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         binding.closeBtn.setOnClickListener(v -> finish());
+
+        String filePath = getIntent().getStringExtra(EXTRA_FILE_PATH);
+        if (!TextUtils.isEmpty(filePath)) {
+            Glide.with(this)
+                    .load(new File(filePath))
+                    .into(binding.photoView);
+            return;
+        }
 
         String mediaUrl = getIntent().getStringExtra(EXTRA_MEDIA_URL);
         String requestUrl = MediaUrlResolver.resolve(mediaUrl);
