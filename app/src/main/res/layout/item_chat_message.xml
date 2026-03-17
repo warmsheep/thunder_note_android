@@ -41,16 +41,120 @@
             android:layout_marginStart="8dp"
             app:cardCornerRadius="10dp">
 
-            <TextView
-                android:id="@+id/messageText"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:orientation="vertical"
                 android:paddingLeft="12dp"
                 android:paddingTop="8dp"
                 android:paddingRight="12dp"
-                android:paddingBottom="8dp"
-                android:textColor="@color/text_primary"
-                android:textSize="@dimen/text_size_body_small" />
+                android:paddingBottom="8dp">
+
+                <FrameLayout
+                    android:id="@+id/mediaImageContainer"
+                    android:layout_width="@dimen/chat_media_preview_width"
+                    android:layout_height="@dimen/chat_media_preview_height"
+                    android:layout_marginBottom="@dimen/chat_media_spacing_small"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:id="@+id/mediaImage"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop" />
+
+                    <ImageView
+                        android:id="@+id/playIcon"
+                        android:layout_width="@dimen/chat_media_play_icon_size"
+                        android:layout_height="@dimen/chat_media_play_icon_size"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_play_circle"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:id="@+id/voiceContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/chat_media_spacing_small"
+                    android:gravity="center_vertical"
+                    android:minWidth="@dimen/chat_voice_min_width"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/chat_voice_padding"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:id="@+id/voicePlayBtn"
+                        android:layout_width="@dimen/chat_voice_play_btn_size"
+                        android:layout_height="@dimen/chat_voice_play_btn_size"
+                        android:src="@drawable/ic_play_arrow" />
+
+                    <View
+                        android:id="@+id/voiceWaveform"
+                        android:layout_width="@dimen/chat_voice_waveform_width"
+                        android:layout_height="@dimen/chat_voice_waveform_height"
+                        android:layout_marginStart="@dimen/chat_media_spacing_small"
+                        android:background="@drawable/bg_voice_waveform" />
+
+                    <TextView
+                        android:id="@+id/voiceDuration"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/chat_media_spacing_small"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_size_caption" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/fileContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/chat_media_spacing_small"
+                    android:gravity="center_vertical"
+                    android:minWidth="@dimen/chat_file_min_width"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/chat_file_padding"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:id="@+id/fileIcon"
+                        android:layout_width="@dimen/chat_file_icon_size"
+                        android:layout_height="@dimen/chat_file_icon_size"
+                        android:src="@drawable/ic_file_generic" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/chat_file_name_margin_start"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/fileNameText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="middle"
+                            android:maxWidth="@dimen/chat_file_name_max_width"
+                            android:singleLine="true"
+                            android:textColor="@color/text_primary"
+                            android:textSize="@dimen/text_size_body_small" />
+
+                        <TextView
+                            android:id="@+id/fileSizeText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="@dimen/text_size_tiny" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/messageText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:textSize="@dimen/text_size_body_small" />
+            </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
@@ -62,18 +166,122 @@
         android:orientation="horizontal"
         android:visibility="gone">
 
-        <TextView
-            android:id="@+id/rightMessageText"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
             android:background="@drawable/bg_chat_mine"
+            android:orientation="vertical"
             android:paddingLeft="12dp"
             android:paddingTop="8dp"
             android:paddingRight="12dp"
-            android:paddingBottom="8dp"
-            android:textColor="@color/text_primary"
-            android:textSize="@dimen/text_size_body_small" />
+            android:paddingBottom="8dp">
+
+            <FrameLayout
+                android:id="@+id/rightMediaImageContainer"
+                android:layout_width="@dimen/chat_media_preview_width"
+                android:layout_height="@dimen/chat_media_preview_height"
+                android:layout_marginBottom="@dimen/chat_media_spacing_small"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/rightMediaImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+
+                <ImageView
+                    android:id="@+id/rightPlayIcon"
+                    android:layout_width="@dimen/chat_media_play_icon_size"
+                    android:layout_height="@dimen/chat_media_play_icon_size"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_play_circle"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:id="@+id/rightVoiceContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/chat_media_spacing_small"
+                android:gravity="center_vertical"
+                android:minWidth="@dimen/chat_voice_min_width"
+                android:orientation="horizontal"
+                android:padding="@dimen/chat_voice_padding"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/rightVoicePlayBtn"
+                    android:layout_width="@dimen/chat_voice_play_btn_size"
+                    android:layout_height="@dimen/chat_voice_play_btn_size"
+                    android:src="@drawable/ic_play_arrow" />
+
+                <View
+                    android:id="@+id/rightVoiceWaveform"
+                    android:layout_width="@dimen/chat_voice_waveform_width"
+                    android:layout_height="@dimen/chat_voice_waveform_height"
+                    android:layout_marginStart="@dimen/chat_media_spacing_small"
+                    android:background="@drawable/bg_voice_waveform" />
+
+                <TextView
+                    android:id="@+id/rightVoiceDuration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/chat_media_spacing_small"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_size_caption" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/rightFileContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/chat_media_spacing_small"
+                android:gravity="center_vertical"
+                android:minWidth="@dimen/chat_file_min_width"
+                android:orientation="horizontal"
+                android:padding="@dimen/chat_file_padding"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/rightFileIcon"
+                    android:layout_width="@dimen/chat_file_icon_size"
+                    android:layout_height="@dimen/chat_file_icon_size"
+                    android:src="@drawable/ic_file_generic" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/chat_file_name_margin_start"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/rightFileNameText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="middle"
+                        android:maxWidth="@dimen/chat_file_name_max_width"
+                        android:singleLine="true"
+                        android:textColor="@color/text_primary"
+                        android:textSize="@dimen/text_size_body_small" />
+
+                    <TextView
+                        android:id="@+id/rightFileSizeText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="@dimen/text_size_tiny" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/rightMessageText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="@dimen/text_size_body_small" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/rightAvatarText"

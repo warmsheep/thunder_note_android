@@ -18,6 +18,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FlashNoteJava">
         <activity
+            android:name=".ui.media.VideoPlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FlashNoteJava" />
+        <activity
+            android:name=".ui.media.ImageViewerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FlashNoteJava" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

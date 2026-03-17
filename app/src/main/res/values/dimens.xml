@@ -40,4 +40,22 @@
     <dimen name="spacing_page_padding">16dp</dimen>
     <dimen name="spacing_item_padding_vertical">14dp</dimen>
     <dimen name="spacing_item_padding_horizontal">16dp</dimen>
+
+    <!-- 聊天富媒体 -->
+    <dimen name="chat_media_preview_width">200dp</dimen>
+    <dimen name="chat_media_preview_height">150dp</dimen>
+    <dimen name="chat_media_play_icon_size">40dp</dimen>
+    <dimen name="chat_media_spacing_small">8dp</dimen>
+    <dimen name="chat_voice_min_width">120dp</dimen>
+    <dimen name="chat_voice_padding">8dp</dimen>
+    <dimen name="chat_voice_play_btn_size">24dp</dimen>
+    <dimen name="chat_voice_waveform_width">80dp</dimen>
+    <dimen name="chat_voice_waveform_height">24dp</dimen>
+    <dimen name="chat_file_min_width">180dp</dimen>
+    <dimen name="chat_file_padding">10dp</dimen>
+    <dimen name="chat_file_icon_size">36dp</dimen>
+    <dimen name="chat_file_name_margin_start">10dp</dimen>
+    <dimen name="chat_file_name_max_width">160dp</dimen>
+    <dimen name="media_overlay_button_size">48dp</dimen>
+    <dimen name="media_overlay_button_margin">16dp</dimen>
 </resources>
