@@ -13,5 +13,9 @@ public interface ShellNavigator {
 
     void openChat(long flashNoteId, String title, long scrollToMessageId);
 
+    void openChangePassword();
+
+    void openSettings();
+
     void logoutToLogin();
 }

@@ -8,6 +8,9 @@ import com.flashnote.java.data.model.RegisterRequest;
 import com.flashnote.java.data.model.User;
 import com.flashnote.java.data.remote.AuthService;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -109,5 +112,33 @@ public class AuthRepositoryImpl implements AuthRepository {
     @Override
     public boolean isLoggedIn() {
         return tokenManager.hasToken();
+    }
+
+    @Override
+    public void changePassword(String currentPassword, String newPassword, PasswordCallback callback) {
+        Map<String, String> body = new HashMap<>();
+        body.put("currentPassword", currentPassword);
+        body.put("newPassword", newPassword);
+        
+        authService.changePassword(body).enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    ApiResponse<Void> apiResponse = response.body();
+                    if (apiResponse.isSuccess()) {
+                        callback.onSuccess();
+                    } else {
+                        callback.onError(apiResponse.getMessage(), apiResponse.getCode());
+                    }
+                } else {
+                    callback.onError("HTTP " + response.code(), response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                callback.onError("Network error: " + t.getMessage(), -1);
+            }
+        });
     }
 }

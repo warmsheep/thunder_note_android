@@ -5,9 +5,12 @@ import com.flashnote.java.data.model.LoginRequest;
 import com.flashnote.java.data.model.LoginResponse;
 import com.flashnote.java.data.model.RegisterRequest;
 
+import java.util.Map;
+
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.POST;
+import retrofit2.http.PUT;
 import retrofit2.http.Query;
 
 public interface AuthService {
@@ -22,4 +25,7 @@ public interface AuthService {
     
     @POST("api/auth/logout")
     Call<ApiResponse<Void>> logout();
+
+    @PUT("api/auth/password")
+    Call<ApiResponse<Void>> changePassword(@Body Map<String, String> body);
 }

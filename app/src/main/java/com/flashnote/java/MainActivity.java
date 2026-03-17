@@ -13,6 +13,8 @@ import com.flashnote.java.ui.auth.SplashFragment;
 import com.flashnote.java.ui.chat.ChatFragment;
 import com.flashnote.java.ui.main.MainShellFragment;
 import com.flashnote.java.ui.navigation.ShellNavigator;
+import com.flashnote.java.ui.settings.ChangePasswordFragment;
+import com.flashnote.java.ui.settings.SettingsFragment;
 
 public class MainActivity extends AppCompatActivity implements ShellNavigator {
     private ActivityMainBinding binding;
@@ -56,6 +58,16 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     @Override
     public void openChat(long flashNoteId, String title, long scrollToMessageId) {
         replaceRootFragment(ChatFragment.newInstance(flashNoteId, title, scrollToMessageId), true, false);
+    }
+
+    @Override
+    public void openChangePassword() {
+        replaceRootFragment(new ChangePasswordFragment(), true, false);
+    }
+
+    @Override
+    public void openSettings() {
+        replaceRootFragment(new SettingsFragment(), true, false);
     }
 
     @Override
