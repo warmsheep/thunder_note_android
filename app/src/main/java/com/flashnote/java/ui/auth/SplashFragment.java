@@ -6,6 +6,7 @@ import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -36,6 +37,15 @@ public class SplashFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        
+        try {
+            String versionName = requireContext().getPackageManager()
+                .getPackageInfo(requireContext().getPackageName(), 0).versionName;
+            if (binding.versionText != null) {
+                binding.versionText.setText("v" + versionName);
+            }
+        } catch (Exception ignored) {}
+        
         navigateTask = this::navigateNext;
         handler.postDelayed(navigateTask, SPLASH_DELAY_MS);
     }
