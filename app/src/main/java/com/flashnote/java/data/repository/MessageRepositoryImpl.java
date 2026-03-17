@@ -311,4 +311,25 @@ public class MessageRepositoryImpl implements MessageRepository {
             }
         });
     }
+
+    @Override
+    public void countMessages(CountCallback callback) {
+        messageService.countMessages().enqueue(new Callback<ApiResponse<Long>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Long>> call, Response<ApiResponse<Long>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    callback.onSuccess(response.body().getData());
+                } else {
+                    int code = response.body() == null ? response.code() : response.body().getCode();
+                    String message = response.body() == null ? "Failed to get count" : response.body().getMessage();
+                    callback.onError(message, code);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Long>> call, Throwable t) {
+                callback.onError("Network error: " + t.getMessage(), -1);
+            }
+        });
+    }
 }

@@ -21,6 +21,7 @@ import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.FavoriteItem;
 import com.flashnote.java.data.model.UserProfile;
+import com.flashnote.java.data.repository.MessageRepository;
 import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.ui.auth.AuthViewModel;
 import com.flashnote.java.ui.navigation.ShellNavigator;
@@ -89,8 +90,21 @@ public class ProfileTabFragment extends Fragment {
         List<?> favorites = app.getFavoriteRepository().getFavorites().getValue();
         binding.favoriteCount.setText(String.valueOf(favorites != null ? favorites.size() : 0));
         
-        List<?> collections = app.getCollectionRepository().getCollections().getValue();
-        binding.recordCount.setText(String.valueOf(collections != null ? collections.size() : 0));
+        app.getMessageRepository().countMessages(new MessageRepository.CountCallback() {
+            @Override
+            public void onSuccess(long count) {
+                if (isAdded() && getActivity() != null) {
+                    getActivity().runOnUiThread(() -> binding.recordCount.setText(String.valueOf(count)));
+                }
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                if (isAdded() && getActivity() != null) {
+                    getActivity().runOnUiThread(() -> binding.recordCount.setText("0"));
+                }
+            }
+        });
     }
 
     private void fetchProfile() {

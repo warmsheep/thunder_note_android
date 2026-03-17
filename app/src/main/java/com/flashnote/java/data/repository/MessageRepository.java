@@ -7,6 +7,11 @@ import com.flashnote.java.data.model.Message;
 import java.util.List;
 
 public interface MessageRepository {
+    interface CountCallback {
+        void onSuccess(long count);
+        void onError(String message, int code);
+    }
+
     LiveData<List<Message>> getMessages(long flashNoteId);
     
     LiveData<Boolean> isLoading();
@@ -26,4 +31,6 @@ public interface MessageRepository {
     void loadMoreMessages(long flashNoteId);
 
     LiveData<Boolean> getHasMore();
+
+    void countMessages(CountCallback callback);
 }
