@@ -9,6 +9,7 @@ import com.flashnote.java.data.remote.FileService;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
@@ -67,8 +68,13 @@ public class FileRepositoryImpl implements FileRepository {
 
                 File target = new File(context.getCacheDir(), objectName.replace('/', '_'));
                 try (ResponseBody body = response.body();
+                     InputStream inputStream = body.byteStream();
                      FileOutputStream outputStream = new FileOutputStream(target)) {
-                    outputStream.write(body.bytes());
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, bytesRead);
+                    }
                     callback.onSuccess(target.getAbsolutePath());
                 } catch (IOException exception) {
                     String errMsg = "Save failed: " + exception.getMessage();

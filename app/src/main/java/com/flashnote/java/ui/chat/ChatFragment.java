@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ActivityNotFoundException;
 import android.content.pm.PackageManager;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaRecorder;
@@ -319,6 +320,25 @@ public class ChatFragment extends Fragment {
         popupBinding.actionForward.setOnClickListener(v -> {
             popupWindow.dismiss();
             showForwardDialog(message, currentFlashNoteId, chatViewModel, flashNoteViewModel);
+        });
+
+        popupBinding.actionCopy.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            String textToCopy = message.getContent();
+            if (textToCopy == null || textToCopy.isEmpty()) {
+                if (message.getFileName() != null && !message.getFileName().isEmpty()) {
+                    textToCopy = message.getFileName();
+                } else {
+                    textToCopy = "";
+                }
+            }
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) 
+                requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("message", textToCopy);
+            clipboard.setPrimaryClip(clip);
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "已复制", Toast.LENGTH_SHORT).show();
+            }
         });
 
         popupBinding.actionFavorite.setOnClickListener(v -> {
@@ -668,24 +688,27 @@ public class ChatFragment extends Fragment {
         }
 
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (takePictureIntent.resolveActivity(requireContext().getPackageManager()) != null) {
-            File photoFile = null;
-            try {
-                String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-                String storageDir = requireContext().getCacheDir().getAbsolutePath();
-                photoFile = new File(storageDir, "IMG_" + timeStamp + ".jpg");
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+        File photoFile = null;
+        try {
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+            String storageDir = requireContext().getCacheDir().getAbsolutePath();
+            photoFile = new File(storageDir, "IMG_" + timeStamp + ".jpg");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
 
-            if (photoFile != null) {
-                cameraPhotoUri = FileProvider.getUriForFile(
-                        requireContext(),
-                        requireContext().getPackageName() + ".fileprovider",
-                        photoFile
-                );
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
+        if (photoFile != null) {
+            cameraPhotoUri = FileProvider.getUriForFile(
+                    requireContext(),
+                    requireContext().getPackageName() + ".fileprovider",
+                    photoFile
+            );
+            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
+            takePictureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            try {
                 cameraLauncher.launch(takePictureIntent);
+            } catch (ActivityNotFoundException e) {
+                showToast("无法打开相机");
             }
         }
     }
@@ -709,6 +732,7 @@ public class ChatFragment extends Fragment {
     private void handleImagePicked(Uri uri) {
         showToast("上传中...");
         
+        String originalFileName = getOriginalFileName(uri);
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
                 showToast("文件处理失败");
@@ -723,7 +747,7 @@ public class ChatFragment extends Fragment {
                     Message message = new Message();
                     message.setMediaType("IMAGE");
                     message.setMediaUrl(mediaUrl);
-                    message.setFileName(file.getName());
+                    message.setFileName(originalFileName != null ? originalFileName : file.getName());
                     message.setFileSize(file.length());
 
                     chatViewModel.sendMedia(message, () -> {
@@ -754,6 +778,7 @@ public class ChatFragment extends Fragment {
     private void handleVideoPicked(Uri uri) {
         showToast("上传中...");
         
+        String originalFileName = getOriginalFileName(uri);
         copyUriToTempFile(uri, "video", file -> {
             if (file == null) {
                 showToast("文件处理失败");
@@ -768,7 +793,7 @@ public class ChatFragment extends Fragment {
                     Message message = new Message();
                     message.setMediaType("VIDEO");
                     message.setMediaUrl(mediaUrl);
-                    message.setFileName(file.getName());
+                    message.setFileName(originalFileName != null ? originalFileName : file.getName());
                     message.setFileSize(file.length());
 
                     chatViewModel.sendMedia(message, () -> {
@@ -799,6 +824,7 @@ public class ChatFragment extends Fragment {
     private void handleFilePicked(Uri uri) {
         showToast("上传中...");
         
+        String originalFileName = getOriginalFileName(uri);
         copyUriToTempFile(uri, "file", file -> {
             if (file == null) {
                 showToast("文件处理失败");
@@ -813,7 +839,7 @@ public class ChatFragment extends Fragment {
                     Message message = new Message();
                     message.setMediaType("FILE");
                     message.setMediaUrl(mediaUrl);
-                    message.setFileName(file.getName());
+                    message.setFileName(originalFileName != null ? originalFileName : file.getName());
                     message.setFileSize(file.length());
 
                     chatViewModel.sendMedia(message, () -> {
@@ -844,6 +870,7 @@ public class ChatFragment extends Fragment {
     private void handleCameraPhoto(Uri uri) {
         showToast("上传中...");
         
+        String originalFileName = getOriginalFileName(uri);
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
                 showToast("文件处理失败");
@@ -858,7 +885,7 @@ public class ChatFragment extends Fragment {
                     Message message = new Message();
                     message.setMediaType("IMAGE");
                     message.setMediaUrl(mediaUrl);
-                    message.setFileName(file.getName());
+                    message.setFileName(originalFileName != null ? originalFileName : file.getName());
                     message.setFileSize(file.length());
 
                     chatViewModel.sendMedia(message, () -> {
@@ -955,6 +982,24 @@ public class ChatFragment extends Fragment {
             }
         }
         return "bin";
+    }
+
+    private String getOriginalFileName(Uri uri) {
+        String displayName = null;
+        if ("content".equals(uri.getScheme())) {
+            try (android.database.Cursor cursor = requireContext().getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                    if (nameIndex >= 0) {
+                        displayName = cursor.getString(nameIndex);
+                    }
+                }
+            }
+        }
+        if (displayName == null) {
+            displayName = uri.getLastPathSegment();
+        }
+        return displayName;
     }
 
     interface FileCallback {
