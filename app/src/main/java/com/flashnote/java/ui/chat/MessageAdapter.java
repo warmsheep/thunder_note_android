@@ -52,6 +52,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private final TokenManager tokenManager;
     private final FileRepository fileRepository;
 
+    private String userAvatar = "😊";
+
     private MediaPlayer mediaPlayer;
     private Long currentPlayingMessageId;
 
@@ -68,6 +70,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             items.addAll(messages);
         }
         notifyDataSetChanged();
+    }
+
+    public void setUserAvatar(String avatar) {
+        if (avatar != null && !avatar.isEmpty()) {
+            this.userAvatar = avatar;
+        }
     }
 
     @NonNull
@@ -299,41 +307,50 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             return;
         }
 
+        File cacheFile = new File(context.getCacheDir(), objectName.replace('/', '_'));
+        if (cacheFile.exists() && cacheFile.length() > 0) {
+            openCachedFile(context, message, cacheFile);
+            return;
+        }
+
         Toast.makeText(context, "正在下载文件...", Toast.LENGTH_SHORT).show();
         fileRepository.download(objectName, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String path) {
-                File file = new File(path);
-                String fileName = !TextUtils.isEmpty(message.getFileName())
-                        ? message.getFileName()
-                        : fallbackFileName(message.getMediaUrl());
-                String ext = getFileExtension(fileName);
-
-                if (isImageExtension(ext)) {
-                    Intent intent = new Intent(context, ImageViewerActivity.class);
-                    intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(intent);
-                    return;
-                }
-
-                if (isTextPreviewExtension(ext) || "pdf".equals(ext)) {
-                    Intent intent = new Intent(context, FilePreviewActivity.class);
-                    intent.putExtra(FilePreviewActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
-                    intent.putExtra(FilePreviewActivity.EXTRA_FILE_NAME, fileName);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(intent);
-                    return;
-                }
-
-                openFileWithExternalApp(context, file);
+                openCachedFile(context, message, new File(path));
             }
 
             @Override
-            public void onError(String message, int code) {
-                Toast.makeText(context, "文件下载失败: " + message, Toast.LENGTH_SHORT).show();
+            public void onError(String errorMsg, int code) {
+                Toast.makeText(context, "文件下载失败: " + errorMsg, Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void openCachedFile(Context context, Message message, File file) {
+        String fileName = !TextUtils.isEmpty(message.getFileName())
+                ? message.getFileName()
+                : fallbackFileName(message.getMediaUrl());
+        String ext = getFileExtension(fileName);
+
+        if (isImageExtension(ext)) {
+            Intent intent = new Intent(context, ImageViewerActivity.class);
+            intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            return;
+        }
+
+        if (isTextPreviewExtension(ext) || "pdf".equals(ext)) {
+            Intent intent = new Intent(context, FilePreviewActivity.class);
+            intent.putExtra(FilePreviewActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+            intent.putExtra(FilePreviewActivity.EXTRA_FILE_NAME, fileName);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            return;
+        }
+
+        openFileWithExternalApp(context, file);
     }
 
     private void openFileWithExternalApp(Context context, File file) {
@@ -559,7 +576,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             binding.leftContainer.setVisibility(mine ? View.GONE : View.VISIBLE);
             binding.rightContainer.setVisibility(mine ? View.VISIBLE : View.GONE);
             binding.avatarText.setText("🤖");
-            binding.rightAvatarText.setText("😊");
+            binding.rightAvatarText.setText(userAvatar);
 
             String mediaType = message.getMediaType();
             if (TextUtils.isEmpty(mediaType) || "TEXT".equalsIgnoreCase(mediaType)) {

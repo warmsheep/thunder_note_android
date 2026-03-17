@@ -13,7 +13,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.Gravity;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -36,6 +35,7 @@ import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.Message;
+import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.FavoriteRepository;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.databinding.FragmentChatBinding;
@@ -165,6 +165,13 @@ public class ChatFragment extends Fragment {
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerView.setAdapter(adapter);
 
+        FlashNoteApp.getInstance().getUserRepository().getProfile().observe(getViewLifecycleOwner(), profile -> {
+            if (profile != null && profile.getAvatar() != null && !profile.getAvatar().isEmpty()) {
+                adapter.setUserAvatar(profile.getAvatar());
+                adapter.notifyDataSetChanged();
+            }
+        });
+
         binding.recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
@@ -221,15 +228,6 @@ public class ChatFragment extends Fragment {
         binding.messageInput.setHorizontallyScrolling(false);
         binding.messageInput.setVerticalScrollBarEnabled(true);
         binding.messageInput.setOnEditorActionListener((textView, actionId, event) -> {
-            if (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER) {
-                if (event.isShiftPressed()) {
-                    return false;
-                }
-                if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                    sendMessage(viewModel);
-                }
-                return true;
-            }
             if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_DONE) {
                 sendMessage(viewModel);
                 return true;
@@ -619,8 +617,6 @@ public class ChatFragment extends Fragment {
             return;
         }
 
-        showToast("上传中...");
-        
         fileRepository.upload(file, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String mediaUrl) {
@@ -647,7 +643,6 @@ public class ChatFragment extends Fragment {
                 chatViewModel.sendMedia(message, () -> {
                     if (!isAdded()) return;
                     requireActivity().runOnUiThread(() -> {
-                        showToast("发送成功");
                         if (binding != null && binding.recyclerView != null) {
                             binding.recyclerView.post(() -> {
                                 int count = adapter.getItemCount();
@@ -730,8 +725,6 @@ public class ChatFragment extends Fragment {
     }
 
     private void handleImagePicked(Uri uri) {
-        showToast("上传中...");
-        
         String originalFileName = getOriginalFileName(uri);
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
@@ -776,8 +769,6 @@ public class ChatFragment extends Fragment {
     }
 
     private void handleVideoPicked(Uri uri) {
-        showToast("上传中...");
-        
         String originalFileName = getOriginalFileName(uri);
         copyUriToTempFile(uri, "video", file -> {
             if (file == null) {
@@ -791,7 +782,7 @@ public class ChatFragment extends Fragment {
                     if (!isAdded()) return;
                     
                     Message message = new Message();
-                    message.setMediaType("VIDEO");
+                    message.setMediaType("IMAGE");
                     message.setMediaUrl(mediaUrl);
                     message.setFileName(originalFileName != null ? originalFileName : file.getName());
                     message.setFileSize(file.length());
@@ -799,7 +790,6 @@ public class ChatFragment extends Fragment {
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
                         requireActivity().runOnUiThread(() -> {
-                            showToast("发送成功");
                             if (binding != null && binding.recyclerView != null) {
                                 binding.recyclerView.post(() -> {
                                     int count = adapter.getItemCount();
@@ -822,8 +812,6 @@ public class ChatFragment extends Fragment {
     }
 
     private void handleFilePicked(Uri uri) {
-        showToast("上传中...");
-        
         String originalFileName = getOriginalFileName(uri);
         copyUriToTempFile(uri, "file", file -> {
             if (file == null) {
@@ -845,7 +833,6 @@ public class ChatFragment extends Fragment {
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
                         requireActivity().runOnUiThread(() -> {
-                            showToast("发送成功");
                             if (binding != null && binding.recyclerView != null) {
                                 binding.recyclerView.post(() -> {
                                     int count = adapter.getItemCount();
@@ -868,8 +855,6 @@ public class ChatFragment extends Fragment {
     }
 
     private void handleCameraPhoto(Uri uri) {
-        showToast("上传中...");
-        
         String originalFileName = getOriginalFileName(uri);
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
@@ -891,7 +876,6 @@ public class ChatFragment extends Fragment {
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
                         requireActivity().runOnUiThread(() -> {
-                            showToast("发送成功");
                             if (binding != null && binding.recyclerView != null) {
                                 binding.recyclerView.post(() -> {
                                     int count = adapter.getItemCount();
