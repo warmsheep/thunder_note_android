@@ -27,6 +27,7 @@ import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.FlashNoteSearchResult;
 import com.flashnote.java.data.model.MatchedMessageInfo;
+import com.flashnote.java.data.model.Message;
 import com.flashnote.java.databinding.DialogFlashNoteEditBinding;
 import com.flashnote.java.databinding.FragmentFlashNoteTabBinding;
 import com.flashnote.java.ui.navigation.ShellNavigator;
@@ -108,6 +109,15 @@ public class FlashNoteTabFragment extends Fragment {
             binding.recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
         }
         binding.recyclerView.setAdapter(adapter);
+        if (ctx != null) {
+            androidx.recyclerview.widget.DividerItemDecoration divider = new androidx.recyclerview.widget.DividerItemDecoration(
+                ctx, androidx.recyclerview.widget.DividerItemDecoration.VERTICAL);
+            android.graphics.drawable.ShapeDrawable dividerDrawable = new android.graphics.drawable.ShapeDrawable();
+            dividerDrawable.setIntrinsicHeight((int) (0.5f * ctx.getResources().getDisplayMetrics().density));
+            dividerDrawable.getPaint().setColor(ctx.getColor(R.color.border));
+            divider.setDrawable(dividerDrawable);
+            binding.recyclerView.addItemDecoration(divider);
+        }
 
         binding.addButton.setOnClickListener(v -> showNoteDialog(null, viewModel));
         binding.fabAdd.setOnClickListener(v -> showNoteDialog(null, viewModel));
@@ -150,9 +160,18 @@ public class FlashNoteTabFragment extends Fragment {
         input.setPadding(padding, padding, padding, padding);
         input.setBackgroundResource(R.drawable.bg_input_rounded);
 
+        android.widget.FrameLayout container = new android.widget.FrameLayout(ctx);
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
+        int horizontalMargin = (int) (20 * ctx.getResources().getDisplayMetrics().density);
+        params.setMargins(horizontalMargin, 0, horizontalMargin, 0);
+        input.setLayoutParams(params);
+        container.addView(input);
+
         new AlertDialog.Builder(ctx)
                 .setCustomTitle(createDialogTitle(ctx, R.string.dialog_search_flashnote))
-                .setView(input)
+                .setView(container)
                 .setPositiveButton(R.string.action_search, (dialog, which) -> {
                     String query = normalizeQuery(input.getText() == null ? "" : input.getText().toString());
                     if (query.isEmpty()) {
@@ -359,25 +378,111 @@ public class FlashNoteTabFragment extends Fragment {
         Context ctx = getContext();
         if (ctx == null || matchedMessages == null || matchedMessages.isEmpty()) return;
 
-        String[] snippets = new String[matchedMessages.size() + 1];
-        snippets[0] = "打开聊天（从头开始）";
-        for (int i = 0; i < matchedMessages.size(); i++) {
-            MatchedMessageInfo info = matchedMessages.get(i);
-            snippets[i + 1] = info.getSnippet() != null ? info.getSnippet() : "匹配的消息";
+        float density = ctx.getResources().getDisplayMetrics().density;
+        int pagePadding = (int) (16 * density);
+        int itemPadding = (int) (12 * density);
+        int smallPadding = (int) (8 * density);
+        int tinyPadding = (int) (4 * density);
+
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(ctx);
+        scrollView.setFillViewport(true);
+        android.widget.LinearLayout container = new android.widget.LinearLayout(ctx);
+        container.setOrientation(android.widget.LinearLayout.VERTICAL);
+        container.setPadding(pagePadding, pagePadding, pagePadding, pagePadding);
+        scrollView.addView(container, new android.widget.ScrollView.LayoutParams(
+                android.widget.ScrollView.LayoutParams.MATCH_PARENT,
+                android.widget.ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView openChatBtn = new TextView(ctx);
+        openChatBtn.setText("打开聊天（从头开始）");
+        openChatBtn.setTextColor(ctx.getColor(R.color.primary));
+        openChatBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        openChatBtn.setPadding(itemPadding, smallPadding, itemPadding, smallPadding);
+        openChatBtn.setBackgroundResource(R.drawable.bg_placeholder_card);
+        openChatBtn.setOnClickListener(v -> {
+            if (getActivity() instanceof ShellNavigator navigator) {
+                navigator.openChat(item.getId(), item.getTitle());
+            }
+        });
+        container.addView(openChatBtn, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+
+        View divider = new View(ctx);
+        divider.setBackgroundColor(ctx.getColor(R.color.border));
+        android.widget.LinearLayout.LayoutParams dividerParams = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                (int) density
+        );
+        dividerParams.topMargin = smallPadding;
+        dividerParams.bottomMargin = smallPadding;
+        container.addView(divider, dividerParams);
+
+        for (MatchedMessageInfo info : matchedMessages) {
+            android.widget.LinearLayout card = new android.widget.LinearLayout(ctx);
+            card.setOrientation(android.widget.LinearLayout.VERTICAL);
+            card.setBackgroundResource(R.drawable.bg_placeholder_card);
+            card.setPadding(itemPadding, smallPadding, itemPadding, smallPadding);
+
+            TextView titleView = new TextView(ctx);
+            titleView.setText(info.getSnippet() != null ? info.getSnippet() : "匹配的消息");
+            titleView.setTextColor(ctx.getColor(R.color.text_primary));
+            titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+            titleView.setMaxLines(2);
+            titleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            card.addView(titleView);
+
+            List<Message> contextMessages = info.getContextMessages();
+            if (contextMessages != null && !contextMessages.isEmpty()) {
+                for (Message message : contextMessages) {
+                    TextView msgView = new TextView(ctx);
+                    boolean isMatched = message.getId() != null && message.getId().equals(info.getMessageId());
+                    String role = message.getRole();
+                    String prefix = ("assistant".equals(role) || "ai".equals(role)) ? "🤖 " : "😊 ";
+                    String content = message.getContent() == null ? "" : message.getContent();
+                    msgView.setText(prefix + content);
+                    msgView.setTextSize(TypedValue.COMPLEX_UNIT_SP, isMatched ? 13 : 12);
+                    msgView.setTextColor(ctx.getColor(isMatched ? R.color.text_primary : R.color.text_secondary));
+                    msgView.setBackgroundColor(ctx.getColor(isMatched ? R.color.search_highlight : R.color.background));
+                    msgView.setPadding(smallPadding, tinyPadding, smallPadding, tinyPadding);
+                    msgView.setMaxLines(3);
+                    msgView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+
+                    android.widget.LinearLayout.LayoutParams msgParams = new android.widget.LinearLayout.LayoutParams(
+                            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                    );
+                    msgParams.topMargin = tinyPadding;
+                    card.addView(msgView, msgParams);
+                }
+            }
+
+            Long matchedMessageId = info.getMessageId();
+            card.setOnClickListener(v -> {
+                if (getActivity() instanceof ShellNavigator navigator) {
+                    if (matchedMessageId != null) {
+                        navigator.openChat(item.getId(), item.getTitle(), matchedMessageId);
+                    } else {
+                        navigator.openChat(item.getId(), item.getTitle());
+                    }
+                }
+            });
+
+            android.widget.LinearLayout.LayoutParams cardParams = new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            cardParams.topMargin = smallPadding;
+            container.addView(card, cardParams);
         }
 
         new AlertDialog.Builder(ctx)
                 .setTitle("\"" + item.getTitle() + "\" 中的匹配")
-                .setItems(snippets, (dialog, which) -> {
-                    if (getActivity() instanceof ShellNavigator navigator) {
-                        if (which == 0) {
-                            navigator.openChat(item.getId(), item.getTitle());
-                        } else {
-                            MatchedMessageInfo selectedMessage = matchedMessages.get(which - 1);
-                            navigator.openChat(item.getId(), item.getTitle(), selectedMessage.getMessageId());
-                        }
-                    }
-                })
+                .setView(scrollView)
+                .setNegativeButton("关闭", null)
                 .show();
     }
 

@@ -78,6 +78,15 @@ public class CollectionTabFragment extends Fragment {
             binding.recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
         }
         binding.recyclerView.setAdapter(adapter);
+        if (ctx != null) {
+            androidx.recyclerview.widget.DividerItemDecoration divider = new androidx.recyclerview.widget.DividerItemDecoration(
+                ctx, androidx.recyclerview.widget.DividerItemDecoration.VERTICAL);
+            android.graphics.drawable.ShapeDrawable dividerDrawable = new android.graphics.drawable.ShapeDrawable();
+            dividerDrawable.setIntrinsicHeight((int) (0.5f * ctx.getResources().getDisplayMetrics().density));
+            dividerDrawable.getPaint().setColor(ctx.getColor(R.color.border));
+            divider.setDrawable(dividerDrawable);
+            binding.recyclerView.addItemDecoration(divider);
+        }
         binding.addButton.setVisibility(View.GONE);
         binding.fabAdd.setVisibility(View.GONE);
         binding.searchButton.setOnClickListener(v -> showSearchDialog());
@@ -122,9 +131,18 @@ public class CollectionTabFragment extends Fragment {
         input.setPadding(padding, padding, padding, padding);
         input.setBackgroundResource(R.drawable.bg_input_rounded);
 
+        android.widget.FrameLayout container = new android.widget.FrameLayout(ctx);
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
+        int horizontalMargin = (int) (20 * ctx.getResources().getDisplayMetrics().density);
+        params.setMargins(horizontalMargin, 0, horizontalMargin, 0);
+        input.setLayoutParams(params);
+        container.addView(input);
+
         new AlertDialog.Builder(ctx)
                 .setCustomTitle(createDialogTitle(ctx, R.string.dialog_search_flashnote))
-                .setView(input)
+                .setView(container)
                 .setPositiveButton(R.string.action_search, (dialog, which) -> {
                     String query = normalizeQuery(input.getText() == null ? "" : input.getText().toString());
                     if (query.isEmpty()) {

@@ -17,6 +17,16 @@
         android:orientation="horizontal"
         android:padding="16dp">
 
+        <TextView
+            android:id="@+id/iconText"
+            android:layout_width="@dimen/icon_size_flashnote"
+            android:layout_height="@dimen/icon_size_flashnote"
+            android:background="@drawable/bg_logo_primary_soft"
+            android:gravity="center"
+            android:text="⚡"
+            android:textSize="@dimen/icon_text_size_flashnote"
+            android:layout_marginEnd="10dp" />
+
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
