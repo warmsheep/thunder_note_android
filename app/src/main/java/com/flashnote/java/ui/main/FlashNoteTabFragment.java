@@ -2,9 +2,15 @@ package com.flashnote.java.ui.main;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -20,7 +26,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.Collection;
@@ -43,11 +51,14 @@ public class FlashNoteTabFragment extends Fragment {
 
     private FragmentFlashNoteTabBinding binding;
     private FlashNoteAdapter adapter;
+    private SearchResultAdapter searchResultAdapter;
     private FlashNoteViewModel viewModel;
     private List<FlashNote> latestNotes = new ArrayList<>();
     private List<FlashNote> searchedNotes = new ArrayList<>();
     private List<FlashNoteSearchResult> latestSearchResults = new ArrayList<>();
     private String currentQuery = "";
+    private final Handler searchHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingSearch;
 
     @Nullable
     @Override
@@ -109,6 +120,61 @@ public class FlashNoteTabFragment extends Fragment {
             binding.recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
         }
         binding.recyclerView.setAdapter(adapter);
+        
+        ItemTouchHelper.SimpleCallback swipeCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+            private final ColorDrawable background = new ColorDrawable(Color.parseColor("#FF4444"));
+            private final Drawable deleteIcon = androidx.core.content.ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_menu_delete);
+
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getAdapterPosition();
+                List<FlashNote> currentList = currentQuery.isEmpty() ? latestNotes : searchedNotes;
+                if (position >= 0 && position < currentList.size()) {
+                    FlashNote note = currentList.get(position);
+                    adapter.notifyItemChanged(position);
+                    new AlertDialog.Builder(requireContext())
+                        .setTitle("删除闪记")
+                        .setMessage("确定要删除「" + note.getTitle() + "」及其所有消息吗？此操作不可撤销。")
+                        .setPositiveButton("删除", (dialog, which) -> viewModel.deleteNote(note.getId()))
+                        .setNegativeButton("取消", null)
+                        .show();
+                }
+            }
+
+            @Override
+            public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+                
+                View itemView = viewHolder.itemView;
+                int iconMargin = (itemView.getHeight() - deleteIcon.getIntrinsicHeight()) / 2;
+                
+                if (dX < 0) {
+                    background.setBounds(itemView.getRight() + (int) dX, itemView.getTop(), itemView.getRight(), itemView.getBottom());
+                    background.draw(c);
+                    
+                    int iconTop = itemView.getTop() + iconMargin;
+                    int iconBottom = iconTop + deleteIcon.getIntrinsicHeight();
+                    int iconLeft = itemView.getRight() - iconMargin - deleteIcon.getIntrinsicWidth();
+                    int iconRight = itemView.getRight() - iconMargin;
+                    deleteIcon.setBounds(iconLeft, iconTop, iconRight, iconBottom);
+                    deleteIcon.setTint(Color.WHITE);
+                    deleteIcon.draw(c);
+                }
+            }
+            
+            @Override
+            public float getSwipeThreshold(@NonNull RecyclerView.ViewHolder viewHolder) {
+                return 0.4f;
+            }
+        };
+        
+        new ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.recyclerView);
+        
         if (ctx != null) {
             androidx.recyclerview.widget.DividerItemDecoration divider = new androidx.recyclerview.widget.DividerItemDecoration(
                 ctx, androidx.recyclerview.widget.DividerItemDecoration.VERTICAL);
@@ -121,7 +187,24 @@ public class FlashNoteTabFragment extends Fragment {
 
         binding.addButton.setOnClickListener(v -> showNoteDialog(null, viewModel));
         binding.fabAdd.setOnClickListener(v -> showNoteDialog(null, viewModel));
-        binding.searchButton.setOnClickListener(v -> showSearchDialog());
+        binding.searchButton.setOnClickListener(v -> toggleSearchContainer());
+        binding.searchInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (pendingSearch != null) {
+                    searchHandler.removeCallbacks(pendingSearch);
+                }
+                pendingSearch = () -> performSearch(s.toString());
+                searchHandler.postDelayed(pendingSearch, 300);
+            }
+        });
+        binding.searchCloseButton.setOnClickListener(v -> closeSearchContainer());
 
         viewModel.getNotes().observe(getViewLifecycleOwner(), notes -> {
             latestNotes = notes == null ? new ArrayList<>() : new ArrayList<>(notes);
@@ -139,11 +222,92 @@ public class FlashNoteTabFragment extends Fragment {
     }
 
     private void renderNotes() {
-        List<FlashNote> displayed = currentQuery.isEmpty() ? latestNotes : searchedNotes;
-        adapter.submitList(displayed);
-        boolean empty = displayed == null || displayed.isEmpty();
-        binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
-        binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        if (!currentQuery.isEmpty()) {
+            if (searchResultAdapter != null) {
+                searchResultAdapter.submitList(latestSearchResults);
+            }
+            boolean empty = latestSearchResults == null || latestSearchResults.isEmpty();
+            binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
+            binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        } else {
+            adapter.submitList(latestNotes);
+            boolean empty = latestNotes == null || latestNotes.isEmpty();
+            binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
+            binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        }
+    }
+
+    private void toggleSearchContainer() {
+        boolean isVisible = binding.searchContainer.getVisibility() == View.VISIBLE;
+        if (isVisible) {
+            closeSearchContainer();
+        } else {
+            binding.searchContainer.setVisibility(View.VISIBLE);
+            binding.searchInput.requestFocus();
+            if (searchResultAdapter == null) {
+                searchResultAdapter = new SearchResultAdapter(new SearchResultAdapter.OnSearchResultClickListener() {
+                    @Override
+                    public void onResultClick(FlashNote flashNote, Long messageId) {
+                        if (getActivity() instanceof ShellNavigator navigator) {
+                            navigator.openChat(flashNote.getId(), flashNote.getTitle(), messageId);
+                        }
+                    }
+                });
+                Context ctx = getContext();
+                if (ctx != null) {
+                    binding.recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
+                }
+                binding.recyclerView.setAdapter(searchResultAdapter);
+            }
+            renderNotes();
+        }
+    }
+
+    private void closeSearchContainer() {
+        binding.searchContainer.setVisibility(View.GONE);
+        binding.searchInput.setText("");
+        currentQuery = "";
+        latestSearchResults = new ArrayList<>();
+        if (binding.recyclerView.getAdapter() != adapter) {
+            binding.recyclerView.setAdapter(adapter);
+        }
+        renderNotes();
+    }
+
+    private void performSearch(String query) {
+        String normalizedQuery = normalizeQuery(query);
+        if (normalizedQuery.isEmpty()) {
+            currentQuery = "";
+            latestSearchResults = new ArrayList<>();
+            renderNotes();
+            return;
+        }
+        currentQuery = normalizedQuery;
+        viewModel.searchNotes(normalizedQuery, new com.flashnote.java.data.repository.FlashNoteRepository.SearchCallback() {
+            @Override
+            public void onSuccess(List<FlashNoteSearchResult> results) {
+                if (!isAdded() || getActivity() == null) {
+                    return;
+                }
+                getActivity().runOnUiThread(() -> {
+                    latestSearchResults = results == null ? new ArrayList<>() : new ArrayList<>(results);
+                    renderNotes();
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                if (!isAdded() || getActivity() == null) {
+                    return;
+                }
+                getActivity().runOnUiThread(() -> {
+                    Context errorCtx = getContext();
+                    if (errorCtx != null) {
+                        Toast.makeText(errorCtx, message, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
 
     private void showSearchDialog() {
