@@ -17,5 +17,7 @@ public interface ShellNavigator {
 
     void openSettings();
 
+    void openDebug();
+
     void logoutToLogin();
 }

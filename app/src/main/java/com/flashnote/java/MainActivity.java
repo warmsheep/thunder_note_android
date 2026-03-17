@@ -14,6 +14,7 @@ import com.flashnote.java.ui.chat.ChatFragment;
 import com.flashnote.java.ui.main.MainShellFragment;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.flashnote.java.ui.settings.ChangePasswordFragment;
+import com.flashnote.java.ui.settings.DebugFragment;
 import com.flashnote.java.ui.settings.SettingsFragment;
 
 public class MainActivity extends AppCompatActivity implements ShellNavigator {
@@ -68,6 +69,11 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     @Override
     public void openSettings() {
         replaceRootFragment(new SettingsFragment(), true, false);
+    }
+
+    @Override
+    public void openDebug() {
+        replaceRootFragment(new DebugFragment(), true, false);
     }
 
     @Override
