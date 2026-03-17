@@ -23,6 +23,9 @@ public class FavoriteItem {
     @SerializedName("content")
     private String content;
 
+    @SerializedName("flashNoteIcon")
+    private String flashNoteIcon;
+
     @SerializedName(value = "favoritedAt", alternate = {"createdAt"})
     private LocalDateTime favoritedAt;
 
@@ -75,6 +78,14 @@ public class FavoriteItem {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getFlashNoteIcon() {
+        return flashNoteIcon;
+    }
+
+    public void setFlashNoteIcon(String flashNoteIcon) {
+        this.flashNoteIcon = flashNoteIcon;
     }
 
     public LocalDateTime getFavoritedAt() {

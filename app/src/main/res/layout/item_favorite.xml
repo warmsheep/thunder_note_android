@@ -13,7 +13,6 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="16dp">
 
@@ -21,6 +20,8 @@
             android:id="@+id/iconText"
             android:layout_width="@dimen/icon_size_flashnote"
             android:layout_height="@dimen/icon_size_flashnote"
+            android:layout_gravity="top"
+            android:layout_marginTop="2dp"
             android:background="@drawable/bg_logo_primary_soft"
             android:gravity="center"
             android:text="⚡"
@@ -31,6 +32,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_gravity="center_vertical"
             android:orientation="vertical">
 
             <TextView
@@ -61,6 +63,7 @@
             android:id="@+id/removeButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
             android:background="@drawable/bg_placeholder_card"
             android:paddingLeft="10dp"
             android:paddingTop="6dp"
