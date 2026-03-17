@@ -56,6 +56,8 @@
     <dimen name="chat_file_icon_size">36dp</dimen>
     <dimen name="chat_file_name_margin_start">10dp</dimen>
     <dimen name="chat_file_name_max_width">160dp</dimen>
+    <dimen name="chat_message_text_max_width">260dp</dimen>
     <dimen name="media_overlay_button_size">48dp</dimen>
     <dimen name="media_overlay_button_margin">16dp</dimen>
+    <dimen name="file_preview_line_spacing_extra">2dp</dimen>
 </resources>

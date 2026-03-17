@@ -26,6 +26,7 @@ import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.databinding.ItemChatMessageBinding;
+import com.flashnote.java.ui.media.FilePreviewActivity;
 import com.flashnote.java.ui.media.ImageViewerActivity;
 import com.flashnote.java.ui.media.MediaUrlResolver;
 import com.flashnote.java.ui.media.VideoPlayerActivity;
@@ -91,10 +92,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         super.onViewRecycled(holder);
         holder.binding.voicePlayBtn.setOnClickListener(null);
         holder.binding.rightVoicePlayBtn.setOnClickListener(null);
+        holder.binding.voiceContainer.setOnClickListener(null);
+        holder.binding.rightVoiceContainer.setOnClickListener(null);
         holder.binding.mediaImageContainer.setOnClickListener(null);
         holder.binding.rightMediaImageContainer.setOnClickListener(null);
         holder.binding.fileContainer.setOnClickListener(null);
         holder.binding.rightFileContainer.setOnClickListener(null);
+        stopVoiceWaveAnimation(holder.binding.voiceWaveform);
+        stopVoiceWaveAnimation(holder.binding.rightVoiceWaveform);
     }
 
     private GlideUrl buildGlideUrl(Context context, String mediaPathOrUrl) {
@@ -170,14 +175,24 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         Integer duration = message.getMediaDuration();
         refs.voiceDuration.setText((duration == null || duration <= 0 ? 0 : duration) + "s");
 
+        // 隐藏播放按钮，改为点击整个语音容器播放
+        refs.voicePlayBtn.setVisibility(View.GONE);
+        
+        // 给语音容器添加点击事件
+        refs.voiceContainer.setOnClickListener(v -> toggleVoicePlayback(v.getContext(), message, refs.voiceContainer, refs.voiceWaveform));
+        
+        // 更新播放状态
         boolean isPlayingThis = message.getId() != null
                 && currentPlayingMessageId != null
                 && currentPlayingMessageId.equals(message.getId())
                 && mediaPlayer != null
                 && mediaPlayer.isPlaying();
-        refs.voicePlayBtn.setImageResource(isPlayingThis ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
-
-        refs.voicePlayBtn.setOnClickListener(v -> toggleVoicePlayback(v.getContext(), message, refs.voicePlayBtn));
+        
+        if (isPlayingThis) {
+            startVoiceWaveAnimation(refs.voiceWaveform);
+        } else {
+            stopVoiceWaveAnimation(refs.voiceWaveform);
+        }
     }
 
     private void showFileMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -195,7 +210,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         refs.fileContainer.setOnClickListener(v -> openFileMessage(v.getContext(), message));
     }
 
-    private void toggleVoicePlayback(Context context, Message message, ImageView playBtn) {
+    private void toggleVoicePlayback(Context context, Message message, View voiceContainer, View voiceWaveform) {
         if (TextUtils.isEmpty(message.getMediaUrl())) {
             Toast.makeText(context, "语音地址无效", Toast.LENGTH_SHORT).show();
             return;
@@ -204,8 +219,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         Long messageId = message.getId();
         if (messageId != null && messageId.equals(currentPlayingMessageId) && mediaPlayer != null && mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
-            playBtn.setImageResource(R.drawable.ic_play_arrow);
-            currentPlayingMessageId = null;
+            stopVoiceWaveAnimation(voiceWaveform);
+            notifyDataSetChanged();
             return;
         }
 
@@ -225,7 +240,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             mediaPlayer.setOnPreparedListener(mp -> {
                 mp.start();
                 currentPlayingMessageId = messageId;
-                playBtn.setImageResource(R.drawable.ic_pause);
+                startVoiceWaveAnimation(voiceWaveform);
                 notifyDataSetChanged();
             });
             mediaPlayer.setOnCompletionListener(mp -> {
@@ -251,6 +266,32 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         currentPlayingMessageId = null;
     }
 
+    private android.animation.ValueAnimator voiceWaveAnimator;
+
+    private void startVoiceWaveAnimation(View voiceWaveform) {
+        stopVoiceWaveAnimation(voiceWaveform);
+        voiceWaveAnimator = android.animation.ValueAnimator.ofFloat(1f, 0.3f, 1f);
+        voiceWaveAnimator.setDuration(1000);
+        voiceWaveAnimator.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+        voiceWaveAnimator.addUpdateListener(animation -> {
+            Float value = (Float) animation.getAnimatedValue();
+            if (voiceWaveform != null) {
+                voiceWaveform.setAlpha(value);
+            }
+        });
+        voiceWaveAnimator.start();
+    }
+
+    private void stopVoiceWaveAnimation(View voiceWaveform) {
+        if (voiceWaveAnimator != null) {
+            voiceWaveAnimator.cancel();
+            voiceWaveAnimator = null;
+        }
+        if (voiceWaveform != null) {
+            voiceWaveform.setAlpha(1f);
+        }
+    }
+
     private void openFileMessage(Context context, Message message) {
         String objectName = message.getMediaUrl();
         if (TextUtils.isEmpty(objectName)) {
@@ -263,20 +304,29 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             @Override
             public void onSuccess(String path) {
                 File file = new File(path);
-                Uri uri = FileProvider.getUriForFile(
-                        context,
-                        context.getPackageName() + ".fileprovider",
-                        file
-                );
-                Intent intent = new Intent(Intent.ACTION_VIEW);
-                intent.setDataAndType(uri, resolveMimeType(file.getName()));
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                try {
+                String fileName = !TextUtils.isEmpty(message.getFileName())
+                        ? message.getFileName()
+                        : fallbackFileName(message.getMediaUrl());
+                String ext = getFileExtension(fileName);
+
+                if (isImageExtension(ext)) {
+                    Intent intent = new Intent(context, ImageViewerActivity.class);
+                    intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     context.startActivity(intent);
-                } catch (ActivityNotFoundException e) {
-                    Toast.makeText(context, "未找到可打开该文件的应用", Toast.LENGTH_SHORT).show();
+                    return;
                 }
+
+                if (isTextPreviewExtension(ext) || "pdf".equals(ext)) {
+                    Intent intent = new Intent(context, FilePreviewActivity.class);
+                    intent.putExtra(FilePreviewActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+                    intent.putExtra(FilePreviewActivity.EXTRA_FILE_NAME, fileName);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.startActivity(intent);
+                    return;
+                }
+
+                openFileWithExternalApp(context, file);
             }
 
             @Override
@@ -286,12 +336,47 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         });
     }
 
+    private void openFileWithExternalApp(Context context, File file) {
+        Uri uri = FileProvider.getUriForFile(
+                context,
+                context.getPackageName() + ".fileprovider",
+                file
+        );
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(uri, resolveMimeType(file.getName()));
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            context.startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(context, "未找到可打开该文件的应用", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private boolean isImageExtension(String ext) {
+        return "jpg".equals(ext) || "jpeg".equals(ext) || "png".equals(ext) || "gif".equals(ext);
+    }
+
+    private boolean isTextPreviewExtension(String ext) {
+        return "txt".equals(ext)
+                || "json".equals(ext)
+                || "xml".equals(ext)
+                || "csv".equals(ext)
+                || "log".equals(ext)
+                || "md".equals(ext)
+                || "html".equals(ext)
+                || "java".equals(ext)
+                || "py".equals(ext)
+                || "js".equals(ext);
+    }
+
     private void hideAllMediaContainers(MessageViewHolder holder, boolean mine) {
         FrameRefs refs = getRefs(holder, mine);
         refs.imageContainer.setVisibility(View.GONE);
         refs.playIcon.setVisibility(View.GONE);
         refs.voiceContainer.setVisibility(View.GONE);
         refs.fileContainer.setVisibility(View.GONE);
+        stopVoiceWaveAnimation(refs.voiceWaveform);
     }
 
     private FrameRefs getRefs(MessageViewHolder holder, boolean mine) {
@@ -303,6 +388,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     holder.binding.rightVoiceContainer,
                     holder.binding.rightVoicePlayBtn,
                     holder.binding.rightVoiceDuration,
+                    holder.binding.rightVoiceWaveform,
                     holder.binding.rightFileContainer,
                     holder.binding.rightFileIcon,
                     holder.binding.rightFileNameText,
@@ -317,6 +403,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 holder.binding.voiceContainer,
                 holder.binding.voicePlayBtn,
                 holder.binding.voiceDuration,
+                holder.binding.voiceWaveform,
                 holder.binding.fileContainer,
                 holder.binding.fileIcon,
                 holder.binding.fileNameText,
@@ -326,7 +413,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
     private void bindTextForMediaMessage(TextView textView, String content) {
-        if (TextUtils.isEmpty(content)) {
+        if (TextUtils.isEmpty(content) 
+            || "[图片]".equals(content) 
+            || "[视频]".equals(content) 
+            || "[语音]".equals(content) 
+            || "[文件]".equals(content)) {
             textView.setVisibility(View.GONE);
             textView.setText("");
             return;
@@ -485,12 +576,21 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 showTextOnly(this, message, mine);
             }
 
-            binding.getRoot().setOnLongClickListener(v -> {
+            // 为所有可点击的容器添加长按监听
+            View.OnLongClickListener longClickListener = v -> {
                 if (listener != null) {
-                    listener.onLongClick(message, v);
+                    View bubbleView = mine ? binding.rightContainer : binding.bubbleCard;
+                    listener.onLongClick(message, bubbleView);
                 }
                 return true;
-            });
+            };
+            binding.getRoot().setOnLongClickListener(longClickListener);
+            binding.mediaImageContainer.setOnLongClickListener(longClickListener);
+            binding.rightMediaImageContainer.setOnLongClickListener(longClickListener);
+            binding.voiceContainer.setOnLongClickListener(longClickListener);
+            binding.rightVoiceContainer.setOnLongClickListener(longClickListener);
+            binding.fileContainer.setOnLongClickListener(longClickListener);
+            binding.rightFileContainer.setOnLongClickListener(longClickListener);
         }
     }
 
@@ -501,6 +601,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         final View voiceContainer;
         final ImageView voicePlayBtn;
         final TextView voiceDuration;
+        final View voiceWaveform;
         final View fileContainer;
         final ImageView fileIcon;
         final TextView fileNameText;
@@ -513,6 +614,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                   View voiceContainer,
                   ImageView voicePlayBtn,
                   TextView voiceDuration,
+                  View voiceWaveform,
                   View fileContainer,
                   ImageView fileIcon,
                   TextView fileNameText,
@@ -524,6 +626,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             this.voiceContainer = voiceContainer;
             this.voicePlayBtn = voicePlayBtn;
             this.voiceDuration = voiceDuration;
+            this.voiceWaveform = voiceWaveform;
             this.fileContainer = fileContainer;
             this.fileIcon = fileIcon;
             this.fileNameText = fileNameText;

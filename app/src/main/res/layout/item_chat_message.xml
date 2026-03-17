@@ -152,6 +152,7 @@
                     android:id="@+id/messageText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:maxWidth="@dimen/chat_message_text_max_width"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_body_small" />
             </LinearLayout>
@@ -279,6 +280,7 @@
                 android:id="@+id/rightMessageText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxWidth="@dimen/chat_message_text_max_width"
                 android:textColor="@color/text_primary"
                 android:textSize="@dimen/text_size_body_small" />
         </LinearLayout>
