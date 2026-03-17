@@ -30,20 +30,22 @@
 
         <ImageButton
             android:id="@+id/editButton"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="edit"
+            android:padding="2dp"
             android:src="@android:drawable/ic_menu_edit"
             app:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/deleteButton"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:layout_marginStart="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="delete"
+            android:padding="2dp"
             android:src="@android:drawable/ic_menu_delete"
             app:tint="@color/text_secondary" />
     </LinearLayout>

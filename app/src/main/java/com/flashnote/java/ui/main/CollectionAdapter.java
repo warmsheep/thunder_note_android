@@ -105,9 +105,8 @@ public class CollectionAdapter extends RecyclerView.Adapter<CollectionAdapter.Co
             binding.nameText.setText(group.getName());
             binding.countText.setText(String.valueOf(group.getNotes().size()));
             binding.notesContainer.removeAllViews();
-            boolean editable = group.getSource() != null;
-            binding.editButton.setVisibility(editable ? View.VISIBLE : View.GONE);
-            binding.deleteButton.setVisibility(editable ? View.VISIBLE : View.GONE);
+            binding.editButton.setVisibility(View.VISIBLE);
+            binding.deleteButton.setVisibility(View.VISIBLE);
             binding.editButton.setOnClickListener(v -> listener.onEditCollection(group));
             binding.deleteButton.setOnClickListener(v -> listener.onDeleteCollection(group));
 
