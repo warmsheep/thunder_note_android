@@ -13,7 +13,7 @@ import retrofit2.http.Streaming;
 public interface FileService {
     @Multipart
     @POST("api/files/upload")
-    Call<com.flashnote.java.data.model.ApiResponse<String>> upload(@Part MultipartBody.Part filePart);
+    Call<com.flashnote.java.data.model.ApiResponse<com.flashnote.java.data.model.FileUploadResult>> upload(@Part MultipartBody.Part filePart);
 
     @Streaming
     @GET("api/files/download")

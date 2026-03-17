@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.FileUploadResult;
 import com.flashnote.java.data.remote.FileService;
 
 import java.io.File;
@@ -32,11 +33,11 @@ public class FileRepositoryImpl implements FileRepository {
     public void upload(File file, FileCallback callback) {
         RequestBody requestBody = RequestBody.create(file, MediaType.parse("application/octet-stream"));
         MultipartBody.Part filePart = MultipartBody.Part.createFormData("file", file.getName(), requestBody);
-        fileService.upload(filePart).enqueue(new Callback<ApiResponse<String>>() {
+        fileService.upload(filePart).enqueue(new Callback<ApiResponse<FileUploadResult>>() {
             @Override
-            public void onResponse(Call<ApiResponse<String>> call, Response<ApiResponse<String>> response) {
+            public void onResponse(Call<ApiResponse<FileUploadResult>> call, Response<ApiResponse<FileUploadResult>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    callback.onSuccess(response.body().getData());
+                    callback.onSuccess(response.body().getData().getObjectName());
                     return;
                 }
                 int code = response.body() == null ? response.code() : response.body().getCode();
@@ -46,7 +47,7 @@ public class FileRepositoryImpl implements FileRepository {
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<String>> call, Throwable t) {
+            public void onFailure(Call<ApiResponse<FileUploadResult>> call, Throwable t) {
                 String errMsg = "Network error: " + t.getMessage();
                 DebugLog.w("FileRepo", errMsg);
                 callback.onError(errMsg, -1);
