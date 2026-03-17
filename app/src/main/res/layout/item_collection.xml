@@ -35,7 +35,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="edit"
             android:padding="2dp"
-            android:src="@android:drawable/ic_menu_edit"
+            android:src="@drawable/ic_action_edit"
             app:tint="@color/text_secondary" />
 
         <ImageButton
@@ -46,7 +46,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="delete"
             android:padding="2dp"
-            android:src="@android:drawable/ic_menu_delete"
+            android:src="@drawable/ic_action_delete_line"
             app:tint="@color/text_secondary" />
     </LinearLayout>
 

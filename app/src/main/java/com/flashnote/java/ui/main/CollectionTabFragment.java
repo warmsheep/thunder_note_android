@@ -2,7 +2,6 @@ package com.flashnote.java.ui.main;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,7 +18,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FlashNote;
-import com.flashnote.java.data.model.FlashNoteSearchResult;
 import com.flashnote.java.databinding.FragmentCollectionTabBinding;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
@@ -35,8 +33,6 @@ public class CollectionTabFragment extends Fragment {
     private FlashNoteViewModel flashNoteViewModel;
     private List<Collection> latestCollections = new ArrayList<>();
     private List<FlashNote> latestNotes = new ArrayList<>();
-    private java.util.Set<Long> matchedNoteIds = new java.util.HashSet<>();
-    private String currentQuery = "";
 
     @Nullable
     @Override
@@ -89,7 +85,6 @@ public class CollectionTabFragment extends Fragment {
         }
         binding.addButton.setVisibility(View.GONE);
         binding.fabAdd.setVisibility(View.GONE);
-        binding.searchButton.setOnClickListener(v -> showSearchDialog());
 
         viewModel.getCollections().observe(getViewLifecycleOwner(), collections -> {
             latestCollections = collections == null ? new ArrayList<>() : new ArrayList<>(collections);
@@ -110,88 +105,11 @@ public class CollectionTabFragment extends Fragment {
     }
 
     private void renderGroups() {
-        List<CollectionAdapter.CollectionGroup> groups = buildGroups(latestCollections, filterNotes(latestNotes));
+        List<CollectionAdapter.CollectionGroup> groups = buildGroups(latestCollections, latestNotes);
         adapter.submitList(groups);
         boolean empty = groups.isEmpty();
         binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
         binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
-    }
-
-    private void showSearchDialog() {
-        android.content.Context ctx = getContext();
-        if (ctx == null) {
-            return;
-        }
-        EditText input = new EditText(ctx);
-        input.setHint(R.string.hint_search_flashnote);
-        input.setText(currentQuery);
-        input.setSelection(input.getText().length());
-        input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        int padding = (int) (10 * ctx.getResources().getDisplayMetrics().density);
-        input.setPadding(padding, padding, padding, padding);
-        input.setBackgroundResource(R.drawable.bg_input_rounded);
-
-        android.widget.FrameLayout container = new android.widget.FrameLayout(ctx);
-        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
-        int horizontalMargin = (int) (20 * ctx.getResources().getDisplayMetrics().density);
-        params.setMargins(horizontalMargin, 0, horizontalMargin, 0);
-        input.setLayoutParams(params);
-        container.addView(input);
-
-        new AlertDialog.Builder(ctx)
-                .setCustomTitle(createDialogTitle(ctx, R.string.dialog_search_flashnote))
-                .setView(container)
-                .setPositiveButton(R.string.action_search, (dialog, which) -> {
-                    String query = normalizeQuery(input.getText() == null ? "" : input.getText().toString());
-                    if (query.isEmpty()) {
-                        currentQuery = "";
-                        matchedNoteIds.clear();
-                        renderGroups();
-                        return;
-                    }
-                    flashNoteViewModel.searchNotes(query, new com.flashnote.java.data.repository.FlashNoteRepository.SearchCallback() {
-                        @Override
-                        public void onSuccess(List<FlashNoteSearchResult> results) {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> {
-                                currentQuery = query;
-                                matchedNoteIds.clear();
-                                if (results != null) {
-                                    for (FlashNoteSearchResult result : results) {
-                                        if (result.getFlashNote() != null && result.getFlashNote().getId() != null) {
-                                            matchedNoteIds.add(result.getFlashNote().getId());
-                                        }
-                                    }
-                                }
-                                renderGroups();
-                            });
-                        }
-
-                        @Override
-                        public void onError(String message) {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> {
-                                android.content.Context context = getContext();
-                                if (context != null) {
-                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }
-                    });
-                })
-                .setNeutralButton(R.string.action_clear, (dialog, which) -> {
-                    currentQuery = "";
-                    matchedNoteIds.clear();
-                    renderGroups();
-                })
-                .setNegativeButton(R.string.action_cancel, null)
-                .show();
     }
 
     private List<CollectionAdapter.CollectionGroup> buildGroups(List<Collection> collections, List<FlashNote> notes) {
@@ -229,36 +147,6 @@ public class CollectionTabFragment extends Fragment {
         }
         String trimmed = rawName.trim();
         return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    private List<FlashNote> filterNotes(List<FlashNote> notes) {
-        if (currentQuery.isEmpty()) {
-            return new ArrayList<>(notes);
-        }
-        List<FlashNote> filtered = new ArrayList<>();
-        for (FlashNote note : notes) {
-            if (note.getId() != null && matchedNoteIds.contains(note.getId())) {
-                filtered.add(note);
-            }
-        }
-        return filtered;
-    }
-
-    private String normalizeQuery(String query) {
-        return query == null ? "" : query.trim();
-    }
-
-    @NonNull
-    private TextView createDialogTitle(@NonNull android.content.Context context, int textResId) {
-        TextView titleView = new TextView(context);
-        int horizontal = (int) (20 * context.getResources().getDisplayMetrics().density);
-        int top = (int) (18 * context.getResources().getDisplayMetrics().density);
-        int bottom = (int) (6 * context.getResources().getDisplayMetrics().density);
-        titleView.setPadding(horizontal, top, horizontal, bottom);
-        titleView.setText(textResId);
-        titleView.setTextColor(getResources().getColor(R.color.text_primary));
-        titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        return titleView;
     }
 
     private void showRenameDialog(CollectionAdapter.CollectionGroup group) {

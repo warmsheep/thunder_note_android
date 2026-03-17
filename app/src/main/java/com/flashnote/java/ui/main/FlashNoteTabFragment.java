@@ -151,19 +151,28 @@ public class FlashNoteTabFragment extends Fragment {
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
                 
                 View itemView = viewHolder.itemView;
-                int iconMargin = (itemView.getHeight() - deleteIcon.getIntrinsicHeight()) / 2;
                 
                 if (dX < 0) {
-                    background.setBounds(itemView.getRight() + (int) dX, itemView.getTop(), itemView.getRight(), itemView.getBottom());
-                    background.draw(c);
+                    int itemHeight = itemView.getHeight();
+                    int squareSize = Math.min(itemHeight, (int) (60 * itemView.getResources().getDisplayMetrics().density));
                     
-                    int iconTop = itemView.getTop() + iconMargin;
-                    int iconBottom = iconTop + deleteIcon.getIntrinsicHeight();
-                    int iconLeft = itemView.getRight() - iconMargin - deleteIcon.getIntrinsicWidth();
-                    int iconRight = itemView.getRight() - iconMargin;
-                    deleteIcon.setBounds(iconLeft, iconTop, iconRight, iconBottom);
-                    deleteIcon.setTint(Color.WHITE);
-                    deleteIcon.draw(c);
+                    // Draw small square background anchored to right edge
+                    int squareLeft = itemView.getRight() - squareSize;
+                    int squareTop = itemView.getTop() + (itemHeight - squareSize) / 2;
+                    int squareBottom = squareTop + squareSize;
+                    
+                    // Only show when swiped enough
+                    if (Math.abs(dX) > squareSize / 3f) {
+                        background.setBounds(squareLeft, squareTop, itemView.getRight(), squareBottom);
+                        background.draw(c);
+                        
+                        int iconSize = deleteIcon.getIntrinsicHeight();
+                        int iconLeft = squareLeft + (squareSize - iconSize) / 2;
+                        int iconTop = squareTop + (squareSize - iconSize) / 2;
+                        deleteIcon.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize);
+                        deleteIcon.setTint(Color.WHITE);
+                        deleteIcon.draw(c);
+                    }
                 }
             }
             
