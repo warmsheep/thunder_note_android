@@ -79,7 +79,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         if (liveData.getValue() == null || liveData.getValue().isEmpty()) {
             currentPages.put(flashNoteId, 1);
             hasMoreMap.put(flashNoteId, true);
-            loadMessages(flashNoteId, 1, 30);
+            loadMessages(flashNoteId, 1, 20);
         }
     }
 
@@ -285,6 +285,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                         MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
                         List<Message> current = liveData.getValue();
                         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
+                        updated.remove(message);
                         updated.add(apiResponse.getData());
                         liveData.setValue(updated);
                         if (onSuccess != null) {
