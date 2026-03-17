@@ -53,10 +53,14 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         collectionsLiveData.setValue(apiResponse.getData());
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("CollectionRepo", errMsg);
+                        errorMessage.setValue(errMsg);
                     }
                 } else {
-                    errorMessage.setValue("Failed to load collections: " + response.code());
+                    String errMsg = "Failed to load collections: " + response.code();
+                    DebugLog.w("CollectionRepo", errMsg);
+                    errorMessage.setValue(errMsg);
                 }
             }
 
@@ -92,10 +96,14 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                             onSuccess.run();
                         }
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("CollectionRepo", errMsg);
+                        errorMessage.setValue(errMsg);
                     }
                 } else {
-                    errorMessage.setValue("Failed to create collection: " + response.code());
+                    String errMsg = "Failed to create collection: " + response.code();
+                    DebugLog.w("CollectionRepo", errMsg);
+                    errorMessage.setValue(errMsg);
                 }
             }
 
@@ -139,10 +147,14 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                             onSuccess.run();
                         }
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("CollectionRepo", errMsg);
+                        errorMessage.setValue(errMsg);
                     }
                 } else {
-                    errorMessage.setValue("Failed to update collection: " + response.code());
+                    String errMsg = "Failed to update collection: " + response.code();
+                    DebugLog.w("CollectionRepo", errMsg);
+                    errorMessage.setValue(errMsg);
                 }
             }
 
@@ -180,10 +192,14 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                             onSuccess.run();
                         }
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("CollectionRepo", errMsg);
+                        errorMessage.setValue(errMsg);
                     }
                 } else {
-                    errorMessage.setValue("Failed to delete collection: " + response.code());
+                    String errMsg = "Failed to delete collection: " + response.code();
+                    DebugLog.w("CollectionRepo", errMsg);
+                    errorMessage.setValue(errMsg);
                 }
             }
 

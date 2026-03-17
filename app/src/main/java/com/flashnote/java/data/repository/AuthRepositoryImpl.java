@@ -1,5 +1,6 @@
 package com.flashnote.java.data.repository;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.LoginRequest;
@@ -49,16 +50,22 @@ public class AuthRepositoryImpl implements AuthRepository {
                         }
                         callback.onSuccess(loginResponse);
                     } else {
-                        callback.onError(apiResponse.getMessage(), apiResponse.getCode());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("AuthRepo", errMsg);
+                        callback.onError(errMsg, apiResponse.getCode());
                     }
                 } else {
-                    callback.onError("Login failed: " + response.code(), response.code());
+                    String errMsg = "Login failed: " + response.code();
+                    DebugLog.w("AuthRepo", errMsg);
+                    callback.onError(errMsg, response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<LoginResponse>> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("AuthRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }
@@ -74,16 +81,22 @@ public class AuthRepositoryImpl implements AuthRepository {
                     if (apiResponse.isSuccess()) {
                         callback.onSuccess();
                     } else {
-                        callback.onError(apiResponse.getMessage(), apiResponse.getCode());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("AuthRepo", errMsg);
+                        callback.onError(errMsg, apiResponse.getCode());
                     }
                 } else {
-                    callback.onError("Register failed: " + response.code(), response.code());
+                    String errMsg = "Register failed: " + response.code();
+                    DebugLog.w("AuthRepo", errMsg);
+                    callback.onError(errMsg, response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("AuthRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }
@@ -128,16 +141,22 @@ public class AuthRepositoryImpl implements AuthRepository {
                     if (apiResponse.isSuccess()) {
                         callback.onSuccess();
                     } else {
-                        callback.onError(apiResponse.getMessage(), apiResponse.getCode());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("AuthRepo", errMsg);
+                        callback.onError(errMsg, apiResponse.getCode());
                     }
                 } else {
-                    callback.onError("HTTP " + response.code(), response.code());
+                    String errMsg = "HTTP " + response.code();
+                    DebugLog.w("AuthRepo", errMsg);
+                    callback.onError(errMsg, response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("AuthRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }

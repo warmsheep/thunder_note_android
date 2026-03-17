@@ -6,6 +6,7 @@ import android.os.Looper;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.remote.UserService;
@@ -130,6 +131,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     private void notifyError(ProfileCallback callback, String message, int code) {
+        DebugLog.w("UserRepo", message);
         if (callback != null) {
             new Handler(Looper.getMainLooper()).post(() -> callback.onError(message, code));
         }

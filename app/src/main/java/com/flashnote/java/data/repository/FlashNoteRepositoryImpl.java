@@ -59,10 +59,14 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         notesLiveData.postValue(apiResponse.getData());
                     } else {
-                        errorMessage.postValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("FlashNoteRepo", errMsg);
+                        errorMessage.postValue(errMsg);
                     }
                 } else {
-                    errorMessage.postValue("Failed to load notes: " + response.code());
+                    String errMsg = "Failed to load notes: " + response.code();
+                    DebugLog.w("FlashNoteRepo", errMsg);
+                    errorMessage.postValue(errMsg);
                 }
             }
 
@@ -89,10 +93,14 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                         callback.onSuccess(apiResponse.getData() == null ? new ArrayList<>() : apiResponse.getData());
                         return;
                     }
-                    callback.onError(apiResponse.getMessage());
+                    String errMsg = apiResponse.getMessage();
+                    DebugLog.w("FlashNoteRepo", errMsg);
+                    callback.onError(errMsg);
                     return;
                 }
-                callback.onError("Failed to search notes: " + response.code());
+                String errMsg = "Failed to search notes: " + response.code();
+                DebugLog.w("FlashNoteRepo", errMsg);
+                callback.onError(errMsg);
             }
 
             @Override
@@ -126,10 +134,14 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                         updated.add(0, apiResponse.getData());
                         notesLiveData.postValue(updated);
                     } else {
-                        errorMessage.postValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("FlashNoteRepo", errMsg);
+                        errorMessage.postValue(errMsg);
                     }
                 } else {
-                    errorMessage.postValue("Failed to create note: " + response.code());
+                    String errMsg = "Failed to create note: " + response.code();
+                    DebugLog.w("FlashNoteRepo", errMsg);
+                    errorMessage.postValue(errMsg);
                 }
             }
 
@@ -172,10 +184,14 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                             notesLiveData.postValue(updated);
                         }
                     } else {
-                        errorMessage.postValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("FlashNoteRepo", errMsg);
+                        errorMessage.postValue(errMsg);
                     }
                 } else {
-                    errorMessage.postValue("Failed to update note: " + response.code());
+                    String errMsg = "Failed to update note: " + response.code();
+                    DebugLog.w("FlashNoteRepo", errMsg);
+                    errorMessage.postValue(errMsg);
                 }
             }
 
@@ -210,10 +226,14 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                             notesLiveData.postValue(updated);
                         }
                     } else {
-                        errorMessage.postValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("FlashNoteRepo", errMsg);
+                        errorMessage.postValue(errMsg);
                     }
                 } else {
-                    errorMessage.postValue("Failed to delete note: " + response.code());
+                    String errMsg = "Failed to delete note: " + response.code();
+                    DebugLog.w("FlashNoteRepo", errMsg);
+                    errorMessage.postValue(errMsg);
                 }
             }
 

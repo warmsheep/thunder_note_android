@@ -2,6 +2,7 @@ package com.flashnote.java.data.repository;
 
 import android.content.Context;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.remote.FileService;
 
@@ -39,12 +40,15 @@ public class FileRepositoryImpl implements FileRepository {
                 }
                 int code = response.body() == null ? response.code() : response.body().getCode();
                 String message = response.body() == null ? "Upload failed" : response.body().getMessage();
+                DebugLog.w("FileRepo", message);
                 callback.onError(message, code);
             }
 
             @Override
             public void onFailure(Call<ApiResponse<String>> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("FileRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }
@@ -55,7 +59,9 @@ public class FileRepositoryImpl implements FileRepository {
             @Override
             public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
                 if (!response.isSuccessful() || response.body() == null) {
-                    callback.onError("Download failed", response.code());
+                    String errMsg = "Download failed: " + response.code();
+                    DebugLog.w("FileRepo", errMsg);
+                    callback.onError(errMsg, response.code());
                     return;
                 }
 
@@ -65,13 +71,17 @@ public class FileRepositoryImpl implements FileRepository {
                     outputStream.write(body.bytes());
                     callback.onSuccess(target.getAbsolutePath());
                 } catch (IOException exception) {
-                    callback.onError("Save failed: " + exception.getMessage(), -1);
+                    String errMsg = "Save failed: " + exception.getMessage();
+                    DebugLog.w("FileRepo", errMsg);
+                    callback.onError(errMsg, -1);
                 }
             }
 
             @Override
             public void onFailure(Call<ResponseBody> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("FileRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }

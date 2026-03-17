@@ -3,6 +3,7 @@ package com.flashnote.java.data.repository;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.MessageListRequest;
@@ -130,17 +131,23 @@ public class MessageRepositoryImpl implements MessageRepository {
                         MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
                         liveData.setValue(apiResponse.getData());
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("MessageRepo", errMsg);
+                        errorMessage.setValue(errMsg);
                     }
                 } else {
-                    errorMessage.setValue("Failed to load messages: " + response.code());
+                    String errMsg = "Failed to load messages: " + response.code();
+                    DebugLog.w("MessageRepo", errMsg);
+                    errorMessage.setValue(errMsg);
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<List<Message>>> call, Throwable t) {
                 isLoading.setValue(false);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("MessageRepo", errMsg);
+                errorMessage.setValue(errMsg);
             }
         });
     }
@@ -181,17 +188,23 @@ public class MessageRepositoryImpl implements MessageRepository {
                             onSuccess.run();
                         }
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("MessageRepo", errMsg);
+                        errorMessage.setValue(errMsg);
                     }
                 } else {
-                    errorMessage.setValue("Failed to delete message: " + response.code());
+                    String errMsg = "Failed to delete message: " + response.code();
+                    DebugLog.w("MessageRepo", errMsg);
+                    errorMessage.setValue(errMsg);
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
                 isLoading.setValue(false);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("MessageRepo", errMsg);
+                errorMessage.setValue(errMsg);
             }
         });
     }
@@ -219,17 +232,23 @@ public class MessageRepositoryImpl implements MessageRepository {
                             onSuccess.run();
                         }
                     } else {
-                        errorMessage.setValue(apiResponse.getMessage());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("MessageRepo", errMsg);
+                        errorMessage.setValue(errMsg);
                     }
                 } else {
-                    errorMessage.setValue("Failed to send message: " + response.code());
+                    String errMsg = "Failed to send message: " + response.code();
+                    DebugLog.w("MessageRepo", errMsg);
+                    errorMessage.setValue(errMsg);
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Message>> call, Throwable t) {
                 isLoading.setValue(false);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("MessageRepo", errMsg);
+                errorMessage.setValue(errMsg);
             }
         });
     }

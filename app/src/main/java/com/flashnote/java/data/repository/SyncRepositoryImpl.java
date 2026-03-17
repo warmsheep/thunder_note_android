@@ -1,5 +1,6 @@
 package com.flashnote.java.data.repository;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.remote.SyncService;
 
@@ -27,16 +28,22 @@ public class SyncRepositoryImpl implements SyncRepository {
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         callback.onSuccess(apiResponse.getData());
                     } else {
-                        callback.onError(apiResponse.getMessage(), apiResponse.getCode());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("SyncRepo", errMsg);
+                        callback.onError(errMsg, apiResponse.getCode());
                     }
                 } else {
-                    callback.onError("Bootstrap failed: " + response.code(), response.code());
+                    String errMsg = "Bootstrap failed: " + response.code();
+                    DebugLog.w("SyncRepo", errMsg);
+                    callback.onError(errMsg, response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("SyncRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }
@@ -52,16 +59,22 @@ public class SyncRepositoryImpl implements SyncRepository {
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         callback.onSuccess(apiResponse.getData());
                     } else {
-                        callback.onError(apiResponse.getMessage(), apiResponse.getCode());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("SyncRepo", errMsg);
+                        callback.onError(errMsg, apiResponse.getCode());
                     }
                 } else {
-                    callback.onError("Pull failed: " + response.code(), response.code());
+                    String errMsg = "Pull failed: " + response.code();
+                    DebugLog.w("SyncRepo", errMsg);
+                    callback.onError(errMsg, response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("SyncRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }
@@ -77,16 +90,22 @@ public class SyncRepositoryImpl implements SyncRepository {
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         callback.onSuccess(apiResponse.getData());
                     } else {
-                        callback.onError(apiResponse.getMessage(), apiResponse.getCode());
+                        String errMsg = apiResponse.getMessage();
+                        DebugLog.w("SyncRepo", errMsg);
+                        callback.onError(errMsg, apiResponse.getCode());
                     }
                 } else {
-                    callback.onError("Push failed: " + response.code(), response.code());
+                    String errMsg = "Push failed: " + response.code();
+                    DebugLog.w("SyncRepo", errMsg);
+                    callback.onError(errMsg, response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("SyncRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }

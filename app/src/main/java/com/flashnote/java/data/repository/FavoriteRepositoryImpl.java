@@ -3,6 +3,7 @@ package com.flashnote.java.data.repository;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.FavoriteItem;
 import com.flashnote.java.data.remote.FavoriteService;
@@ -54,13 +55,16 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
                     return;
                 }
                 String message = response.body() == null ? "加载收藏失败" : response.body().getMessage();
+                DebugLog.w("FavoriteRepo", message);
                 errorMessage.setValue(message);
             }
 
             @Override
             public void onFailure(Call<ApiResponse<List<FavoriteItem>>> call, Throwable t) {
                 isLoading.setValue(false);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("FavoriteRepo", errMsg);
+                errorMessage.setValue(errMsg);
             }
         });
     }
@@ -93,12 +97,15 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
                 }
                 int code = response.body() == null ? response.code() : response.body().getCode();
                 String message = response.body() == null ? "收藏失败" : response.body().getMessage();
+                DebugLog.w("FavoriteRepo", message);
                 callback.onError(message, code);
             }
 
             @Override
             public void onFailure(Call<ApiResponse<FavoriteItem>> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("FavoriteRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }
@@ -124,12 +131,15 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
                 }
                 int code = response.body() == null ? response.code() : response.body().getCode();
                 String message = response.body() == null ? "取消收藏失败" : response.body().getMessage();
+                DebugLog.w("FavoriteRepo", message);
                 callback.onError(message, code);
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                callback.onError("Network error: " + t.getMessage(), -1);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("FavoriteRepo", errMsg);
+                callback.onError(errMsg, -1);
             }
         });
     }
