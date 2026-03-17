@@ -322,6 +322,7 @@ public class ProfileTabFragment extends Fragment {
         super.onResume();
         if (binding != null) {
             loadStats();
+            fetchProfile();
         }
     }
 
