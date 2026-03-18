@@ -1,7 +1,9 @@
 package com.flashnote.java.data.remote;
 
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.ContactSearchUser;
 import com.flashnote.java.data.model.ContactUser;
+import com.flashnote.java.data.model.FriendRequest;
 import com.flashnote.java.data.model.UserProfile;
 
 import java.util.List;
@@ -10,8 +12,11 @@ import java.util.Map;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.GET;
+import retrofit2.http.DELETE;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
+import retrofit2.http.Path;
+import retrofit2.http.Query;
 
 public interface UserService {
     @POST("api/users/profile")
@@ -25,4 +30,25 @@ public interface UserService {
 
     @GET("api/users/contacts")
     Call<ApiResponse<List<ContactUser>>> listContacts();
+
+    @GET("api/users/contacts/requests")
+    Call<ApiResponse<List<FriendRequest>>> listFriendRequests();
+
+    @GET("api/users/contacts/requests/count")
+    Call<ApiResponse<Long>> countFriendRequests();
+
+    @POST("api/users/contacts/request")
+    Call<ApiResponse<Void>> sendFriendRequest(@Body Map<String, Long> body);
+
+    @POST("api/users/contacts/request/accept")
+    Call<ApiResponse<Void>> acceptFriendRequest(@Body Map<String, Long> body);
+
+    @POST("api/users/contacts/request/reject")
+    Call<ApiResponse<Void>> rejectFriendRequest(@Body Map<String, Long> body);
+
+    @DELETE("api/users/contacts/{contactUserId}")
+    Call<ApiResponse<Void>> deleteContact(@Path("contactUserId") Long contactUserId);
+
+    @GET("api/users/contacts/search")
+    Call<ApiResponse<List<ContactSearchUser>>> searchContacts(@Query("keyword") String keyword);
 }

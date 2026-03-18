@@ -106,6 +106,14 @@ public class FlashNoteViewModel extends AndroidViewModel {
     public void updateNote(Long id, String title, String content, String icon, String collectionName) {
         ensureCollectionExists(collectionName, () -> repository.updateNote(id, title, content, icon, collectionName));
     }
+
+    public void setPinned(Long id, boolean pinned) {
+        repository.setPinned(id, pinned);
+    }
+
+    public void setHidden(Long id, boolean hidden) {
+        repository.setHidden(id, hidden);
+    }
     
     public void deleteNote(Long id) {
         repository.deleteNote(id);

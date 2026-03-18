@@ -10,6 +10,7 @@ import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.DELETE;
+import retrofit2.http.Query;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
 import retrofit2.http.Path;
@@ -26,6 +27,12 @@ public interface FlashNoteService {
 
     @PUT("api/flash-notes/{id}")
     Call<ApiResponse<FlashNote>> update(@Path("id") Long id, @Body FlashNote note);
+
+    @PUT("api/flash-notes/{id}/pin")
+    Call<ApiResponse<FlashNote>> pin(@Path("id") Long id, @Query("value") boolean value);
+
+    @PUT("api/flash-notes/{id}/hide")
+    Call<ApiResponse<FlashNote>> hide(@Path("id") Long id, @Query("value") boolean value);
 
     @DELETE("api/flash-notes/{id}")
     Call<ApiResponse<Void>> delete(@Path("id") Long id);

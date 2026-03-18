@@ -17,6 +17,7 @@ import androidx.core.view.MenuItemCompat;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.flashnote.java.R;
 import com.flashnote.java.databinding.FragmentMainShellBinding;
@@ -48,7 +49,21 @@ public class MainShellFragment extends Fragment {
             selectedTabId = savedInstanceState.getInt(KEY_SELECTED_TAB, R.id.tab_flashnote);
         }
 
+        ContactViewModel contactViewModel = new ViewModelProvider(this).get(ContactViewModel.class);
+        contactViewModel.getPendingRequestCount().observe(getViewLifecycleOwner(), count ->
+                updateContactBadge(count != null && count > 0));
+        contactViewModel.refreshContacts();
+
         binding.bottomNav.setSelectedItemId(selectedTabId);
+    }
+
+    public void updateContactBadge(boolean show) {
+        com.google.android.material.badge.BadgeDrawable badge = binding.bottomNav.getOrCreateBadge(R.id.tab_contact);
+        badge.setVisible(show);
+        if (show) {
+            badge.clearNumber();
+            badge.setBackgroundColor(getResources().getColor(R.color.danger, null));
+        }
     }
 
     private boolean onTabSelected(@NonNull MenuItem item) {

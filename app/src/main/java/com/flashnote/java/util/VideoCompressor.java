@@ -133,7 +133,15 @@ public class VideoCompressor {
             bufferInfo.offset = 0;
             bufferInfo.size = sampleSize;
             bufferInfo.presentationTimeUs = extractor.getSampleTime();
-            bufferInfo.flags = extractor.getSampleFlags();
+            int sampleFlags = extractor.getSampleFlags();
+            int codecFlags = 0;
+            if ((sampleFlags & MediaExtractor.SAMPLE_FLAG_SYNC) != 0) {
+                codecFlags |= MediaCodec.BUFFER_FLAG_KEY_FRAME;
+            }
+            if ((sampleFlags & MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME) != 0) {
+                codecFlags |= MediaCodec.BUFFER_FLAG_PARTIAL_FRAME;
+            }
+            bufferInfo.flags = codecFlags;
             muxer.writeSampleData(muxerTrack, buffer, bufferInfo);
             extractor.advance();
         }

@@ -28,6 +28,15 @@ public class FlashNote {
     
     @SerializedName("isDeleted")
     private Boolean deleted;
+
+    @SerializedName("pinned")
+    private Boolean pinned;
+
+    @SerializedName("hidden")
+    private Boolean hidden;
+
+    @SerializedName("inbox")
+    private Boolean inbox;
     
     @SerializedName("createdAt")
     private LocalDateTime createdAt;
@@ -109,6 +118,30 @@ public class FlashNote {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public Boolean getPinned() {
+        return pinned;
+    }
+
+    public void setPinned(Boolean pinned) {
+        this.pinned = pinned;
+    }
+
+    public Boolean getHidden() {
+        return hidden;
+    }
+
+    public void setHidden(Boolean hidden) {
+        this.hidden = hidden;
+    }
+
+    public Boolean getInbox() {
+        return inbox;
+    }
+
+    public void setInbox(Boolean inbox) {
+        this.inbox = inbox;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {

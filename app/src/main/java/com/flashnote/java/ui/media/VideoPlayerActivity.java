@@ -6,9 +6,11 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.Toast;
 
+import androidx.annotation.OptIn;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -90,6 +92,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
         player.play();
     }
 
+    @OptIn(markerClass = UnstableApi.class)
     private void playFromNetwork(String mediaUrl) {
         releasePlayer();
         String requestUrl = MediaUrlResolver.resolve(mediaUrl);

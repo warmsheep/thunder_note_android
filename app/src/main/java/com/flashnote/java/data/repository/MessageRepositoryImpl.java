@@ -473,6 +473,6 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     private long keyForContact(long peerUserId) {
-        return -Math.abs(peerUserId);
+        return -1_000_000_000L - Math.abs(peerUserId);
     }
 }

@@ -20,6 +20,8 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
 
         void onEdit(FlashNote flashNote);
 
+        void onLongPress(FlashNote flashNote, android.view.View anchor);
+
         void onDelete(FlashNote flashNote);
     }
 
@@ -128,7 +130,7 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
 
             binding.getRoot().setOnClickListener(v -> listener.onOpenChat(item));
             binding.getRoot().setOnLongClickListener(v -> {
-                listener.onEdit(item);
+                listener.onLongPress(item, v);
                 return true;
             });
         }
@@ -137,6 +139,9 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
             String title = normalize(item.getTitle());
             if (title == null) {
                 title = "未命名闪记";
+            }
+            if (Boolean.TRUE.equals(item.getPinned())) {
+                title = "📌 " + title;
             }
             String collection = normalize(item.getTags());
             if (collection == null) {

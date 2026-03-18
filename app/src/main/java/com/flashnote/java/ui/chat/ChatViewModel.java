@@ -183,7 +183,7 @@ public class ChatViewModel extends AndroidViewModel {
     private Long getCurrentConversationKey() {
         Long peerId = peerUserId.getValue();
         if (peerId != null && peerId > 0L) {
-            return -Math.abs(peerId);
+            return -1_000_000_000L - Math.abs(peerId);
         }
         Long noteId = flashNoteId.getValue();
         if (noteId != null && noteId > 0L) {

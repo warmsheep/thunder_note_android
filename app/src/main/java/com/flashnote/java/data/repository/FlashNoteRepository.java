@@ -29,6 +29,10 @@ public interface FlashNoteRepository {
     void createNote(String title, String icon, String collectionName);
     
     void updateNote(Long id, String title, String content, String icon, String collectionName);
+
+    void setPinned(Long id, boolean pinned);
+
+    void setHidden(Long id, boolean hidden);
     
     void deleteNote(Long id);
 }

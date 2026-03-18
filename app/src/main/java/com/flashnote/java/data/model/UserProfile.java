@@ -18,6 +18,9 @@ public class UserProfile {
     @SerializedName("avatar")
     private String avatar;
 
+    @SerializedName("nickname")
+    private String nickname;
+
     @SerializedName("createdAt")
     private String createdAt;
 
@@ -68,6 +71,14 @@ public class UserProfile {
 
     public String getCreatedAt() {
         return createdAt;
+    }
+
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
     }
 
     public void setCreatedAt(String createdAt) {

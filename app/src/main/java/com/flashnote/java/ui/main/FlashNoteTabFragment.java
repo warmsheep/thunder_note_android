@@ -1,11 +1,14 @@
 package com.flashnote.java.ui.main;
 
 import android.app.AlertDialog;
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.os.Bundle;
@@ -25,6 +28,9 @@ import android.graphics.Rect;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.ItemTouchHelper;
@@ -32,22 +38,31 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.flashnote.java.R;
+import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.FlashNoteSearchResult;
 import com.flashnote.java.data.model.MatchedMessageInfo;
 import com.flashnote.java.data.model.Message;
+import com.flashnote.java.data.repository.FileRepository;
+import com.flashnote.java.data.repository.MessageRepository;
+import android.widget.PopupMenu;
 import com.flashnote.java.databinding.DialogFlashNoteEditBinding;
 import com.flashnote.java.databinding.FragmentFlashNoteTabBinding;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.google.android.material.chip.Chip;
 
 import java.util.ArrayList;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 public class FlashNoteTabFragment extends Fragment {
+    private static final long COLLECTION_BOX_NOTE_ID = -1L;
     private static final String[] NOTE_ICONS = new String[]{"💼", "📚", "❤️", "🍀", "🌟", "🎯", "🚀", "🎨", "🎵", "📷", "📝", "💡"};
 
     private FragmentFlashNoteTabBinding binding;
@@ -61,6 +76,42 @@ public class FlashNoteTabFragment extends Fragment {
     private final Rect swipeDeleteRect = new Rect();
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingSearch;
+    private MessageRepository messageRepository;
+    private FileRepository fileRepository;
+    private Uri cameraPhotoUri;
+
+    private final ActivityResultLauncher<Intent> mediaPickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    Uri uri = result.getData().getData();
+                    if (uri != null) {
+                        handleCaptureMedia(uri, "IMAGE");
+                    }
+                }
+            }
+    );
+
+    private final ActivityResultLauncher<Intent> filePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    Uri uri = result.getData().getData();
+                    if (uri != null) {
+                        handleCaptureMedia(uri, "FILE");
+                    }
+                }
+            }
+    );
+
+    private final ActivityResultLauncher<Intent> cameraLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && cameraPhotoUri != null) {
+                    handleCaptureMedia(cameraPhotoUri, "IMAGE");
+                }
+            }
+    );
 
     @Nullable
     @Override
@@ -75,10 +126,16 @@ public class FlashNoteTabFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         viewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
+        messageRepository = FlashNoteApp.getInstance().getMessageRepository();
+        fileRepository = FlashNoteApp.getInstance().getFileRepository();
 
         adapter = new FlashNoteAdapter(new FlashNoteAdapter.OnItemActionListener() {
             @Override
             public void onOpenChat(FlashNote item) {
+                if (Boolean.TRUE.equals(item.getHidden()) && item.getId() != null && item.getId() > 0L) {
+                    viewModel.setHidden(item.getId(), false);
+                    item.setHidden(false);
+                }
                 if (!currentQuery.isEmpty() && !latestSearchResults.isEmpty()) {
                     for (FlashNoteSearchResult result : latestSearchResults) {
                         if (result.getFlashNote() != null && result.getFlashNote().getId() != null 
@@ -105,7 +162,19 @@ public class FlashNoteTabFragment extends Fragment {
             }
 
             @Override
+            public void onLongPress(FlashNote item, View anchor) {
+                showFlashNoteActions(item, anchor);
+            }
+
+            @Override
             public void onDelete(FlashNote item) {
+                if (Boolean.TRUE.equals(item.getInbox()) || (item.getId() != null && item.getId() == COLLECTION_BOX_NOTE_ID)) {
+                    Context toastCtx = getContext();
+                    if (toastCtx != null) {
+                        Toast.makeText(toastCtx, "收集箱不可删除", Toast.LENGTH_SHORT).show();
+                    }
+                    return;
+                }
                 adapter.clearPendingDelete();
                 Context ctx = getContext();
                 if (ctx != null) {
@@ -137,7 +206,7 @@ public class FlashNoteTabFragment extends Fragment {
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
                 int position = viewHolder.getAdapterPosition();
-                List<FlashNote> currentList = currentQuery.isEmpty() ? latestNotes : searchedNotes;
+                 List<FlashNote> currentList = getDisplayedNotes();
                 if (position >= 0 && position < currentList.size()) {
                     FlashNote note = currentList.get(position);
                     adapter.setPendingDeleteNoteId(note.getId());
@@ -233,7 +302,7 @@ public class FlashNoteTabFragment extends Fragment {
         }
 
         binding.addButton.setOnClickListener(v -> showNoteDialog(null, viewModel));
-        binding.fabAdd.setOnClickListener(v -> showNoteDialog(null, viewModel));
+        binding.fabAdd.setOnClickListener(this::showQuickCaptureMenu);
         binding.searchButton.setOnClickListener(v -> toggleSearchContainer());
         binding.searchInput.addTextChangedListener(new TextWatcher() {
             @Override
@@ -278,11 +347,70 @@ public class FlashNoteTabFragment extends Fragment {
             binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
             binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
         } else {
-            adapter.submitList(latestNotes);
-            boolean empty = latestNotes == null || latestNotes.isEmpty();
+            List<FlashNote> visible = getVisibleNotes(latestNotes);
+            adapter.submitList(visible);
+            boolean empty = visible.isEmpty();
             binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
             binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
         }
+    }
+
+    @NonNull
+    private List<FlashNote> getVisibleNotes(@Nullable List<FlashNote> source) {
+        List<FlashNote> visible = new ArrayList<>();
+        if (source == null) {
+            return visible;
+        }
+        for (FlashNote note : source) {
+            if (note == null) {
+                continue;
+            }
+            if (Boolean.TRUE.equals(note.getHidden())) {
+                continue;
+            }
+            visible.add(note);
+        }
+        return visible;
+    }
+
+    @NonNull
+    private List<FlashNote> getDisplayedNotes() {
+        return currentQuery.isEmpty() ? getVisibleNotes(latestNotes) : new ArrayList<>(searchedNotes);
+    }
+
+    private void showFlashNoteActions(@NonNull FlashNote note, @NonNull View anchor) {
+        if (!isAdded()) {
+            return;
+        }
+        PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
+        boolean isInbox = Boolean.TRUE.equals(note.getInbox()) || (note.getId() != null && note.getId() == COLLECTION_BOX_NOTE_ID);
+        if (!isInbox) {
+            popupMenu.getMenu().add(0, 1, 1, "编辑");
+            popupMenu.getMenu().add(0, 2, 2, "隐藏");
+            popupMenu.getMenu().add(0, 3, 3, Boolean.TRUE.equals(note.getPinned()) ? "取消置顶" : "置顶");
+        }
+        popupMenu.getMenu().add(0, 4, 4, "取消");
+        popupMenu.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == 1) {
+                showNoteDialog(note, viewModel);
+                return true;
+            }
+            if (itemId == 2) {
+                if (note.getId() != null && note.getId() > 0L) {
+                    viewModel.setHidden(note.getId(), true);
+                }
+                return true;
+            }
+            if (itemId == 3) {
+                if (note.getId() != null && note.getId() > 0L) {
+                    viewModel.setPinned(note.getId(), !Boolean.TRUE.equals(note.getPinned()));
+                }
+                return true;
+            }
+            return true;
+        });
+        popupMenu.show();
     }
 
     private void toggleSearchContainer() {
@@ -297,7 +425,11 @@ public class FlashNoteTabFragment extends Fragment {
                     @Override
                     public void onResultClick(FlashNote flashNote, Long messageId) {
                         if (getActivity() instanceof ShellNavigator navigator) {
-                            navigator.openChat(flashNote.getId(), flashNote.getTitle(), messageId);
+                            if (messageId == null) {
+                                navigator.openChat(flashNote.getId(), flashNote.getTitle());
+                            } else {
+                                navigator.openChat(flashNote.getId(), flashNote.getTitle(), messageId);
+                            }
                         }
                     }
                 });
@@ -718,6 +850,205 @@ public class FlashNoteTabFragment extends Fragment {
         titleView.setTextColor(getResources().getColor(R.color.text_primary));
         titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         return titleView;
+    }
+
+    private void showQuickCaptureMenu(@NonNull View anchor) {
+        if (!isAdded()) {
+            return;
+        }
+        PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
+        popupMenu.getMenu().add(0, 101, 1, "消息");
+        popupMenu.getMenu().add(0, 102, 2, "图片");
+        popupMenu.getMenu().add(0, 103, 3, "文件");
+        popupMenu.getMenu().add(0, 104, 4, "拍照");
+        popupMenu.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == 101) {
+                showTextCaptureDialog(anchor);
+                return true;
+            }
+            if (id == 102) {
+                openImagePicker();
+                return true;
+            }
+            if (id == 103) {
+                openFilePicker();
+                return true;
+            }
+            if (id == 104) {
+                openCamera();
+                return true;
+            }
+            return false;
+        });
+        popupMenu.show();
+    }
+
+    private void showTextCaptureDialog(@NonNull View sourceView) {
+        if (!isAdded()) {
+            return;
+        }
+        Context ctx = getContext();
+        if (ctx == null) {
+            return;
+        }
+        EditText input = new EditText(ctx);
+        input.setHint("输入要收集的消息");
+        new AlertDialog.Builder(ctx)
+                .setTitle("保存到收集箱")
+                .setView(input)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String text = input.getText() == null ? "" : input.getText().toString().trim();
+                    if (text.isEmpty()) {
+                        Toast.makeText(ctx, "请输入内容", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    messageRepository.sendText(COLLECTION_BOX_NOTE_ID, text, () -> {
+                        if (!isAdded() || getActivity() == null) {
+                            return;
+                        }
+                        getActivity().runOnUiThread(() -> {
+                            playCaptureAnimation(sourceView);
+                            Toast.makeText(requireContext(), "已保存到收集箱", Toast.LENGTH_SHORT).show();
+                            viewModel.refresh();
+                        });
+                    });
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void openImagePicker() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        mediaPickerLauncher.launch(intent);
+    }
+
+    private void openFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("*/*");
+        filePickerLauncher.launch(intent);
+    }
+
+    private void openCamera() {
+        if (!isAdded()) {
+            return;
+        }
+        try {
+            File photoFile = new File(requireContext().getCacheDir(), "capture_" + System.currentTimeMillis() + ".jpg");
+            cameraPhotoUri = FileProvider.getUriForFile(
+                    requireContext(),
+                    requireContext().getPackageName() + ".fileprovider",
+                    photoFile
+            );
+            Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+            intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
+            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            cameraLauncher.launch(intent);
+        } catch (Exception exception) {
+            Context ctx = getContext();
+            if (ctx != null) {
+                Toast.makeText(ctx, "无法打开相机", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void handleCaptureMedia(@NonNull Uri uri, @NonNull String mediaType) {
+        if (!isAdded()) {
+            return;
+        }
+        copyUriToTempFile(uri, mediaType.equals("FILE") ? "file" : "image", file -> {
+            if (file == null) {
+                Context ctx = getContext();
+                if (ctx != null) {
+                    Toast.makeText(ctx, "文件处理失败", Toast.LENGTH_SHORT).show();
+                }
+                return;
+            }
+            Message message = new Message();
+            message.setFlashNoteId(COLLECTION_BOX_NOTE_ID);
+            message.setMediaType(mediaType.equals("FILE") ? "FILE" : "IMAGE");
+            message.setMediaUrl(file.getAbsolutePath());
+            message.setFileName(file.getName());
+            message.setFileSize(file.length());
+            message.setRole("user");
+            message.setUploading(true);
+            messageRepository.addLocalMessage(message);
+            fileRepository.upload(file, new FileRepository.FileCallback() {
+                @Override
+                public void onSuccess(String value) {
+                    if (!isAdded() || getActivity() == null) {
+                        return;
+                    }
+                    message.setMediaUrl(value);
+                    message.setUploading(false);
+                    messageRepository.sendMessage(COLLECTION_BOX_NOTE_ID, message, () -> {
+                        if (!isAdded() || getActivity() == null) {
+                            return;
+                        }
+                        getActivity().runOnUiThread(() -> {
+                            if (binding != null) {
+                                playCaptureAnimation(binding.fabAdd);
+                            }
+                            Toast.makeText(requireContext(), "已保存到收集箱", Toast.LENGTH_SHORT).show();
+                            viewModel.refresh();
+                        });
+                    });
+                }
+
+                @Override
+                public void onError(String messageText, int code) {
+                    if (!isAdded() || getActivity() == null) {
+                        return;
+                    }
+                    getActivity().runOnUiThread(() -> Toast.makeText(requireContext(), "上传失败: " + messageText, Toast.LENGTH_SHORT).show());
+                }
+            });
+        });
+    }
+
+    private interface TempFileCallback {
+        void onReady(@Nullable File file);
+    }
+
+    private void copyUriToTempFile(@NonNull Uri uri, @NonNull String prefix, @NonNull TempFileCallback callback) {
+        if (!isAdded()) {
+            callback.onReady(null);
+            return;
+        }
+        try {
+            InputStream inputStream = requireContext().getContentResolver().openInputStream(uri);
+            if (inputStream == null) {
+                callback.onReady(null);
+                return;
+            }
+            File tempFile = new File(requireContext().getCacheDir(), prefix + "_" + System.currentTimeMillis());
+            try (inputStream; FileOutputStream fos = new FileOutputStream(tempFile)) {
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    fos.write(buffer, 0, bytesRead);
+                }
+            }
+            callback.onReady(tempFile);
+        } catch (IOException exception) {
+            callback.onReady(null);
+        }
+    }
+
+    private void playCaptureAnimation(@NonNull View sourceView) {
+        sourceView.animate()
+                .scaleX(0.82f)
+                .scaleY(0.82f)
+                .alpha(0.65f)
+                .setDuration(140)
+                .withEndAction(() -> sourceView.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .alpha(1f)
+                        .setDuration(180)
+                        .start())
+                .start();
     }
 
     @Override

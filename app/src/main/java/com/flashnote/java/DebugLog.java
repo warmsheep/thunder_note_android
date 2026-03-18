@@ -50,7 +50,7 @@ public final class DebugLog {
             buffer.setLength(0);
             entryCount = 0;
         }
-        logLiveData.postValue("");
+        publish("");
     }
 
     private static void appendEntry(String level, String message) {
@@ -67,7 +67,14 @@ public final class DebugLog {
             buffer.append(entry);
             entryCount++;
         }
-        logLiveData.postValue(buffer.toString());
+        publish(buffer.toString());
+    }
+
+    private static void publish(String value) {
+        try {
+            logLiveData.postValue(value);
+        } catch (RuntimeException ignored) {
+        }
     }
 
     private static String throwableToString(Throwable throwable) {

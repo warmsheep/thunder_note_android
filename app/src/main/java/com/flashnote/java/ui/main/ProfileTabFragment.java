@@ -124,7 +124,7 @@ public class ProfileTabFragment extends Fragment {
         if (binding == null) {
             return;
         }
-        binding.avatarContainer.setOnClickListener(v -> showAvatarPicker());
+        binding.avatarContainer.setOnClickListener(v -> showEditProfileDialog());
         binding.menuEditBio.setOnClickListener(v -> showEditBioDialog());
         binding.menuChangePassword.setOnClickListener(v -> openChangePassword());
         binding.menuSettings.setOnClickListener(v -> openSettings());
@@ -204,6 +204,14 @@ public class ProfileTabFragment extends Fragment {
     private void updateProfileUI(UserProfile profile) {
         if (!isAdded()) {
             return;
+        }
+
+        String nickname = profile.getNickname();
+        if (nickname != null && !nickname.isBlank()) {
+            binding.usernameText.setText(nickname.trim());
+        } else {
+            String username = tokenManager.getUsername();
+            binding.usernameText.setText(username == null ? "未知用户" : username);
         }
         
         String bio = profile.getBio();
@@ -310,6 +318,92 @@ public class ProfileTabFragment extends Fragment {
             })
             .setNegativeButton("取消", null)
             .show();
+    }
+
+    private void showEditProfileDialog() {
+        if (!isAdded() || getContext() == null) {
+            return;
+        }
+        android.content.Context context = getContext();
+        android.widget.LinearLayout container = new android.widget.LinearLayout(context);
+        container.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int padding = (int) (18 * getResources().getDisplayMetrics().density);
+        container.setPadding(padding, padding, padding, padding);
+
+        EditText nicknameInput = new EditText(context);
+        nicknameInput.setHint("昵称");
+        nicknameInput.setSingleLine(true);
+        nicknameInput.setBackgroundResource(R.drawable.bg_input_rounded);
+        String initialNickname = currentProfile == null ? null : currentProfile.getNickname();
+        if (initialNickname != null) {
+            nicknameInput.setText(initialNickname);
+        }
+        container.addView(nicknameInput);
+
+        EditText bioInput = new EditText(context);
+        bioInput.setHint("简介");
+        bioInput.setMinLines(2);
+        bioInput.setMaxLines(5);
+        bioInput.setBackgroundResource(R.drawable.bg_input_rounded);
+        int topMargin = (int) (10 * getResources().getDisplayMetrics().density);
+        android.widget.LinearLayout.LayoutParams bioParams = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        bioParams.topMargin = topMargin;
+        bioInput.setLayoutParams(bioParams);
+        if (currentProfile != null && currentProfile.getBio() != null) {
+            bioInput.setText(currentProfile.getBio());
+        }
+        container.addView(bioInput);
+
+        TextView avatarAction = new TextView(context);
+        avatarAction.setText("修改头像");
+        avatarAction.setTextColor(getResources().getColor(R.color.primary, null));
+        avatarAction.setPadding(0, topMargin, 0, 0);
+        avatarAction.setOnClickListener(v -> showAvatarPicker());
+        container.addView(avatarAction);
+
+        new AlertDialog.Builder(context)
+                .setTitle("修改个人资料")
+                .setView(container)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    if (currentProfile == null) {
+                        currentProfile = new UserProfile();
+                    }
+                    currentProfile.setNickname(nicknameInput.getText() == null ? "" : nicknameInput.getText().toString().trim());
+                    currentProfile.setBio(bioInput.getText() == null ? "" : bioInput.getText().toString().trim());
+                    userRepository.updateProfile(currentProfile, new UserRepository.ProfileCallback() {
+                        @Override
+                        public void onSuccess(UserProfile profile) {
+                            if (!isAdded() || getActivity() == null) {
+                                return;
+                            }
+                            getActivity().runOnUiThread(() -> {
+                                currentProfile = profile;
+                                updateProfileUI(profile);
+                                android.content.Context ctx = getContext();
+                                if (ctx != null) {
+                                    Toast.makeText(ctx, "资料已保存", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onError(String message, int code) {
+                            if (!isAdded() || getActivity() == null) {
+                                return;
+                            }
+                            getActivity().runOnUiThread(() -> {
+                                android.content.Context ctx = getContext();
+                                if (ctx != null) {
+                                    Toast.makeText(ctx, "保存失败：" + message, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void updateBio(String bio) {

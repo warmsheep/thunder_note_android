@@ -48,7 +48,7 @@
             <ImageView
                 android:layout_width="@dimen/icon_size_popup_action"
                 android:layout_height="@dimen/icon_size_popup_action"
-                android:src="@android:drawable/ic_menu_share" />
+                android:src="@android:drawable/ic_menu_send" />
 
             <TextView
                 android:layout_width="wrap_content"
