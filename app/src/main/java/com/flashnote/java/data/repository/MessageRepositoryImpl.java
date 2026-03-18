@@ -28,6 +28,8 @@ public class MessageRepositoryImpl implements MessageRepository {
     private final Map<Long, Boolean> hasMoreMap = new HashMap<>();
     private final Map<Long, MutableLiveData<Boolean>> hasMoreLiveDataMap = new HashMap<>();
     private long currentFlashNoteId = 0L;
+    private long currentPeerUserId = 0L;
+    private long currentConversationKey = 0L;
 
     public MessageRepositoryImpl(MessageService messageService) {
         this.messageService = messageService;
@@ -35,7 +37,12 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public LiveData<List<Message>> getMessages(long flashNoteId) {
-        return ensureLiveData(flashNoteId);
+        return ensureLiveData(keyForFlashNote(flashNoteId));
+    }
+
+    @Override
+    public LiveData<List<Message>> getContactMessages(long peerUserId) {
+        return ensureLiveData(keyForContact(peerUserId));
     }
 
     @Override
@@ -82,30 +89,70 @@ public class MessageRepositoryImpl implements MessageRepository {
     @Override
     public void bindFlashNote(long flashNoteId) {
         currentFlashNoteId = flashNoteId;
-        boolean hasExistingConversation = conversations.containsKey(flashNoteId);
-        MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
-        MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(flashNoteId);
+        currentPeerUserId = 0L;
+        currentConversationKey = keyForFlashNote(flashNoteId);
+        boolean hasExistingConversation = conversations.containsKey(currentConversationKey);
+        MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
+        MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
         if (hasExistingConversation) {
-            Boolean hasMore = hasMoreMap.get(flashNoteId);
+            Boolean hasMore = hasMoreMap.get(currentConversationKey);
             hasMoreLiveData.setValue(hasMore == null || hasMore);
             return;
         }
         if (liveData.getValue() == null || liveData.getValue().isEmpty()) {
-            currentPages.put(flashNoteId, 1);
-            hasMoreMap.put(flashNoteId, true);
+            currentPages.put(currentConversationKey, 1);
+            hasMoreMap.put(currentConversationKey, true);
             hasMoreLiveData.setValue(true);
-            loadMessages(flashNoteId, 1, 20);
+            loadMessages(currentConversationKey, flashNoteId, null, 1, 20);
             return;
         }
-        Boolean hasMore = hasMoreMap.get(flashNoteId);
+        Boolean hasMore = hasMoreMap.get(currentConversationKey);
+        hasMoreLiveData.setValue(hasMore == null || hasMore);
+    }
+
+    @Override
+    public void bindContact(long peerUserId) {
+        currentPeerUserId = peerUserId;
+        currentFlashNoteId = 0L;
+        currentConversationKey = keyForContact(peerUserId);
+        boolean hasExistingConversation = conversations.containsKey(currentConversationKey);
+        MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
+        MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
+        if (hasExistingConversation) {
+            Boolean hasMore = hasMoreMap.get(currentConversationKey);
+            hasMoreLiveData.setValue(hasMore == null || hasMore);
+            return;
+        }
+        if (liveData.getValue() == null || liveData.getValue().isEmpty()) {
+            currentPages.put(currentConversationKey, 1);
+            hasMoreMap.put(currentConversationKey, true);
+            hasMoreLiveData.setValue(true);
+            loadMessages(currentConversationKey, null, peerUserId, 1, 20);
+            return;
+        }
+        Boolean hasMore = hasMoreMap.get(currentConversationKey);
         hasMoreLiveData.setValue(hasMore == null || hasMore);
     }
 
     @Override
     public void sendText(long flashNoteId, String content, Runnable onSuccess) {
+        sendTextInternal(keyForFlashNote(flashNoteId), flashNoteId, null, content, onSuccess);
+    }
+
+    @Override
+    public void sendTextToContact(long peerUserId, String content, Runnable onSuccess) {
+        sendTextInternal(keyForContact(peerUserId), null, peerUserId, content, onSuccess);
+    }
+
+    private void sendTextInternal(long conversationKey,
+                                  Long flashNoteId,
+                                  Long peerUserId,
+                                  String content,
+                                  Runnable onSuccess) {
         isLoading.setValue(true);
         Message message = new Message();
         message.setFlashNoteId(flashNoteId);
+        message.setReceiverId(peerUserId);
         message.setContent(content);
         message.setRole("user");
         
@@ -118,7 +165,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                     ApiResponse<Message> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         clearError();
-                        MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
+                        MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
                         List<Message> current = liveData.getValue();
                         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
                         updated.add(apiResponse.getData());
@@ -142,9 +189,9 @@ public class MessageRepositoryImpl implements MessageRepository {
         });
     }
 
-    private void loadMessages(long flashNoteId, int page, int limit) {
+    private void loadMessages(long conversationKey, Long flashNoteId, Long peerUserId, int page, int limit) {
         isLoading.setValue(true);
-        MessageListRequest request = new MessageListRequest(flashNoteId, page, limit);
+        MessageListRequest request = new MessageListRequest(flashNoteId, peerUserId, page, limit);
         messageService.list(request).enqueue(new Callback<ApiResponse<List<Message>>>() {
             @Override
             public void onResponse(Call<ApiResponse<List<Message>>> call, 
@@ -154,7 +201,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                     ApiResponse<List<Message>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         clearError();
-                        MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
+                        MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
                         List<Message> newMessages = apiResponse.getData();
                         
                         if (page == 1) {
@@ -169,8 +216,8 @@ public class MessageRepositoryImpl implements MessageRepository {
                         }
                         
                         boolean hasMore = newMessages.size() >= limit;
-                        hasMoreMap.put(flashNoteId, hasMore);
-                        MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(flashNoteId);
+                        hasMoreMap.put(conversationKey, hasMore);
+                        MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(conversationKey);
                         hasMoreLiveData.setValue(hasMore);
                     } else {
                         String errMsg = apiResponse.getMessage();
@@ -196,7 +243,8 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void loadMoreMessages(long flashNoteId) {
-        Boolean hasMore = hasMoreMap.get(flashNoteId);
+        long conversationKey = keyForFlashNote(flashNoteId);
+        Boolean hasMore = hasMoreMap.get(conversationKey);
         if (hasMore == null || !hasMore) {
             return;
         }
@@ -206,15 +254,34 @@ public class MessageRepositoryImpl implements MessageRepository {
             return;
         }
         
-        int currentPage = currentPages.getOrDefault(flashNoteId, 1);
+        int currentPage = currentPages.getOrDefault(conversationKey, 1);
         int nextPage = currentPage + 1;
-        currentPages.put(flashNoteId, nextPage);
-        loadMessages(flashNoteId, nextPage, 20);
+        currentPages.put(conversationKey, nextPage);
+        loadMessages(conversationKey, flashNoteId, null, nextPage, 20);
+    }
+
+    @Override
+    public void loadMoreContactMessages(long peerUserId) {
+        long conversationKey = keyForContact(peerUserId);
+        Boolean hasMore = hasMoreMap.get(conversationKey);
+        if (hasMore == null || !hasMore) {
+            return;
+        }
+
+        Boolean loading = isLoading.getValue();
+        if (loading != null && loading) {
+            return;
+        }
+
+        int currentPage = currentPages.getOrDefault(conversationKey, 1);
+        int nextPage = currentPage + 1;
+        currentPages.put(conversationKey, nextPage);
+        loadMessages(conversationKey, null, peerUserId, nextPage, 20);
     }
 
     @Override
     public LiveData<Boolean> getHasMore() {
-        return ensureHasMoreLiveData(currentFlashNoteId);
+        return ensureHasMoreLiveData(currentConversationKey);
     }
 
     private MutableLiveData<Boolean> ensureHasMoreLiveData(long flashNoteId) {
@@ -243,6 +310,15 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess) {
+        deleteMessageInternal(keyForFlashNote(flashNoteId), messageId, onSuccess);
+    }
+
+    @Override
+    public void deleteContactMessage(long peerUserId, long messageId, Runnable onSuccess) {
+        deleteMessageInternal(keyForContact(peerUserId), messageId, onSuccess);
+    }
+
+    private void deleteMessageInternal(long conversationKey, long messageId, Runnable onSuccess) {
         isLoading.setValue(true);
         messageService.delete(messageId).enqueue(new Callback<ApiResponse<Void>>() {
             @Override
@@ -253,7 +329,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                     ApiResponse<Void> apiResponse = response.body();
                     if (apiResponse.isSuccess()) {
                         clearError();
-                        MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
+                        MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
                         List<Message> current = liveData.getValue();
                         if (current != null) {
                             List<Message> updated = new ArrayList<>();
@@ -291,8 +367,22 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void sendMessage(long flashNoteId, Message message, Runnable onSuccess) {
+        sendMessageInternal(keyForFlashNote(flashNoteId), flashNoteId, null, message, onSuccess);
+    }
+
+    @Override
+    public void sendMessageToContact(long peerUserId, Message message, Runnable onSuccess) {
+        sendMessageInternal(keyForContact(peerUserId), null, peerUserId, message, onSuccess);
+    }
+
+    private void sendMessageInternal(long conversationKey,
+                                     Long flashNoteId,
+                                     Long peerUserId,
+                                     Message message,
+                                     Runnable onSuccess) {
         isLoading.setValue(true);
         message.setFlashNoteId(flashNoteId);
+        message.setReceiverId(peerUserId);
         message.setRole("user");
         
         messageService.send(message).enqueue(new Callback<ApiResponse<Message>>() {
@@ -304,7 +394,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                     ApiResponse<Message> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         clearError();
-                        MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
+                        MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
                         List<Message> current = liveData.getValue();
                         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
                         updated.remove(message);
@@ -362,10 +452,27 @@ public class MessageRepositoryImpl implements MessageRepository {
         if (flashNoteId == null) {
             return;
         }
-        MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
+        MutableLiveData<List<Message>> liveData = ensureLiveData(keyForFlashNote(flashNoteId));
         List<Message> current = liveData.getValue();
         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
         updated.add(message);
         liveData.setValue(updated);
+    }
+
+    @Override
+    public void addLocalContactMessage(long peerUserId, Message message) {
+        MutableLiveData<List<Message>> liveData = ensureLiveData(keyForContact(peerUserId));
+        List<Message> current = liveData.getValue();
+        List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
+        updated.add(message);
+        liveData.setValue(updated);
+    }
+
+    private long keyForFlashNote(long flashNoteId) {
+        return flashNoteId;
+    }
+
+    private long keyForContact(long peerUserId) {
+        return -Math.abs(peerUserId);
     }
 }

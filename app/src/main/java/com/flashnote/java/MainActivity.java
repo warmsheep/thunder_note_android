@@ -62,6 +62,11 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     }
 
     @Override
+    public void openContactChat(long peerUserId, String title) {
+        replaceRootFragment(ChatFragment.newContactInstance(peerUserId, title), true, false);
+    }
+
+    @Override
     public void openChangePassword() {
         replaceRootFragment(new ChangePasswordFragment(), true, false);
     }

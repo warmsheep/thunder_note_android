@@ -13,6 +13,8 @@ public interface ShellNavigator {
 
     void openChat(long flashNoteId, String title, long scrollToMessageId);
 
+    void openContactChat(long peerUserId, String title);
+
     void openChangePassword();
 
     void openSettings();

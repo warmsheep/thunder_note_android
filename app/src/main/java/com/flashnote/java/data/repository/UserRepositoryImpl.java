@@ -8,10 +8,12 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.ContactUser;
 import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.remote.UserService;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -21,6 +23,7 @@ import retrofit2.Response;
 public class UserRepositoryImpl implements UserRepository {
     private final UserService userService;
     private final MutableLiveData<UserProfile> profileLiveData = new MutableLiveData<>();
+    private final MutableLiveData<List<ContactUser>> contactsLiveData = new MutableLiveData<>();
 
     public UserRepositoryImpl(UserService userService) {
         this.userService = userService;
@@ -124,6 +127,37 @@ public class UserRepositoryImpl implements UserRepository {
         });
     }
 
+    @Override
+    public LiveData<List<ContactUser>> getContacts() {
+        return contactsLiveData;
+    }
+
+    @Override
+    public void fetchContacts(ContactsCallback callback) {
+        userService.listContacts().enqueue(new Callback<ApiResponse<List<ContactUser>>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<List<ContactUser>>> call, Response<ApiResponse<List<ContactUser>>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    ApiResponse<List<ContactUser>> apiResponse = response.body();
+                    if (apiResponse.getCode() == 0) {
+                        List<ContactUser> contacts = apiResponse.getData();
+                        contactsLiveData.postValue(contacts);
+                        notifyContactsSuccess(callback, contacts);
+                    } else {
+                        notifyContactsError(callback, apiResponse.getMessage(), apiResponse.getCode());
+                    }
+                } else {
+                    notifyContactsError(callback, "HTTP " + response.code(), response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<List<ContactUser>>> call, Throwable t) {
+                notifyContactsError(callback, t.getMessage(), -1);
+            }
+        });
+    }
+
     private void notifySuccess(ProfileCallback callback, UserProfile profile) {
         if (callback != null) {
             new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(profile));
@@ -131,6 +165,19 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     private void notifyError(ProfileCallback callback, String message, int code) {
+        DebugLog.w("UserRepo", message);
+        if (callback != null) {
+            new Handler(Looper.getMainLooper()).post(() -> callback.onError(message, code));
+        }
+    }
+
+    private void notifyContactsSuccess(ContactsCallback callback, List<ContactUser> contacts) {
+        if (callback != null) {
+            new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(contacts));
+        }
+    }
+
+    private void notifyContactsError(ContactsCallback callback, String message, int code) {
         DebugLog.w("UserRepo", message);
         if (callback != null) {
             new Handler(Looper.getMainLooper()).post(() -> callback.onError(message, code));

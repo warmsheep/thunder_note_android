@@ -62,6 +62,7 @@ import java.util.Locale;
 
 public class ChatFragment extends Fragment {
     private static final String ARG_FLASH_NOTE_ID = "flashNoteId";
+    private static final String ARG_PEER_USER_ID = "peerUserId";
     private static final String ARG_TITLE = "title";
     private static final String ARG_SCROLL_TO_MESSAGE_ID = "scrollToMessageId";
 
@@ -102,6 +103,15 @@ public class ChatFragment extends Fragment {
         args.putLong(ARG_FLASH_NOTE_ID, flashNoteId);
         args.putString(ARG_TITLE, title);
         args.putLong(ARG_SCROLL_TO_MESSAGE_ID, scrollToMessageId);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
+    public static ChatFragment newContactInstance(long peerUserId, String title) {
+        ChatFragment fragment = new ChatFragment();
+        Bundle args = new Bundle();
+        args.putLong(ARG_PEER_USER_ID, peerUserId);
+        args.putString(ARG_TITLE, title);
         fragment.setArguments(args);
         return fragment;
     }
@@ -167,6 +177,8 @@ public class ChatFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID);
+        boolean isContactConversation = peerUserId > 0L;
         currentFlashNoteId = flashNoteId;
         String title = getArguments() == null ? "闪记" : getArguments().getString(ARG_TITLE, "闪记");
 
@@ -217,7 +229,11 @@ public class ChatFragment extends Fragment {
             }
         });
 
-        chatViewModel.bindFlashNote(flashNoteId);
+        if (isContactConversation) {
+            chatViewModel.bindContact(peerUserId);
+        } else {
+            chatViewModel.bindFlashNote(flashNoteId);
+        }
         long scrollToMessageId = getArguments() == null ? 0L : getArguments().getLong(ARG_SCROLL_TO_MESSAGE_ID, 0L);
         
         if (chatViewModel.getMessages() != null) {
@@ -270,7 +286,7 @@ public class ChatFragment extends Fragment {
         });
 
         setupMessageInput(chatViewModel);
-        restoreDraft(flashNoteId);
+        restoreDraft();
         binding.sendButton.setOnClickListener(v -> sendMessage(chatViewModel));
         setupToolsPanel();
         setupMicButton();
@@ -309,7 +325,7 @@ public class ChatFragment extends Fragment {
             return;
         }
         String text = binding.messageInput.getText() == null ? "" : binding.messageInput.getText().toString();
-        viewModel.sendText(text, () -> {
+        viewModel.sendTextToCurrentConversation(text, () -> {
             if (!isAdded() || getActivity() == null || binding == null) {
                 return;
             }
@@ -336,7 +352,8 @@ public class ChatFragment extends Fragment {
             if (binding == null) {
                 return;
             }
-            ensureBottomVisible(last, isLastMediaMessage(messages, last) ? 6 : 3);
+            ensureBottomVisible(last, isLastComplexMessage(messages, last) ? 10 : 4);
+            binding.recyclerView.postDelayed(() -> ensureBottomVisible(last, isLastComplexMessage(messages, last) ? 4 : 2), 420);
         });
     }
 
@@ -362,12 +379,12 @@ public class ChatFragment extends Fragment {
         }, 120);
     }
 
-    private boolean isLastMediaMessage(@Nullable List<Message> messages, int lastIndex) {
+    private boolean isLastComplexMessage(@Nullable List<Message> messages, int lastIndex) {
         if (messages == null || messages.isEmpty() || lastIndex < 0 || lastIndex >= messages.size()) {
             return false;
         }
         String mediaType = messages.get(lastIndex).getMediaType();
-        return "IMAGE".equalsIgnoreCase(mediaType) || "VIDEO".equalsIgnoreCase(mediaType);
+        return mediaType != null && !mediaType.isBlank() && !"TEXT".equalsIgnoreCase(mediaType);
     }
 
     private void highlightMessage(int position) {
@@ -1024,6 +1041,7 @@ public class ChatFragment extends Fragment {
         }
 
         long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID);
         
         Message message = new Message();
         message.setMediaType("VOICE");
@@ -1031,6 +1049,7 @@ public class ChatFragment extends Fragment {
         message.setFileName(file.getName());
         message.setFileSize(file.length());
         message.setFlashNoteId(flashNoteId);
+        message.setReceiverId(peerUserId > 0L ? peerUserId : null);
         message.setRole("user");
         message.setUploading(true);
         
@@ -1136,6 +1155,7 @@ public class ChatFragment extends Fragment {
     private void handleImagePicked(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
         long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID);
         
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
@@ -1149,6 +1169,7 @@ public class ChatFragment extends Fragment {
             message.setFileName(originalFileName != null ? originalFileName : file.getName());
             message.setFileSize(file.length());
             message.setFlashNoteId(flashNoteId);
+            message.setReceiverId(peerUserId > 0L ? peerUserId : null);
             message.setRole("user");
             message.setUploading(true);
             
@@ -1182,6 +1203,7 @@ public class ChatFragment extends Fragment {
     private void handleVideoPicked(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
         long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID);
 
         copyUriToTempFile(uri, "video", file -> {
             if (file == null) {
@@ -1195,6 +1217,7 @@ public class ChatFragment extends Fragment {
             message.setFileName(originalFileName != null ? originalFileName : file.getName());
             message.setFileSize(file.length());
             message.setFlashNoteId(flashNoteId);
+            message.setReceiverId(peerUserId > 0L ? peerUserId : null);
             message.setRole("user");
             message.setUploading(true);
 
@@ -1250,6 +1273,7 @@ public class ChatFragment extends Fragment {
     private void handleFilePicked(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
         long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID);
         
         copyUriToTempFile(uri, "file", file -> {
             if (file == null) {
@@ -1263,6 +1287,7 @@ public class ChatFragment extends Fragment {
             message.setFileName(originalFileName != null ? originalFileName : file.getName());
             message.setFileSize(file.length());
             message.setFlashNoteId(flashNoteId);
+            message.setReceiverId(peerUserId > 0L ? peerUserId : null);
             message.setRole("user");
             message.setUploading(true);
             
@@ -1296,6 +1321,7 @@ public class ChatFragment extends Fragment {
     private void handleCameraPhoto(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
         long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID);
         
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
@@ -1309,6 +1335,7 @@ public class ChatFragment extends Fragment {
             message.setFileName(originalFileName != null ? originalFileName : file.getName());
             message.setFileSize(file.length());
             message.setFlashNoteId(flashNoteId);
+            message.setReceiverId(peerUserId > 0L ? peerUserId : null);
             message.setRole("user");
             message.setUploading(true);
             
@@ -1438,8 +1465,8 @@ public class ChatFragment extends Fragment {
         }
     }
 
-    private void restoreDraft(long flashNoteId) {
-        String draft = chatViewModel.getDraft(flashNoteId);
+    private void restoreDraft() {
+        String draft = chatViewModel.getCurrentDraft();
         if (draft.isEmpty()) {
             return;
         }

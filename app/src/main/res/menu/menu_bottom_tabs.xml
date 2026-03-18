@@ -7,6 +7,9 @@
         android:id="@+id/tab_collection"
         android:title="@string/tab_collection" />
     <item
+        android:id="@+id/tab_contact"
+        android:title="@string/tab_contact" />
+    <item
         android:id="@+id/tab_favorite"
         android:title="@string/tab_favorite" />
     <item

@@ -31,11 +31,13 @@
 
     <string name="tab_flashnote">闪记</string>
     <string name="tab_collection">合集</string>
+    <string name="tab_contact">联系人</string>
     <string name="tab_favorite">收藏</string>
     <string name="tab_profile">我的</string>
 
     <string name="title_flashnote">闪记</string>
     <string name="title_collection">合集</string>
+    <string name="title_contact">联系人</string>
     <string name="title_favorite">收藏</string>
     <string name="title_profile">我的</string>
 
@@ -49,6 +51,8 @@
     <string name="empty_collection_subtitle">请先在闪记中选择或输入合集</string>
     <string name="empty_favorite_title">还没有收藏</string>
     <string name="empty_favorite_subtitle">长按聊天消息即可加入收藏</string>
+    <string name="empty_contact_title">还没有联系人</string>
+    <string name="empty_contact_subtitle">邀请好友注册后即可开始对话</string>
     <string name="hint_collection_name">合集名称</string>
     <string name="hint_collection_description">合集描述（可选）</string>
     <string name="action_create">创建</string>

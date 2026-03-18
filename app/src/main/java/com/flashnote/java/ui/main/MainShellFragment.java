@@ -61,6 +61,8 @@ public class MainShellFragment extends Fragment {
         Fragment fragment;
         if (tabId == R.id.tab_collection) {
             fragment = new CollectionTabFragment();
+        } else if (tabId == R.id.tab_contact) {
+            fragment = new ContactTabFragment();
         } else if (tabId == R.id.tab_favorite) {
             fragment = new FavoriteTabFragment();
         } else if (tabId == R.id.tab_profile) {
@@ -85,6 +87,7 @@ public class MainShellFragment extends Fragment {
     private void applyEmojiIcons() {
         binding.bottomNav.getMenu().findItem(R.id.tab_flashnote).setIcon(R.drawable.ic_nav_flashnote);
         binding.bottomNav.getMenu().findItem(R.id.tab_collection).setIcon(R.drawable.ic_nav_collection);
+        binding.bottomNav.getMenu().findItem(R.id.tab_contact).setIcon(R.drawable.ic_nav_contact);
         binding.bottomNav.getMenu().findItem(R.id.tab_favorite).setIcon(R.drawable.ic_nav_favorite);
         binding.bottomNav.getMenu().findItem(R.id.tab_profile).setIcon(R.drawable.ic_nav_profile);
     }

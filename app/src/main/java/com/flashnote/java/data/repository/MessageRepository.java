@@ -13,6 +13,8 @@ public interface MessageRepository {
     }
 
     LiveData<List<Message>> getMessages(long flashNoteId);
+
+    LiveData<List<Message>> getContactMessages(long peerUserId);
     
     LiveData<Boolean> isLoading();
     
@@ -24,17 +26,29 @@ public interface MessageRepository {
 
     void bindFlashNote(long flashNoteId);
 
+    void bindContact(long peerUserId);
+
     void sendText(long flashNoteId, String content, Runnable onSuccess);
+
+    void sendTextToContact(long peerUserId, String content, Runnable onSuccess);
 
     void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess);
 
+    void deleteContactMessage(long peerUserId, long messageId, Runnable onSuccess);
+
     void sendMessage(long flashNoteId, Message message, Runnable onSuccess);
 
+    void sendMessageToContact(long peerUserId, Message message, Runnable onSuccess);
+
     void loadMoreMessages(long flashNoteId);
+
+    void loadMoreContactMessages(long peerUserId);
 
     LiveData<Boolean> getHasMore();
 
     void countMessages(CountCallback callback);
 
     void addLocalMessage(Message message);
+
+    void addLocalContactMessage(long peerUserId, Message message);
 }
