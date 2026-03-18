@@ -11,7 +11,9 @@ import com.flashnote.java.ui.auth.LoginFragment;
 import com.flashnote.java.ui.auth.RegisterFragment;
 import com.flashnote.java.ui.auth.SplashFragment;
 import com.flashnote.java.ui.chat.ChatFragment;
+import com.flashnote.java.ui.main.EditProfileFragment;
 import com.flashnote.java.ui.main.MainShellFragment;
+import com.flashnote.java.ui.main.QuickCaptureTextFragment;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.flashnote.java.ui.settings.ChangePasswordFragment;
 import com.flashnote.java.ui.settings.DebugFragment;
@@ -64,6 +66,16 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     @Override
     public void openContactChat(long peerUserId, String title) {
         replaceRootFragment(ChatFragment.newContactInstance(peerUserId, title), true, false);
+    }
+
+    @Override
+    public void openQuickCaptureTextEditor() {
+        replaceRootFragment(new QuickCaptureTextFragment(), true, false);
+    }
+
+    @Override
+    public void openEditProfile() {
+        replaceRootFragment(new EditProfileFragment(), true, false);
     }
 
     @Override

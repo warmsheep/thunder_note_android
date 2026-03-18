@@ -15,6 +15,10 @@ public interface ShellNavigator {
 
     void openContactChat(long peerUserId, String title);
 
+    void openQuickCaptureTextEditor();
+
+    void openEditProfile();
+
     void openChangePassword();
 
     void openSettings();

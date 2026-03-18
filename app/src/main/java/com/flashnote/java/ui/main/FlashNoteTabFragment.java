@@ -22,6 +22,7 @@ import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ArrayAdapter;
 import android.widget.GridLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.graphics.Rect;
@@ -336,6 +337,14 @@ public class FlashNoteTabFragment extends Fragment {
                 viewModel.clearError();
             }
         });
+
+        getParentFragmentManager().setFragmentResultListener("quick_capture_saved", getViewLifecycleOwner(), (requestKey, result) -> {
+            Context context = getContext();
+            if (context != null) {
+                Toast.makeText(context, "已保存到收集箱", Toast.LENGTH_SHORT).show();
+            }
+            viewModel.refresh();
+        });
     }
 
     private void renderNotes() {
@@ -382,35 +391,39 @@ public class FlashNoteTabFragment extends Fragment {
         if (!isAdded()) {
             return;
         }
-        PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
         boolean isInbox = Boolean.TRUE.equals(note.getInbox()) || (note.getId() != null && note.getId() == COLLECTION_BOX_NOTE_ID);
         if (!isInbox) {
-            popupMenu.getMenu().add(0, 1, 1, "编辑");
-            popupMenu.getMenu().add(0, 2, 2, "隐藏");
-            popupMenu.getMenu().add(0, 3, 3, Boolean.TRUE.equals(note.getPinned()) ? "取消置顶" : "置顶");
-        }
-        popupMenu.getMenu().add(0, 4, 4, "取消");
-        popupMenu.setOnMenuItemClickListener(item -> {
-            int itemId = item.getItemId();
-            if (itemId == 1) {
+            View popupView = LayoutInflater.from(requireContext()).inflate(R.layout.popup_flashnote_actions, null, false);
+            PopupWindow popupWindow = new PopupWindow(
+                    popupView,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    true
+            );
+            popupWindow.setBackgroundDrawable(null);
+            popupWindow.setOutsideTouchable(true);
+
+            TextView pinText = popupView.findViewById(R.id.actionPinText);
+            pinText.setText(Boolean.TRUE.equals(note.getPinned()) ? "取消置顶" : "置顶");
+
+            popupView.findViewById(R.id.actionEdit).setOnClickListener(v -> {
+                popupWindow.dismiss();
                 showNoteDialog(note, viewModel);
-                return true;
-            }
-            if (itemId == 2) {
+            });
+            popupView.findViewById(R.id.actionHide).setOnClickListener(v -> {
+                popupWindow.dismiss();
                 if (note.getId() != null && note.getId() > 0L) {
                     viewModel.setHidden(note.getId(), true);
                 }
-                return true;
-            }
-            if (itemId == 3) {
+            });
+            popupView.findViewById(R.id.actionPin).setOnClickListener(v -> {
+                popupWindow.dismiss();
                 if (note.getId() != null && note.getId() > 0L) {
                     viewModel.setPinned(note.getId(), !Boolean.TRUE.equals(note.getPinned()));
                 }
-                return true;
-            }
-            return true;
-        });
-        popupMenu.show();
+            });
+            showPopupNearAnchor(anchor, popupWindow, popupView);
+        }
     }
 
     private void toggleSearchContainer() {
@@ -856,66 +869,69 @@ public class FlashNoteTabFragment extends Fragment {
         if (!isAdded()) {
             return;
         }
-        PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
-        popupMenu.getMenu().add(0, 101, 1, "消息");
-        popupMenu.getMenu().add(0, 102, 2, "图片");
-        popupMenu.getMenu().add(0, 103, 3, "文件");
-        popupMenu.getMenu().add(0, 104, 4, "拍照");
-        popupMenu.setOnMenuItemClickListener(item -> {
-            int id = item.getItemId();
-            if (id == 101) {
-                showTextCaptureDialog(anchor);
-                return true;
+        View popupView = LayoutInflater.from(requireContext()).inflate(R.layout.popup_quick_capture_actions, null, false);
+        PopupWindow popupWindow = new PopupWindow(
+                popupView,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                true
+        );
+        popupWindow.setBackgroundDrawable(null);
+        popupWindow.setOutsideTouchable(true);
+
+        popupView.findViewById(R.id.actionText).setOnClickListener(v -> {
+            popupWindow.dismiss();
+            if (getActivity() instanceof ShellNavigator navigator) {
+                navigator.openQuickCaptureTextEditor();
             }
-            if (id == 102) {
-                openImagePicker();
-                return true;
-            }
-            if (id == 103) {
-                openFilePicker();
-                return true;
-            }
-            if (id == 104) {
-                openCamera();
-                return true;
-            }
-            return false;
         });
-        popupMenu.show();
+        popupView.findViewById(R.id.actionImage).setOnClickListener(v -> {
+            popupWindow.dismiss();
+            openImagePicker();
+        });
+        popupView.findViewById(R.id.actionFile).setOnClickListener(v -> {
+            popupWindow.dismiss();
+            openFilePicker();
+        });
+        popupView.findViewById(R.id.actionCamera).setOnClickListener(v -> {
+            popupWindow.dismiss();
+            openCamera();
+        });
+
+        showPopupNearAnchor(anchor, popupWindow, popupView);
     }
 
-    private void showTextCaptureDialog(@NonNull View sourceView) {
-        if (!isAdded()) {
-            return;
+    private void showPopupNearAnchor(@NonNull View anchor, @NonNull PopupWindow popupWindow, @NonNull View popupView) {
+        popupView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int popupWidth = popupView.getMeasuredWidth();
+        int popupHeight = popupView.getMeasuredHeight();
+
+        int[] location = new int[2];
+        anchor.getLocationOnScreen(location);
+        int viewX = location[0];
+        int viewY = location[1];
+        int viewWidth = anchor.getWidth();
+        int viewHeight = anchor.getHeight();
+
+        float density = getResources().getDisplayMetrics().density;
+        int gap = (int) (4 * density);
+        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+        boolean showAbove = viewY > screenHeight / 2;
+
+        int popupX = viewX + viewWidth / 2 - popupWidth / 2;
+        int popupY = showAbove ? viewY - popupHeight - gap : viewY + viewHeight + gap;
+
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        if (popupX < 0) {
+            popupX = 0;
         }
-        Context ctx = getContext();
-        if (ctx == null) {
-            return;
+        if (popupX + popupWidth > screenWidth) {
+            popupX = screenWidth - popupWidth;
         }
-        EditText input = new EditText(ctx);
-        input.setHint("输入要收集的消息");
-        new AlertDialog.Builder(ctx)
-                .setTitle("保存到收集箱")
-                .setView(input)
-                .setPositiveButton("保存", (dialog, which) -> {
-                    String text = input.getText() == null ? "" : input.getText().toString().trim();
-                    if (text.isEmpty()) {
-                        Toast.makeText(ctx, "请输入内容", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    messageRepository.sendText(COLLECTION_BOX_NOTE_ID, text, () -> {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
-                            playCaptureAnimation(sourceView);
-                            Toast.makeText(requireContext(), "已保存到收集箱", Toast.LENGTH_SHORT).show();
-                            viewModel.refresh();
-                        });
-                    });
-                })
-                .setNegativeButton("取消", null)
-                .show();
+        if (popupY < 0) {
+            popupY = 0;
+        }
+        popupWindow.showAtLocation(binding.getRoot(), Gravity.NO_GRAVITY, popupX, popupY);
     }
 
     private void openImagePicker() {
@@ -1049,6 +1065,14 @@ public class FlashNoteTabFragment extends Fragment {
                         .setDuration(180)
                         .start())
                 .start();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (viewModel != null) {
+            viewModel.refresh();
+        }
     }
 
     @Override

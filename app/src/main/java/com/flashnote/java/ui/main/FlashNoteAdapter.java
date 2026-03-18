@@ -6,6 +6,7 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.flashnote.java.R;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.databinding.ItemFlashNoteBinding;
 
@@ -112,6 +113,8 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
         }
 
         void bind(FlashNote item, String emoji) {
+            binding.noteRoot.setBackgroundColor(binding.getRoot().getContext().getColor(
+                    Boolean.TRUE.equals(item.getPinned()) ? R.color.flashnote_pinned_bg : R.color.surface));
             binding.emojiText.setText(emoji);
             binding.titleText.setText(buildTitleLine(item));
             String content = firstNonBlank(item.getLatestMessage(), item.getContent());

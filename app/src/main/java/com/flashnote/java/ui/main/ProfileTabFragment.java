@@ -124,12 +124,20 @@ public class ProfileTabFragment extends Fragment {
         if (binding == null) {
             return;
         }
-        binding.avatarContainer.setOnClickListener(v -> showEditProfileDialog());
-        binding.menuEditBio.setOnClickListener(v -> showEditBioDialog());
+        binding.avatarContainer.setOnClickListener(v -> openEditProfile());
         binding.menuChangePassword.setOnClickListener(v -> openChangePassword());
         binding.menuSettings.setOnClickListener(v -> openSettings());
         binding.menuDebug.setOnClickListener(v -> openDebug());
         binding.menuLogout.setOnClickListener(v -> logout());
+    }
+
+    private void openEditProfile() {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        if (getActivity() instanceof ShellNavigator navigator) {
+            navigator.openEditProfile();
+        }
     }
 
     private void loadLocalAvatar() {
