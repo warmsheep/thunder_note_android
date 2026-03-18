@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.text.TextWatcher;
 import android.text.Editable;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -247,6 +248,8 @@ public class ProfileTabFragment extends Fragment {
         editText.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
         editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         editText.setSingleLine(false);
+        editText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        editText.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL);
         editText.setBackgroundResource(R.drawable.bg_input_rounded);
         int horizontalPadding = (int) (14 * getResources().getDisplayMetrics().density);
         int verticalPadding = (int) (10 * getResources().getDisplayMetrics().density);
@@ -288,8 +291,18 @@ public class ProfileTabFragment extends Fragment {
         editText.setLayoutParams(params);
         container.addView(editText);
 
+        TextView title = new TextView(context);
+        int horizontal = (int) (20 * getResources().getDisplayMetrics().density);
+        int top = (int) (18 * getResources().getDisplayMetrics().density);
+        int bottom = (int) (8 * getResources().getDisplayMetrics().density);
+        title.setPadding(horizontal, top, horizontal, bottom);
+        title.setText("编辑简介");
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL);
+        title.setTextColor(getResources().getColor(R.color.text_primary, null));
+
         new AlertDialog.Builder(context)
-            .setTitle("编辑简介")
+            .setCustomTitle(title)
             .setView(container)
             .setPositiveButton("保存", (dialog, which) -> {
                 String newBio = editText.getText().toString().trim();

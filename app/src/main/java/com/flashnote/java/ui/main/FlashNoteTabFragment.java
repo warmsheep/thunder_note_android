@@ -154,6 +154,11 @@ public class FlashNoteTabFragment extends Fragment {
                 if (dX < 0) {
                     float revealWidth = Math.min(Math.abs(dX), deleteAreaWidth);
                     if (revealWidth > 0f) {
+                        View timeText = itemView.findViewById(R.id.timeText);
+                        if (timeText != null) {
+                            float progress = Math.min(1f, revealWidth / deleteAreaWidth);
+                            timeText.setAlpha(1f - progress);
+                        }
                         int left = itemView.getRight() - (int) revealWidth;
                         int top = itemView.getTop();
                         int bottom = itemView.getBottom();
@@ -161,12 +166,22 @@ public class FlashNoteTabFragment extends Fragment {
                         background.draw(c);
 
                         int iconSize = deleteIcon.getIntrinsicHeight();
-                        int iconLeft = itemView.getRight() - Math.max((int) revealWidth, iconSize + (int) (16 * requireContext().getResources().getDisplayMetrics().density)) / 2 - iconSize / 2;
+                        int iconRightPadding = (int) (22 * requireContext().getResources().getDisplayMetrics().density);
+                        int iconLeft = itemView.getRight() - iconRightPadding - iconSize;
                         int iconTop = top + (itemView.getHeight() - iconSize) / 2;
                         deleteIcon.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize);
                         deleteIcon.setTint(Color.WHITE);
                         deleteIcon.draw(c);
                     }
+                }
+            }
+
+            @Override
+            public void clearView(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
+                super.clearView(recyclerView, viewHolder);
+                View timeText = viewHolder.itemView.findViewById(R.id.timeText);
+                if (timeText != null) {
+                    timeText.setAlpha(1f);
                 }
             }
             
