@@ -13,6 +13,8 @@ public interface CollectionRepository {
     
     LiveData<String> getErrorMessage();
 
+    void clearError();
+
     void refresh();
 
     void createCollection(String name, String description, Runnable onSuccess);

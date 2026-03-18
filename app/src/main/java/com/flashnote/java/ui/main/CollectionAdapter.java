@@ -105,9 +105,6 @@ public class CollectionAdapter extends RecyclerView.Adapter<CollectionAdapter.Co
                     return;
                 }
                 CollectionGroup group = items.get(position);
-                if (group.getSource() == null) {
-                    return;
-                }
                 listener.onEditCollection(group);
             });
             binding.deleteButton.setOnClickListener(v -> {
@@ -116,9 +113,6 @@ public class CollectionAdapter extends RecyclerView.Adapter<CollectionAdapter.Co
                     return;
                 }
                 CollectionGroup group = items.get(position);
-                if (group.getSource() == null) {
-                    return;
-                }
                 listener.onDeleteCollection(group);
             });
         }
@@ -127,7 +121,7 @@ public class CollectionAdapter extends RecyclerView.Adapter<CollectionAdapter.Co
             binding.nameText.setText(group.getName());
             binding.countText.setText(String.valueOf(group.getNotes().size()));
             binding.notesContainer.removeAllViews();
-            boolean editable = group.getSource() != null;
+            boolean editable = !"未分类".equals(group.getName());
             binding.editButton.setVisibility(editable ? View.VISIBLE : View.GONE);
             binding.deleteButton.setVisibility(editable ? View.VISIBLE : View.GONE);
             binding.editButton.setEnabled(editable);

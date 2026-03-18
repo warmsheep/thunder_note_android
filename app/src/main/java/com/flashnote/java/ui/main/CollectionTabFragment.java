@@ -100,6 +100,7 @@ public class CollectionTabFragment extends Fragment {
             android.content.Context context = getContext();
             if (context != null && error != null && !error.isEmpty()) {
                 Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
+                viewModel.clearError();
             }
         });
     }
@@ -145,7 +146,7 @@ public class CollectionTabFragment extends Fragment {
         if (rawName == null) {
             return null;
         }
-        String trimmed = rawName.trim();
+        String trimmed = rawName.trim().replaceAll("\\s+", " ");
         return trimmed.isEmpty() ? null : trimmed;
     }
 
@@ -163,10 +164,18 @@ public class CollectionTabFragment extends Fragment {
         int padding = (int) (16 * ctx.getResources().getDisplayMetrics().density);
         input.setPadding(padding, padding, padding, padding);
 
-        Collection target = group.getSource();
-        if (target == null) {
+        Collection resolvedTarget = group.getSource();
+        if (resolvedTarget == null) {
+            resolvedTarget = findCollectionByName(group.getName());
+        }
+        if (resolvedTarget == null) {
+            android.content.Context context = getContext();
+            if (context != null) {
+                Toast.makeText(context, "未找到合集记录，暂不可编辑", Toast.LENGTH_SHORT).show();
+            }
             return;
         }
+        final Collection target = resolvedTarget;
 
         new AlertDialog.Builder(ctx)
                 .setTitle("重命名合集")
@@ -211,10 +220,18 @@ public class CollectionTabFragment extends Fragment {
         if (ctx == null) {
             return;
         }
-        Collection target = group.getSource();
-        if (target == null) {
+        Collection resolvedTarget = group.getSource();
+        if (resolvedTarget == null) {
+            resolvedTarget = findCollectionByName(group.getName());
+        }
+        if (resolvedTarget == null) {
+            android.content.Context context = getContext();
+            if (context != null) {
+                Toast.makeText(context, "未找到合集记录，暂不可删除", Toast.LENGTH_SHORT).show();
+            }
             return;
         }
+        final Collection target = resolvedTarget;
 
         new AlertDialog.Builder(ctx)
                 .setTitle("删除合集")
@@ -242,8 +259,13 @@ public class CollectionTabFragment extends Fragment {
 
     @Nullable
     private Collection findCollectionByName(String name) {
+        String normalizedTarget = normalizeName(name);
+        if (normalizedTarget == null) {
+            return null;
+        }
         for (Collection collection : latestCollections) {
-            if (name.equals(normalizeName(collection.getName()))) {
+            String normalized = normalizeName(collection.getName());
+            if (normalizedTarget.equalsIgnoreCase(normalized)) {
                 return collection;
             }
         }

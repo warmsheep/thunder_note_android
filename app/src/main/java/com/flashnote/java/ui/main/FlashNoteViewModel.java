@@ -31,6 +31,8 @@ public class FlashNoteViewModel extends AndroidViewModel {
         collections = collectionRepository.getCollections();
         isLoading = repository.isLoading();
         errorMessage = repository.getErrorMessage();
+        repository.clearError();
+        collectionRepository.clearError();
         repository.refresh();
         collectionRepository.refresh();
     }
@@ -48,6 +50,8 @@ public class FlashNoteViewModel extends AndroidViewModel {
     }
 
     public void refresh() {
+        repository.clearError();
+        collectionRepository.clearError();
         repository.refresh();
         collectionRepository.refresh();
     }
@@ -82,6 +86,10 @@ public class FlashNoteViewModel extends AndroidViewModel {
 
     public LiveData<String> getErrorMessage() {
         return errorMessage;
+    }
+
+    public void clearError() {
+        repository.clearError();
     }
 
     public void createNote(String title, String icon, String collectionName) {

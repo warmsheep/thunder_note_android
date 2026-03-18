@@ -28,6 +28,7 @@ public class ChatViewModel extends AndroidViewModel {
 
     public void bindFlashNote(long id) {
         flashNoteId.setValue(id);
+        repository.clearError();
         repository.bindFlashNote(id);
         messages = repository.getMessages(id);
     }
@@ -38,6 +39,10 @@ public class ChatViewModel extends AndroidViewModel {
 
     public LiveData<String> getErrorMessage() {
         return repository.getErrorMessage();
+    }
+
+    public void clearError() {
+        repository.clearError();
     }
 
     public void sendText(String text, Runnable onSuccess) {

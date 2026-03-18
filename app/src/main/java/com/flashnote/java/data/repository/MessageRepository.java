@@ -18,6 +18,8 @@ public interface MessageRepository {
     
     LiveData<String> getErrorMessage();
 
+    void clearError();
+
     List<Message> getCachedMessages();
 
     void bindFlashNote(long flashNoteId);

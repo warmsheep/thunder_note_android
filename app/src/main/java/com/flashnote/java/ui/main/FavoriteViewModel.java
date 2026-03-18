@@ -24,6 +24,7 @@ public class FavoriteViewModel extends AndroidViewModel {
         favorites = repository.getFavorites();
         isLoading = repository.isLoading();
         errorMessage = repository.getErrorMessage();
+        repository.clearError();
         repository.refresh();
     }
 
@@ -39,7 +40,12 @@ public class FavoriteViewModel extends AndroidViewModel {
         return errorMessage;
     }
 
+    public void clearError() {
+        repository.clearError();
+    }
+
     public void refresh() {
+        repository.clearError();
         repository.refresh();
     }
 

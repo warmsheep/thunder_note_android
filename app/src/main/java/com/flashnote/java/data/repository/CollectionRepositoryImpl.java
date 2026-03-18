@@ -41,6 +41,11 @@ public class CollectionRepositoryImpl implements CollectionRepository {
     }
 
     @Override
+    public void clearError() {
+        errorMessage.setValue(null);
+    }
+
+    @Override
     public void refresh() {
         isLoading.setValue(true);
         collectionService.list().enqueue(new Callback<ApiResponse<List<Collection>>>() {
@@ -51,6 +56,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<List<Collection>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        clearError();
                         collectionsLiveData.setValue(apiResponse.getData());
                     } else {
                         String errMsg = apiResponse.getMessage();
@@ -88,6 +94,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Collection> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        clearError();
                         List<Collection> current = collectionsLiveData.getValue();
                         List<Collection> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
                         updated.add(0, apiResponse.getData());
@@ -131,6 +138,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Collection> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        clearError();
                         List<Collection> current = collectionsLiveData.getValue();
                         if (current != null) {
                             List<Collection> updated = new ArrayList<>();
@@ -178,6 +186,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Void> apiResponse = response.body();
                     if (apiResponse.isSuccess()) {
+                        clearError();
                         List<Collection> current = collectionsLiveData.getValue();
                         if (current != null) {
                             List<Collection> updated = new ArrayList<>();

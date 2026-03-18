@@ -226,6 +226,7 @@ public class FlashNoteTabFragment extends Fragment {
                 if (errorCtx != null) {
                     Toast.makeText(errorCtx, error, Toast.LENGTH_SHORT).show();
                 }
+                viewModel.clearError();
             }
         });
     }

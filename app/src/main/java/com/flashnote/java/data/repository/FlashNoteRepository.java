@@ -20,6 +20,8 @@ public interface FlashNoteRepository {
     
     LiveData<String> getErrorMessage();
 
+    void clearError();
+
     void refresh();
 
     void searchNotes(String query, SearchCallback callback);

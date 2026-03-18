@@ -15,6 +15,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -116,6 +117,42 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         return items.size();
     }
 
+    public void preloadRecentMedia(@Nullable List<Message> messages, @NonNull Context context) {
+        if (messages == null || messages.isEmpty()) {
+            return;
+        }
+        int maxWidthPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_width);
+        int maxHeightPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_max_height);
+        int start = Math.max(0, messages.size() - 12);
+        for (int i = start; i < messages.size(); i++) {
+            Message message = messages.get(i);
+            if (message == null || message.isUploading()) {
+                continue;
+            }
+            String mediaType = message.getMediaType();
+            if (TextUtils.isEmpty(mediaType)) {
+                continue;
+            }
+            String preloadUrl;
+            if ("IMAGE".equalsIgnoreCase(mediaType)) {
+                preloadUrl = message.getMediaUrl();
+            } else if ("VIDEO".equalsIgnoreCase(mediaType)) {
+                preloadUrl = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
+            } else {
+                continue;
+            }
+            if (TextUtils.isEmpty(preloadUrl)) {
+                continue;
+            }
+            Glide.with(context)
+                    .load(buildGlideUrl(context, preloadUrl))
+                    .fitCenter()
+                    .dontAnimate()
+                    .override(maxWidthPx, maxHeightPx)
+                    .preload(maxWidthPx, maxHeightPx);
+        }
+    }
+
     @Override
     public void onViewRecycled(@NonNull MessageViewHolder holder) {
         super.onViewRecycled(holder);
@@ -167,6 +204,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
                     .fitCenter()
+                    .dontAnimate()
+                    .thumbnail(0.25f)
                     .override(maxWidthPx, maxHeightPx)
                     .into(refs.imageView);
 
@@ -197,6 +236,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
                     .fitCenter()
+                    .dontAnimate()
+                    .thumbnail(0.25f)
                     .override(maxWidthPx, maxHeightPx)
                     .into(refs.imageView);
 

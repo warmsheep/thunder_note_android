@@ -49,6 +49,11 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     @Override
+    public void clearError() {
+        errorMessage.setValue(null);
+    }
+
+    @Override
     public List<Message> getCachedMessages() {
         Map<Long, Message> deduplicated = new LinkedHashMap<>();
         List<Message> transientMessages = new ArrayList<>();
@@ -112,6 +117,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Message> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        clearError();
                         MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
                         List<Message> current = liveData.getValue();
                         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
@@ -147,6 +153,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<List<Message>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        clearError();
                         MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
                         List<Message> newMessages = apiResponse.getData();
                         
@@ -245,6 +252,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Void> apiResponse = response.body();
                     if (apiResponse.isSuccess()) {
+                        clearError();
                         MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
                         List<Message> current = liveData.getValue();
                         if (current != null) {
@@ -295,6 +303,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Message> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        clearError();
                         MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
                         List<Message> current = liveData.getValue();
                         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);

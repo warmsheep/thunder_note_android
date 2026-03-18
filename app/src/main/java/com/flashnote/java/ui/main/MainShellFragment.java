@@ -12,6 +12,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.core.view.MenuItemCompat;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -39,6 +41,7 @@ public class MainShellFragment extends Fragment {
 
         binding.bottomNav.setItemActiveIndicatorEnabled(false);
         applyEmojiIcons();
+        binding.bottomNav.post(this::disableBottomNavLongPressHints);
         binding.bottomNav.setOnItemSelectedListener(this::onTabSelected);
 
         if (savedInstanceState != null) {
@@ -84,6 +87,21 @@ public class MainShellFragment extends Fragment {
         binding.bottomNav.getMenu().findItem(R.id.tab_collection).setIcon(R.drawable.ic_nav_collection);
         binding.bottomNav.getMenu().findItem(R.id.tab_favorite).setIcon(R.drawable.ic_nav_favorite);
         binding.bottomNav.getMenu().findItem(R.id.tab_profile).setIcon(R.drawable.ic_nav_profile);
+    }
+
+    private void disableBottomNavLongPressHints() {
+        int count = binding.bottomNav.getMenu().size();
+        for (int i = 0; i < count; i++) {
+            MenuItem item = binding.bottomNav.getMenu().getItem(i);
+            item.setTooltipText(null);
+            MenuItemCompat.setTooltipText(item, null);
+            View itemView = binding.bottomNav.findViewById(item.getItemId());
+            if (itemView != null) {
+                itemView.setOnLongClickListener(v -> true);
+                itemView.setLongClickable(true);
+                itemView.setHapticFeedbackEnabled(false);
+            }
+        }
     }
 
     private void setEmojiIcon(int itemId, @NonNull String emoji) {

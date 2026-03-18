@@ -107,6 +107,7 @@ public class FavoriteTabFragment extends Fragment {
             android.content.Context context = getContext();
             if (context != null && error != null && !error.isEmpty()) {
                 Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
+                viewModel.clearError();
             }
         });
     }

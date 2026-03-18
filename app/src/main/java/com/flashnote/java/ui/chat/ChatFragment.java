@@ -180,6 +180,8 @@ public class ChatFragment extends Fragment {
         adapter = new MessageAdapter((message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView));
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerView.setAdapter(adapter);
+        binding.recyclerView.setItemAnimator(null);
+        binding.recyclerView.setItemViewCacheSize(24);
 
         FlashNoteApp.getInstance().getUserRepository().getProfile().observe(getViewLifecycleOwner(), profile -> {
             if (profile != null && profile.getAvatar() != null && !profile.getAvatar().isEmpty()) {
@@ -209,12 +211,13 @@ public class ChatFragment extends Fragment {
                 boolean wasLoadingMore = isLoadingMore;
                 isLoadingMore = false;
                 adapter.submitList(messages);
+                if (isAdded()) {
+                    adapter.preloadRecentMedia(messages, requireContext());
+                }
                 // Scroll to bottom if not search location scenario
                 if (scrollToMessageId <= 0 && messages != null && !messages.isEmpty() && !wasLoadingMore) {
-                    binding.recyclerView.post(() -> {
-                        binding.recyclerView.scrollToPosition(messages.size() - 1);
-                        isInitialScrollCompleted = true;
-                    });
+                    scrollToBottomAfterLayout(messages);
+                    isInitialScrollCompleted = true;
                 }
                 // Scroll to target message if specified
                 if (scrollToMessageId > 0 && messages != null) {
@@ -245,6 +248,7 @@ public class ChatFragment extends Fragment {
             android.content.Context context = getContext();
             if (binding != null && context != null && error != null && !error.trim().isEmpty() && isAdded()) {
                 Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
+                chatViewModel.clearError();
             }
         });
 
@@ -297,16 +301,51 @@ public class ChatFragment extends Fragment {
                     binding.messageInput.setText(null);
                     viewModel.clearDraft();
                 }
-                if (binding != null && binding.recyclerView != null) {
-                    binding.recyclerView.post(() -> {
-                        int count = adapter.getItemCount();
-                        if (count > 0) {
-                            binding.recyclerView.scrollToPosition(count - 1);
-                        }
-                    });
-                }
+                scrollToBottomAfterLayout(null);
             });
         });
+    }
+
+    private void scrollToBottomAfterLayout(@Nullable List<Message> messages) {
+        if (binding == null || binding.recyclerView == null || adapter == null) {
+            return;
+        }
+        int count = adapter.getItemCount();
+        if (count <= 0) {
+            return;
+        }
+        int last = count - 1;
+        binding.recyclerView.post(() -> {
+            if (binding == null) {
+                return;
+            }
+            binding.recyclerView.scrollToPosition(last);
+            binding.recyclerView.post(() -> {
+                if (binding != null) {
+                    binding.recyclerView.scrollToPosition(last);
+                }
+            });
+            if (isLastMediaMessage(messages, last)) {
+                binding.recyclerView.postDelayed(() -> {
+                    if (binding != null) {
+                        binding.recyclerView.scrollToPosition(last);
+                    }
+                }, 180);
+                binding.recyclerView.postDelayed(() -> {
+                    if (binding != null) {
+                        binding.recyclerView.scrollToPosition(last);
+                    }
+                }, 320);
+            }
+        });
+    }
+
+    private boolean isLastMediaMessage(@Nullable List<Message> messages, int lastIndex) {
+        if (messages == null || messages.isEmpty() || lastIndex < 0 || lastIndex >= messages.size()) {
+            return false;
+        }
+        String mediaType = messages.get(lastIndex).getMediaType();
+        return "IMAGE".equalsIgnoreCase(mediaType) || "VIDEO".equalsIgnoreCase(mediaType);
     }
 
     private void highlightMessage(int position) {
@@ -811,17 +850,7 @@ public class ChatFragment extends Fragment {
         }
         
         chatViewModel.addLocalMessage(message);
-        
-        requireActivity().runOnUiThread(() -> {
-            if (binding != null && binding.recyclerView != null) {
-                binding.recyclerView.post(() -> {
-                    int count = adapter.getItemCount();
-                    if (count > 0) {
-                        binding.recyclerView.scrollToPosition(count - 1);
-                    }
-                });
-            }
-        });
+        requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
 
         fileRepository.upload(file, new FileRepository.FileCallback() {
             @Override
@@ -833,16 +862,7 @@ public class ChatFragment extends Fragment {
 
                 chatViewModel.sendMedia(message, () -> {
                     if (!isAdded()) return;
-                    requireActivity().runOnUiThread(() -> {
-                        if (binding != null && binding.recyclerView != null) {
-                            binding.recyclerView.post(() -> {
-                                int count = adapter.getItemCount();
-                                if (count > 0) {
-                                    binding.recyclerView.scrollToPosition(count - 1);
-                                }
-                            });
-                        }
-                    });
+                    requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                 });
             }
 
@@ -936,17 +956,7 @@ public class ChatFragment extends Fragment {
             message.setUploading(true);
             
             chatViewModel.addLocalMessage(message);
-            
-            requireActivity().runOnUiThread(() -> {
-                if (binding != null && binding.recyclerView != null) {
-                    binding.recyclerView.post(() -> {
-                        int count = adapter.getItemCount();
-                        if (count > 0) {
-                            binding.recyclerView.scrollToPosition(count - 1);
-                        }
-                    });
-                }
-            });
+            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
             
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
@@ -958,16 +968,7 @@ public class ChatFragment extends Fragment {
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> {
-                            if (binding != null && binding.recyclerView != null) {
-                                binding.recyclerView.post(() -> {
-                                    int count = adapter.getItemCount();
-                                    if (count > 0) {
-                                        binding.recyclerView.scrollToPosition(count - 1);
-                                    }
-                                });
-                            }
-                        });
+                        requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                     });
                 }
 
@@ -1001,17 +1002,7 @@ public class ChatFragment extends Fragment {
             message.setUploading(true);
 
             chatViewModel.addLocalMessage(message);
-
-            requireActivity().runOnUiThread(() -> {
-                if (binding != null && binding.recyclerView != null) {
-                    binding.recyclerView.post(() -> {
-                        int count = adapter.getItemCount();
-                        if (count > 0) {
-                            binding.recyclerView.scrollToPosition(count - 1);
-                        }
-                    });
-                }
-            });
+            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
 
             VideoCompressor.compress(requireContext(), file, new VideoCompressor.CompressCallback() {
                 @Override
@@ -1032,16 +1023,7 @@ public class ChatFragment extends Fragment {
                                 if (!isAdded()) {
                                     return;
                                 }
-                                requireActivity().runOnUiThread(() -> {
-                                    if (binding != null && binding.recyclerView != null) {
-                                        binding.recyclerView.post(() -> {
-                                            int count = adapter.getItemCount();
-                                            if (count > 0) {
-                                                binding.recyclerView.scrollToPosition(count - 1);
-                                            }
-                                        });
-                                    }
-                                });
+                                requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                             });
                         }
 
@@ -1088,17 +1070,7 @@ public class ChatFragment extends Fragment {
             message.setUploading(true);
             
             chatViewModel.addLocalMessage(message);
-            
-            requireActivity().runOnUiThread(() -> {
-                if (binding != null && binding.recyclerView != null) {
-                    binding.recyclerView.post(() -> {
-                        int count = adapter.getItemCount();
-                        if (count > 0) {
-                            binding.recyclerView.scrollToPosition(count - 1);
-                        }
-                    });
-                }
-            });
+            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
             
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
@@ -1110,16 +1082,7 @@ public class ChatFragment extends Fragment {
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> {
-                            if (binding != null && binding.recyclerView != null) {
-                                binding.recyclerView.post(() -> {
-                                    int count = adapter.getItemCount();
-                                    if (count > 0) {
-                                        binding.recyclerView.scrollToPosition(count - 1);
-                                    }
-                                });
-                            }
-                        });
+                        requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                     });
                 }
 
@@ -1153,17 +1116,7 @@ public class ChatFragment extends Fragment {
             message.setUploading(true);
             
             chatViewModel.addLocalMessage(message);
-            
-            requireActivity().runOnUiThread(() -> {
-                if (binding != null && binding.recyclerView != null) {
-                    binding.recyclerView.post(() -> {
-                        int count = adapter.getItemCount();
-                        if (count > 0) {
-                            binding.recyclerView.scrollToPosition(count - 1);
-                        }
-                    });
-                }
-            });
+            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
             
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
@@ -1175,16 +1128,7 @@ public class ChatFragment extends Fragment {
 
                     chatViewModel.sendMedia(message, () -> {
                         if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> {
-                            if (binding != null && binding.recyclerView != null) {
-                                binding.recyclerView.post(() -> {
-                                    int count = adapter.getItemCount();
-                                    if (count > 0) {
-                                        binding.recyclerView.scrollToPosition(count - 1);
-                                    }
-                                });
-                            }
-                        });
+                        requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                     });
                 }
 

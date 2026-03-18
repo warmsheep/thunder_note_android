@@ -24,6 +24,7 @@ public class CollectionViewModel extends AndroidViewModel {
         collections = repository.getCollections();
         isLoading = repository.isLoading();
         errorMessage = repository.getErrorMessage();
+        repository.clearError();
         repository.refresh();
     }
 
@@ -39,7 +40,12 @@ public class CollectionViewModel extends AndroidViewModel {
         return errorMessage;
     }
 
+    public void clearError() {
+        repository.clearError();
+    }
+
     public void refresh() {
+        repository.clearError();
         repository.refresh();
     }
 

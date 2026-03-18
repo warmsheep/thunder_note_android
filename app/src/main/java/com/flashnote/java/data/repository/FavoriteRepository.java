@@ -19,6 +19,8 @@ public interface FavoriteRepository {
 
     LiveData<String> getErrorMessage();
 
+    void clearError();
+
     void refresh();
 
     void addFavorite(Long messageId, ActionCallback callback);

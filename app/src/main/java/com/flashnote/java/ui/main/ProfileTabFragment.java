@@ -107,6 +107,19 @@ public class ProfileTabFragment extends Fragment {
         loadLocalAvatar();
 
         fetchProfile();
+        setupClickActions();
+    }
+
+    private void setupClickActions() {
+        if (binding == null) {
+            return;
+        }
+        binding.avatarContainer.setOnClickListener(v -> showAvatarPicker());
+        binding.menuEditBio.setOnClickListener(v -> showEditBioDialog());
+        binding.menuChangePassword.setOnClickListener(v -> openChangePassword());
+        binding.menuSettings.setOnClickListener(v -> openSettings());
+        binding.menuDebug.setOnClickListener(v -> openDebug());
+        binding.menuLogout.setOnClickListener(v -> logout());
     }
 
     private void loadLocalAvatar() {

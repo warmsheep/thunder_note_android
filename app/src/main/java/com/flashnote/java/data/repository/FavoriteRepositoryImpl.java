@@ -42,6 +42,11 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
     }
 
     @Override
+    public void clearError() {
+        errorMessage.setValue(null);
+    }
+
+    @Override
     public void refresh() {
         isLoading.setValue(true);
         favoriteService.list().enqueue(new Callback<ApiResponse<List<FavoriteItem>>>() {
@@ -49,6 +54,7 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
             public void onResponse(Call<ApiResponse<List<FavoriteItem>>> call, Response<ApiResponse<List<FavoriteItem>>> response) {
                 isLoading.setValue(false);
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    clearError();
                     List<FavoriteItem> data = response.body().getData() == null ? new ArrayList<>() : new ArrayList<>(response.body().getData());
                     sortFavorites(data);
                     favoritesLiveData.setValue(data);

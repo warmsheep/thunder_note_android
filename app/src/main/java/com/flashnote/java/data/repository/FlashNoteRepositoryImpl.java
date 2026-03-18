@@ -47,6 +47,11 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
     }
 
     @Override
+    public void clearError() {
+        errorMessage.postValue(null);
+    }
+
+    @Override
     public void refresh() {
         isLoading.postValue(true);
         flashNoteService.list().enqueue(new Callback<ApiResponse<List<FlashNote>>>() {
@@ -57,6 +62,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<List<FlashNote>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        clearError();
                         notesLiveData.postValue(apiResponse.getData());
                     } else {
                         String errMsg = apiResponse.getMessage();
@@ -129,6 +135,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<FlashNote> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        clearError();
                         List<FlashNote> current = notesLiveData.getValue();
                         List<FlashNote> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
                         updated.add(0, apiResponse.getData());
@@ -171,6 +178,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<FlashNote> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        clearError();
                         List<FlashNote> current = notesLiveData.getValue();
                         if (current != null) {
                             List<FlashNote> updated = new ArrayList<>();
@@ -215,6 +223,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Void> apiResponse = response.body();
                     if (apiResponse.isSuccess()) {
+                        clearError();
                         List<FlashNote> current = notesLiveData.getValue();
                         if (current != null) {
                             List<FlashNote> updated = new ArrayList<>();
