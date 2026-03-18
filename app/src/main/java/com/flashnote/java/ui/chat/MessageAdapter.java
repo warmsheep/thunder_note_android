@@ -84,7 +84,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
     public void setUserAvatarUrl(String avatarUrl, Context context) {
         if (avatarUrl != null && !avatarUrl.isEmpty()) {
-            if (avatarUrl.startsWith("http") || avatarUrl.contains("/")) {
+            if (avatarUrl.startsWith("http") || avatarUrl.contains("/") || avatarUrl.contains(".")) {
                 this.userAvatarUrl = avatarUrl;
                 this.userAvatar = null;
             } else {
@@ -671,7 +671,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     binding.rightAvatarText.setVisibility(View.GONE);
                     binding.rightAvatarImage.setVisibility(View.VISIBLE);
                     Glide.with(binding.getRoot().getContext())
-                            .load(userAvatarUrl)
+                            .load(buildGlideUrl(binding.getRoot().getContext(), userAvatarUrl))
                             .placeholder(R.drawable.bg_avatar_circle)
                             .error(R.drawable.bg_avatar_circle)
                             .circleCrop()
@@ -688,7 +688,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 } else {
                     binding.rightAvatarImage.setVisibility(View.GONE);
                     binding.rightAvatarText.setVisibility(View.VISIBLE);
-                    binding.rightAvatarText.setText(userAvatar);
+                    binding.rightAvatarText.setText(userAvatar == null || userAvatar.isEmpty() ? "😊" : userAvatar);
                 }
             }
 

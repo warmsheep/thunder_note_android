@@ -22,7 +22,9 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.PopupWindow;
 import android.widget.Toast;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.webkit.MimeTypeMap;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -42,6 +44,7 @@ import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.FavoriteRepository;
 import com.flashnote.java.data.repository.FileRepository;
+import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.databinding.FragmentChatBinding;
 import com.flashnote.java.databinding.PopupMessageActionsBinding;
 import com.flashnote.java.ui.main.FlashNoteViewModel;
@@ -81,6 +84,9 @@ public class ChatFragment extends Fragment {
     private boolean isLoadingMore = false;
     private boolean hasMoreMessages = true;
     private boolean isInitialScrollCompleted = false;
+    private int loadMoreAnchorPosition = RecyclerView.NO_POSITION;
+    private int loadMoreAnchorOffset = 0;
+    private int messageCountBeforeLoadMore = 0;
 
     public static ChatFragment newInstance(long flashNoteId, String title) {
         ChatFragment fragment = new ChatFragment();
@@ -183,12 +189,14 @@ public class ChatFragment extends Fragment {
         binding.recyclerView.setItemAnimator(null);
         binding.recyclerView.setItemViewCacheSize(24);
 
-        FlashNoteApp.getInstance().getUserRepository().getProfile().observe(getViewLifecycleOwner(), profile -> {
+        UserRepository userRepository = FlashNoteApp.getInstance().getUserRepository();
+        userRepository.getProfile().observe(getViewLifecycleOwner(), profile -> {
             if (profile != null && profile.getAvatar() != null && !profile.getAvatar().isEmpty()) {
                 adapter.setUserAvatarUrl(profile.getAvatar(), requireContext());
                 adapter.notifyDataSetChanged();
             }
         });
+        userRepository.refresh();
 
         binding.recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -197,6 +205,13 @@ public class ChatFragment extends Fragment {
                     return;
                 }
                 if (!recyclerView.canScrollVertically(-1)) {
+                    LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+                    if (layoutManager != null) {
+                        loadMoreAnchorPosition = layoutManager.findFirstVisibleItemPosition();
+                        View anchorView = layoutManager.findViewByPosition(loadMoreAnchorPosition);
+                        loadMoreAnchorOffset = anchorView == null ? 0 : anchorView.getTop();
+                    }
+                    messageCountBeforeLoadMore = adapter.getItemCount();
                     isLoadingMore = true;
                     chatViewModel.loadMore();
                 }
@@ -218,6 +233,9 @@ public class ChatFragment extends Fragment {
                 if (scrollToMessageId <= 0 && messages != null && !messages.isEmpty() && !wasLoadingMore) {
                     scrollToBottomAfterLayout(messages);
                     isInitialScrollCompleted = true;
+                }
+                if (wasLoadingMore && binding != null) {
+                    restoreAfterPrepend(messages == null ? 0 : messages.size());
                 }
                 // Scroll to target message if specified
                 if (scrollToMessageId > 0 && messages != null) {
@@ -426,6 +444,11 @@ public class ChatFragment extends Fragment {
             }
         });
 
+        popupBinding.actionShare.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            shareMessageToExternalApp(message);
+        });
+
         popupBinding.actionFavorite.setOnClickListener(v -> {
             popupWindow.dismiss();
             handleFavorite(message, favoriteRepository);
@@ -492,6 +515,157 @@ public class ChatFragment extends Fragment {
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    private void restoreAfterPrepend(int totalMessageCount) {
+        if (binding == null || loadMoreAnchorPosition == RecyclerView.NO_POSITION) {
+            return;
+        }
+        int addedCount = Math.max(0, totalMessageCount - messageCountBeforeLoadMore);
+        LinearLayoutManager layoutManager = (LinearLayoutManager) binding.recyclerView.getLayoutManager();
+        if (layoutManager == null) {
+            return;
+        }
+        int target = loadMoreAnchorPosition + addedCount;
+        binding.recyclerView.post(() -> {
+            if (binding != null) {
+                layoutManager.scrollToPositionWithOffset(target, loadMoreAnchorOffset);
+            }
+        });
+    }
+
+    private void shareMessageToExternalApp(Message message) {
+        if (!isAdded() || getContext() == null || message == null) {
+            return;
+        }
+        String mediaType = message.getMediaType();
+        if (TextUtils.isEmpty(mediaType)
+                || "TEXT".equalsIgnoreCase(mediaType)
+                || TextUtils.isEmpty(message.getMediaUrl())) {
+            showToast("仅支持分享图片/视频/语音/文件");
+            return;
+        }
+
+        File localFile = tryResolveLocalFile(message.getMediaUrl());
+        if (localFile != null && localFile.exists()) {
+            shareFileByIntent(localFile, message);
+            return;
+        }
+
+        String objectName = extractObjectNameForDownload(message.getMediaUrl());
+        if (TextUtils.isEmpty(objectName)) {
+            showToast("文件地址无效，无法分享");
+            return;
+        }
+        showToast("正在准备分享文件...");
+        fileRepository.download(objectName, new FileRepository.FileCallback() {
+            @Override
+            public void onSuccess(String path) {
+                if (!isAdded() || getActivity() == null) {
+                    return;
+                }
+                getActivity().runOnUiThread(() -> {
+                    File file = new File(path);
+                    if (!file.exists()) {
+                        showToast("分享文件不存在");
+                        return;
+                    }
+                    shareFileByIntent(file, message);
+                });
+            }
+
+            @Override
+            public void onError(String errorMessage, int code) {
+                if (!isAdded() || getActivity() == null) {
+                    return;
+                }
+                getActivity().runOnUiThread(() -> showToast("准备分享失败: " + errorMessage));
+            }
+        });
+    }
+
+    @Nullable
+    private File tryResolveLocalFile(String mediaUrl) {
+        if (TextUtils.isEmpty(mediaUrl)) {
+            return null;
+        }
+        File direct = new File(mediaUrl);
+        if (direct.exists()) {
+            return direct;
+        }
+        String objectName = extractObjectNameForDownload(mediaUrl);
+        if (TextUtils.isEmpty(objectName)) {
+            return null;
+        }
+        File cached = new File(requireContext().getCacheDir(), objectName.replace('/', '_'));
+        return cached.exists() ? cached : null;
+    }
+
+    @Nullable
+    private String extractObjectNameForDownload(String mediaUrl) {
+        if (TextUtils.isEmpty(mediaUrl)) {
+            return null;
+        }
+        if (mediaUrl.startsWith("http")) {
+            Uri uri = Uri.parse(mediaUrl);
+            String objectName = uri.getQueryParameter("objectName");
+            if (!TextUtils.isEmpty(objectName)) {
+                return objectName;
+            }
+            String path = uri.getPath();
+            if (!TextUtils.isEmpty(path) && path.startsWith("/")) {
+                return path.substring(1);
+            }
+            return null;
+        }
+        return mediaUrl;
+    }
+
+    private void shareFileByIntent(@NonNull File file, @NonNull Message message) {
+        if (!isAdded()) {
+            return;
+        }
+        Context context = requireContext();
+        Uri contentUri = FileProvider.getUriForFile(
+                context,
+                context.getPackageName() + ".fileprovider",
+                file
+        );
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType(resolveShareMimeType(file, message));
+        intent.putExtra(Intent.EXTRA_STREAM, contentUri);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.setClipData(android.content.ClipData.newRawUri("share", contentUri));
+        try {
+            startActivity(Intent.createChooser(intent, "分享到"));
+        } catch (ActivityNotFoundException e) {
+            showToast("未找到可分享的应用");
+        }
+    }
+
+    private String resolveShareMimeType(@NonNull File file, @NonNull Message message) {
+        String mediaType = message.getMediaType();
+        if ("IMAGE".equalsIgnoreCase(mediaType)) {
+            return "image/*";
+        }
+        if ("VIDEO".equalsIgnoreCase(mediaType)) {
+            return "video/*";
+        }
+        if ("VOICE".equalsIgnoreCase(mediaType)) {
+            return "audio/*";
+        }
+
+        String extension = MimeTypeMap.getFileExtensionFromUrl(file.getName());
+        if (TextUtils.isEmpty(extension) && !TextUtils.isEmpty(message.getFileName())) {
+            extension = MimeTypeMap.getFileExtensionFromUrl(message.getFileName());
+        }
+        if (!TextUtils.isEmpty(extension)) {
+            String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension.toLowerCase(Locale.ROOT));
+            if (!TextUtils.isEmpty(mime)) {
+                return mime;
+            }
+        }
+        return "*/*";
     }
 
     private void handleFavorite(Message message, FavoriteRepository favoriteRepository) {

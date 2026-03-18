@@ -62,23 +62,26 @@ public class FlashNoteViewModel extends AndroidViewModel {
 
     public void renameCollectionLocally(String oldName, String newName) {
         List<FlashNote> currentNotes = notes.getValue();
-        if (currentNotes == null || oldName == null || oldName.equals(newName)) {
+        String normalizedOld = normalizeCollectionName(oldName);
+        String normalizedNew = normalizeCollectionName(newName);
+        if (currentNotes == null || normalizedOld == null || normalizedOld.equals(normalizedNew)) {
             return;
         }
         for (FlashNote note : currentNotes) {
-            if (oldName.equals(note.getTags())) {
-                note.setTags(newName);
+            if (normalizedOld.equals(normalizeCollectionName(note.getTags()))) {
+                note.setTags(normalizedNew);
             }
         }
     }
 
     public void clearCollectionLocally(String collectionName) {
         List<FlashNote> currentNotes = notes.getValue();
-        if (currentNotes == null || collectionName == null) {
+        String normalizedName = normalizeCollectionName(collectionName);
+        if (currentNotes == null || normalizedName == null) {
             return;
         }
         for (FlashNote note : currentNotes) {
-            if (collectionName.equals(note.getTags())) {
+            if (normalizedName.equals(normalizeCollectionName(note.getTags()))) {
                 note.setTags(null);
             }
         }

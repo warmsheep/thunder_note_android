@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,6 +22,8 @@ import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.model.GlideUrl;
+import com.bumptech.glide.load.model.LazyHeaders;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.FavoriteItem;
@@ -29,6 +32,7 @@ import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.MessageRepository;
 import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.R;
+import com.flashnote.java.ui.media.MediaUrlResolver;
 import com.flashnote.java.ui.auth.AuthViewModel;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import androidx.lifecycle.ViewModelProvider;
@@ -39,6 +43,8 @@ import java.io.File;
 import java.util.List;
 
 public class ProfileTabFragment extends Fragment {
+    private static final String PREFS_PROFILE = "profile_tab";
+    private static final String PREF_KEY_RECORD_COUNT = "record_count";
     private com.flashnote.java.databinding.FragmentProfileTabBinding binding;
     private UserRepository userRepository;
     private FileRepository fileRepository;
@@ -104,6 +110,7 @@ public class ProfileTabFragment extends Fragment {
             }
         });
 
+        loadCachedRecordCount();
         loadLocalAvatar();
 
         fetchProfile();
@@ -151,7 +158,10 @@ public class ProfileTabFragment extends Fragment {
             @Override
             public void onSuccess(long count) {
                 if (isAdded() && getActivity() != null) {
-                    getActivity().runOnUiThread(() -> binding.recordCount.setText(String.valueOf(count)));
+                    getActivity().runOnUiThread(() -> {
+                        binding.recordCount.setText(String.valueOf(count));
+                        persistRecordCount(count);
+                    });
                 }
             }
 
@@ -202,7 +212,7 @@ public class ProfileTabFragment extends Fragment {
                 binding.avatarText.setVisibility(View.GONE);
                 binding.avatarImage.setVisibility(View.VISIBLE);
                 Glide.with(this)
-                        .load(avatar)
+                        .load(buildAvatarGlideSource(avatar))
                         .placeholder(R.drawable.bg_avatar_circle)
                         .error(R.drawable.bg_avatar_circle)
                         .circleCrop()
@@ -229,6 +239,11 @@ public class ProfileTabFragment extends Fragment {
 
         EditText editText = new EditText(getContext());
         editText.setHint("请输入简介");
+        editText.setMinLines(4);
+        editText.setMaxLines(8);
+        editText.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
+        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        editText.setSingleLine(false);
         if (currentProfile != null && currentProfile.getBio() != null) {
             editText.setText(currentProfile.getBio());
         }
@@ -293,7 +308,7 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         
-        String[] options = {"从相册选择图片", "选择emoji头像", "取消"};
+        String[] options = {"从相册选择图片", "选择emoji头像"};
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
         builder.setTitle("选择头像");
         builder.setItems(options, (dialog, which) -> {
@@ -356,23 +371,20 @@ public class ProfileTabFragment extends Fragment {
         android.content.Context context = getContext();
         
         try {
-            File inputFile = new File(resultUri.getPath());
-            if (!inputFile.exists()) {
-                Toast.makeText(context, "裁剪后的图片不存在", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
             File avatarFile = new File(context.getFilesDir(), "avatar.jpg");
-            
-            java.io.FileInputStream fis = new java.io.FileInputStream(inputFile);
-            java.io.FileOutputStream fos = new java.io.FileOutputStream(avatarFile);
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                fos.write(buffer, 0, bytesRead);
+
+            try (java.io.InputStream inputStream = context.getContentResolver().openInputStream(resultUri);
+                 java.io.FileOutputStream fos = new java.io.FileOutputStream(avatarFile)) {
+                if (inputStream == null) {
+                    Toast.makeText(context, "裁剪后的图片读取失败", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    fos.write(buffer, 0, bytesRead);
+                }
             }
-            fis.close();
-            fos.close();
             
             uploadAvatar(avatarFile);
             
@@ -457,7 +469,7 @@ public class ProfileTabFragment extends Fragment {
             binding.avatarText.setVisibility(View.GONE);
             binding.avatarImage.setVisibility(View.VISIBLE);
             Glide.with(this)
-                    .load(avatarUrl)
+                    .load(buildAvatarGlideSource(avatarUrl))
                     .placeholder(R.drawable.bg_avatar_circle)
                     .error(R.drawable.bg_avatar_circle)
                     .circleCrop()
@@ -475,10 +487,12 @@ public class ProfileTabFragment extends Fragment {
         
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
         builder.setTitle("选择头像");
-        
+
         GridLayout gridLayout = new GridLayout(getContext());
         gridLayout.setColumnCount(4);
         gridLayout.setPadding(32, 32, 32, 32);
+        final String[] selectedEmoji = {null};
+        final TextView[] selectedView = {null};
         
         for (String emoji : AVATAR_EMOJIS) {
             TextView textView = new TextView(getContext());
@@ -494,18 +508,62 @@ public class ProfileTabFragment extends Fragment {
             textView.setLayoutParams(params);
             
             textView.setOnClickListener(v -> {
-                if (builder.create() != null) {
-                    builder.create().dismiss();
+                selectedEmoji[0] = emoji;
+                if (selectedView[0] != null) {
+                    selectedView[0].setBackground(null);
                 }
-                updateAvatarWithEmoji(emoji);
+                selectedView[0] = textView;
+                textView.setBackgroundResource(R.drawable.bg_logo_primary_soft);
             });
             
             gridLayout.addView(textView);
         }
         
         builder.setView(gridLayout);
+        builder.setPositiveButton("确定", (dialog, which) -> {
+            if (selectedEmoji[0] == null) {
+                android.content.Context context = getContext();
+                if (context != null) {
+                    Toast.makeText(context, "请先选择一个头像", Toast.LENGTH_SHORT).show();
+                }
+                return;
+            }
+            updateAvatarWithEmoji(selectedEmoji[0]);
+        });
         builder.setNegativeButton("取消", null);
         builder.show();
+    }
+
+    private Object buildAvatarGlideSource(String avatarValue) {
+        String resolved = MediaUrlResolver.resolve(avatarValue);
+        String token = tokenManager.getAccessToken();
+        if (token == null || token.isEmpty()) {
+            return resolved;
+        }
+        return new GlideUrl(resolved, new LazyHeaders.Builder()
+                .addHeader("Authorization", "Bearer " + token)
+                .build());
+    }
+
+    private void loadCachedRecordCount() {
+        if (!isAdded() || getContext() == null || binding == null) {
+            return;
+        }
+        long cached = getContext().getSharedPreferences(PREFS_PROFILE, android.content.Context.MODE_PRIVATE)
+                .getLong(PREF_KEY_RECORD_COUNT, -1L);
+        if (cached >= 0) {
+            binding.recordCount.setText(String.valueOf(cached));
+        }
+    }
+
+    private void persistRecordCount(long count) {
+        if (!isAdded() || getContext() == null) {
+            return;
+        }
+        getContext().getSharedPreferences(PREFS_PROFILE, android.content.Context.MODE_PRIVATE)
+                .edit()
+                .putLong(PREF_KEY_RECORD_COUNT, count)
+                .apply();
     }
 
     private void updateAvatarWithEmoji(String emoji) {

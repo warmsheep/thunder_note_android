@@ -12,12 +12,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.databinding.FragmentSettingsBinding;
-import com.flashnote.java.ui.auth.AuthViewModel;
-import com.flashnote.java.ui.navigation.ShellNavigator;
-import androidx.lifecycle.ViewModelProvider;
 
 public class SettingsFragment extends Fragment {
     private FragmentSettingsBinding binding;
@@ -42,7 +38,6 @@ public class SettingsFragment extends Fragment {
         binding.privacyItem.setOnClickListener(v -> showComingSoon("隐私政策"));
         binding.creditsItem.setOnClickListener(v -> showCredits());
         binding.feedbackItem.setOnClickListener(v -> showComingSoon("反馈BUG"));
-        binding.logoutItem.setOnClickListener(v -> logout());
     }
 
     private void openAbout() {
@@ -80,19 +75,6 @@ public class SettingsFragment extends Fragment {
             return;
         }
         Toast.makeText(getContext(), "感谢开源社区", Toast.LENGTH_SHORT).show();
-    }
-
-    private void logout() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        
-        AuthViewModel authViewModel = new ViewModelProvider(getActivity()).get(AuthViewModel.class);
-        authViewModel.logout();
-        
-        if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.logoutToLogin();
-        }
     }
 
     private void navigateBack() {

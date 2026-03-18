@@ -10,10 +10,9 @@ import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.databinding.ItemFlashNoteBinding;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.FlashNoteViewHolder> {
     public interface OnItemActionListener {
@@ -27,6 +26,7 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
     private final List<FlashNote> items = new ArrayList<>();
     private final OnItemActionListener listener;
     private final String[] emojis = new String[]{"💼", "📚", "🌅", "📋", "💡", "✈️", "📝", "🍀", "🎯", "📷"};
+    private Long pendingDeleteNoteId;
 
     public FlashNoteAdapter(OnItemActionListener listener) {
         this.listener = listener;
@@ -37,6 +37,19 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
         if (notes != null) {
             items.addAll(notes);
         }
+        notifyDataSetChanged();
+    }
+
+    public void setPendingDeleteNoteId(Long noteId) {
+        this.pendingDeleteNoteId = noteId;
+        notifyDataSetChanged();
+    }
+
+    public void clearPendingDelete() {
+        if (pendingDeleteNoteId == null) {
+            return;
+        }
+        pendingDeleteNoteId = null;
         notifyDataSetChanged();
     }
 
@@ -98,25 +111,46 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
 
         void bind(FlashNote item, String emoji) {
             binding.emojiText.setText(emoji);
-            binding.titleText.setText(item.getTitle());
+            binding.titleText.setText(buildTitleLine(item));
             String content = item.getContent();
-            String collectionName = item.getTags();
             if (content != null && !content.trim().isEmpty()) {
                 binding.summaryText.setText(content);
-            } else if (collectionName != null && !collectionName.trim().isEmpty()) {
-                binding.summaryText.setText("合集 · " + collectionName.trim());
             } else {
-                binding.summaryText.setText("点击进入继续记录");
+                binding.summaryText.setText("暂无消息");
             }
-            
+
             LocalDateTime time = item.getUpdatedAt() != null ? item.getUpdatedAt() : item.getCreatedAt();
             binding.timeText.setText(formatTime(time));
-            
+
+            boolean pendingDelete = item.getId() != null && item.getId().equals(pendingDeleteNoteId);
+            binding.deleteOverlay.setVisibility(pendingDelete ? android.view.View.VISIBLE : android.view.View.GONE);
+            binding.deleteOverlay.setOnClickListener(v -> listener.onDelete(item));
+
             binding.getRoot().setOnClickListener(v -> listener.onOpenChat(item));
             binding.getRoot().setOnLongClickListener(v -> {
                 listener.onEdit(item);
                 return true;
             });
+        }
+
+        private String buildTitleLine(FlashNote item) {
+            String title = normalize(item.getTitle());
+            if (title == null) {
+                title = "未命名闪记";
+            }
+            String collection = normalize(item.getTags());
+            if (collection == null) {
+                collection = "未分类";
+            }
+            return String.format(Locale.getDefault(), "%s - %s", title, collection);
+        }
+
+        private String normalize(String value) {
+            if (value == null) {
+                return null;
+            }
+            String trimmed = value.trim();
+            return trimmed.isEmpty() ? null : trimmed;
         }
     }
 }

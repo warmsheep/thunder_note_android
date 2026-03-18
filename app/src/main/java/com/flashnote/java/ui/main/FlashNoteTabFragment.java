@@ -21,6 +21,7 @@ import android.widget.ArrayAdapter;
 import android.widget.GridLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.graphics.Rect;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -57,6 +58,7 @@ public class FlashNoteTabFragment extends Fragment {
     private List<FlashNote> searchedNotes = new ArrayList<>();
     private List<FlashNoteSearchResult> latestSearchResults = new ArrayList<>();
     private String currentQuery = "";
+    private final Rect swipeDeleteRect = new Rect();
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingSearch;
 
@@ -104,6 +106,7 @@ public class FlashNoteTabFragment extends Fragment {
 
             @Override
             public void onDelete(FlashNote item) {
+                adapter.clearPendingDelete();
                 Context ctx = getContext();
                 if (ctx != null) {
                     new AlertDialog.Builder(ctx)
@@ -124,6 +127,7 @@ public class FlashNoteTabFragment extends Fragment {
         ItemTouchHelper.SimpleCallback swipeCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
             private final ColorDrawable background = new ColorDrawable(Color.parseColor("#FF4444"));
             private final Drawable deleteIcon = androidx.core.content.ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_menu_delete);
+            private final int deleteAreaWidth = (int) (72 * requireContext().getResources().getDisplayMetrics().density);
 
             @Override
             public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
@@ -136,44 +140,34 @@ public class FlashNoteTabFragment extends Fragment {
                 List<FlashNote> currentList = currentQuery.isEmpty() ? latestNotes : searchedNotes;
                 if (position >= 0 && position < currentList.size()) {
                     FlashNote note = currentList.get(position);
+                    adapter.setPendingDeleteNoteId(note.getId());
                     adapter.notifyItemChanged(position);
-                    new AlertDialog.Builder(requireContext())
-                        .setTitle("删除闪记")
-                        .setMessage("确定要删除「" + note.getTitle() + "」及其所有消息吗？此操作不可撤销。")
-                        .setPositiveButton("删除", (dialog, which) -> viewModel.deleteNote(note.getId()))
-                        .setNegativeButton("取消", null)
-                        .show();
                 }
             }
 
             @Override
             public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
                 View itemView = viewHolder.itemView;
-                
+
                 if (dX < 0) {
-                    int itemHeight = itemView.getHeight();
-                    int squareSize = Math.min(itemHeight, (int) (60 * itemView.getResources().getDisplayMetrics().density));
-                    
-                    float revealWidth = Math.min(Math.abs(dX), squareSize);
-                    
-                    int squareLeft = itemView.getRight() - (int) revealWidth;
-                    int squareTop = itemView.getTop() + (itemHeight - squareSize) / 2;
-                    int squareBottom = squareTop + squareSize;
-                    
-                    if (revealWidth > squareSize / 3f) {
-                        background.setBounds(squareLeft, squareTop, itemView.getRight(), squareBottom);
+                    float revealWidth = Math.min(Math.abs(dX), deleteAreaWidth);
+                    if (revealWidth > deleteAreaWidth / 3f) {
+                        int left = itemView.getRight() - (int) revealWidth;
+                        int top = itemView.getTop();
+                        int bottom = itemView.getBottom();
+                        background.setBounds(left, top, itemView.getRight(), bottom);
                         background.draw(c);
-                        
+
                         int iconSize = deleteIcon.getIntrinsicHeight();
-                        int iconLeft = squareLeft + ((int) revealWidth - iconSize) / 2;
-                        int iconTop = squareTop + (squareSize - iconSize) / 2;
+                        int iconLeft = left + ((int) revealWidth - iconSize) / 2;
+                        int iconTop = top + (itemView.getHeight() - iconSize) / 2;
                         deleteIcon.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize);
                         deleteIcon.setTint(Color.WHITE);
                         deleteIcon.draw(c);
                     }
                 }
 
-                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+                super.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive);
             }
             
             @Override
@@ -183,6 +177,35 @@ public class FlashNoteTabFragment extends Fragment {
         };
         
         new ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.recyclerView);
+
+        binding.recyclerView.addOnItemTouchListener(new RecyclerView.SimpleOnItemTouchListener() {
+            @Override
+            public boolean onInterceptTouchEvent(@NonNull RecyclerView rv, @NonNull android.view.MotionEvent e) {
+                if (e.getAction() != android.view.MotionEvent.ACTION_UP) {
+                    return false;
+                }
+                View child = rv.findChildViewUnder(e.getX(), e.getY());
+                if (child == null) {
+                    return false;
+                }
+                RecyclerView.ViewHolder holder = rv.getChildViewHolder(child);
+                int position = holder.getBindingAdapterPosition();
+                if (position == RecyclerView.NO_POSITION) {
+                    return false;
+                }
+                View deleteOverlay = child.findViewById(R.id.deleteOverlay);
+                if (deleteOverlay == null || deleteOverlay.getVisibility() != View.VISIBLE) {
+                    return false;
+                }
+                deleteOverlay.getHitRect(swipeDeleteRect);
+                if (swipeDeleteRect.contains((int) (e.getX() - child.getLeft()), (int) (e.getY() - child.getTop()))) {
+                    deleteOverlay.performClick();
+                    return true;
+                }
+                adapter.clearPendingDelete();
+                return false;
+            }
+        });
         
         if (ctx != null) {
             androidx.recyclerview.widget.DividerItemDecoration divider = new androidx.recyclerview.widget.DividerItemDecoration(

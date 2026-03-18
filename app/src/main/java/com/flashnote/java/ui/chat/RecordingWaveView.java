@@ -21,13 +21,14 @@ public class RecordingWaveView extends View {
     private static final float BAR_WIDTH_RATIO = 0.6f;
     private static final float MIN_BAR_HEIGHT_RATIO = 0.15f;
     private static final float CORNER_RADIUS = 4f;
-    private static final int ANIMATION_INTERVAL = 80;
+    private static final int ANIMATION_INTERVAL = 50;
 
     private Paint activePaint;
     private Paint inactivePaint;
     private float[] barHeights;
     private float[] targetHeights;
     private float currentAmplitude = 0f;
+    private float smoothedAmplitude = 0f;
     private boolean isAnimating = false;
     private Runnable animationRunnable;
     
@@ -122,11 +123,12 @@ public class RecordingWaveView extends View {
      */
     public void updateAmplitude(float amplitude) {
         currentAmplitude = Math.max(0f, Math.min(1f, amplitude));
-        
+        smoothedAmplitude = smoothedAmplitude * 0.75f + currentAmplitude * 0.25f;
+
         for (int i = 0; i < BAR_COUNT; i++) {
             float centerBias = getCenterBias(i);
             float randomFactor = 0.3f + (float) Math.random() * (0.6f + 0.3f * centerBias);
-            float amplitudeFactor = Math.min(1f, currentAmplitude * (1f + 0.5f * centerBias));
+            float amplitudeFactor = Math.min(1f, smoothedAmplitude * (1f + 0.6f * centerBias));
             float baseHeight = MIN_BAR_HEIGHT_RATIO + (1f - MIN_BAR_HEIGHT_RATIO) * amplitudeFactor * randomFactor;
             baseHeight *= (0.5f + 0.5f * centerBias);
             targetHeights[i] = Math.max(MIN_BAR_HEIGHT_RATIO, Math.min(1f, baseHeight));
@@ -139,16 +141,16 @@ public class RecordingWaveView extends View {
             float interpolation = 0.3f + 0.1f * centerBias;
             barHeights[i] = barHeights[i] + (targetHeights[i] - barHeights[i]) * interpolation;
             
-            float fluctuationChance = 0.75f - 0.25f * centerBias;
-            if (currentAmplitude > 0.1f && Math.random() > fluctuationChance) {
+            float fluctuationChance = 0.7f - 0.25f * centerBias;
+            if (smoothedAmplitude > 0.05f && Math.random() > fluctuationChance) {
                 float fluctuationRange = 0.1f + 0.08f * centerBias;
                 float fluctuation = (float) (Math.random() - 0.5f) * fluctuationRange;
                 barHeights[i] = Math.max(MIN_BAR_HEIGHT_RATIO, Math.min(1f, barHeights[i] + fluctuation));
             }
         }
-        
+
         // Slowly decay target heights when amplitude drops
-        if (currentAmplitude < 0.05f) {
+        if (smoothedAmplitude < 0.05f) {
             for (int i = 0; i < BAR_COUNT; i++) {
                 targetHeights[i] = Math.max(MIN_BAR_HEIGHT_RATIO, targetHeights[i] * 0.95f);
             }
