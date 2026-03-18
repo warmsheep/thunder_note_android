@@ -5,27 +5,22 @@
     android:background="@color/surface"
     android:orientation="vertical">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/top_bar_background"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingLeft="14dp"
-        android:paddingTop="12dp"
-        android:paddingRight="14dp"
-        android:paddingBottom="12dp">
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@color/top_bar_background"
+            android:paddingLeft="14dp"
+            android:paddingRight="14dp">
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="@string/title_favorite"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/title_favorite"
                 android:textColor="@color/text_primary"
                 android:textSize="@dimen/text_size_tab_title"
                 android:textStyle="bold" />
-    </LinearLayout>
+        </FrameLayout>
 
     <View
         android:layout_width="match_parent"
