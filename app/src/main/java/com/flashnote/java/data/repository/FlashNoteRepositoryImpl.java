@@ -7,6 +7,7 @@ import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.FlashNoteSearchRequest;
+import com.flashnote.java.data.model.FlashNoteSearchResponse;
 import com.flashnote.java.data.model.FlashNoteSearchResult;
 import com.flashnote.java.data.remote.FlashNoteService;
 
@@ -89,15 +90,25 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
     @Override
     public void searchNotes(String query, SearchCallback callback) {
         isLoading.postValue(true);
-        flashNoteService.search(new FlashNoteSearchRequest(query)).enqueue(new Callback<ApiResponse<List<FlashNoteSearchResult>>>() {
+        flashNoteService.search(new FlashNoteSearchRequest(query)).enqueue(new Callback<ApiResponse<FlashNoteSearchResponse>>() {
             @Override
-            public void onResponse(Call<ApiResponse<List<FlashNoteSearchResult>>> call,
-                                   Response<ApiResponse<List<FlashNoteSearchResult>>> response) {
+            public void onResponse(Call<ApiResponse<FlashNoteSearchResponse>> call,
+                                   Response<ApiResponse<FlashNoteSearchResponse>> response) {
                 isLoading.postValue(false);
                 if (response.isSuccessful() && response.body() != null) {
-                    ApiResponse<List<FlashNoteSearchResult>> apiResponse = response.body();
-                    if (apiResponse.isSuccess()) {
-                        callback.onSuccess(apiResponse.getData() == null ? new ArrayList<>() : apiResponse.getData());
+                    ApiResponse<FlashNoteSearchResponse> apiResponse = response.body();
+                    if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                        FlashNoteSearchResponse searchResponse = apiResponse.getData();
+                        List<FlashNoteSearchResult> combined = new ArrayList<>();
+                        List<FlashNoteSearchResult> noteName = searchResponse.getNoteNameMatched();
+                        List<FlashNoteSearchResult> messageContent = searchResponse.getMessageContentMatched();
+                        if (noteName != null) {
+                            combined.addAll(noteName);
+                        }
+                        if (messageContent != null) {
+                            combined.addAll(messageContent);
+                        }
+                        callback.onSuccess(combined);
                         return;
                     }
                     String errMsg = apiResponse.getMessage();
@@ -111,7 +122,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<List<FlashNoteSearchResult>>> call, Throwable t) {
+            public void onFailure(Call<ApiResponse<FlashNoteSearchResponse>> call, Throwable t) {
                 isLoading.postValue(false);
                 DebugLog.e("FlashNoteRepo", "search failed", t);
                 callback.onError("Network error: " + t.getMessage());

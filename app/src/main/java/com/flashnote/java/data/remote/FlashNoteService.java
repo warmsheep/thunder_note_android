@@ -3,6 +3,7 @@ package com.flashnote.java.data.remote;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.FlashNoteSearchRequest;
+import com.flashnote.java.data.model.FlashNoteSearchResponse;
 import com.flashnote.java.data.model.FlashNoteSearchResult;
 
 import java.util.List;
@@ -20,7 +21,7 @@ public interface FlashNoteService {
     Call<ApiResponse<List<FlashNote>>> list();
 
     @POST("api/flash-notes/search")
-    Call<ApiResponse<List<FlashNoteSearchResult>>> search(@Body FlashNoteSearchRequest request);
+    Call<ApiResponse<FlashNoteSearchResponse>> search(@Body FlashNoteSearchRequest request);
 
     @POST("api/flash-notes")
     Call<ApiResponse<FlashNote>> create(@Body FlashNote note);

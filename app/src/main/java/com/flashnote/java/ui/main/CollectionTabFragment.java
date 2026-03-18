@@ -141,11 +141,11 @@ public class CollectionTabFragment extends Fragment {
         }
 
         List<CollectionAdapter.CollectionGroup> result = new ArrayList<>();
-        if (!uncategorized.isEmpty()) {
-            result.add(new CollectionAdapter.CollectionGroup(null, "未分类", uncategorized));
-        }
         for (Map.Entry<String, List<FlashNote>> entry : grouped.entrySet()) {
             result.add(new CollectionAdapter.CollectionGroup(findCollectionByName(entry.getKey()), entry.getKey(), entry.getValue()));
+        }
+        if (!uncategorized.isEmpty()) {
+            result.add(new CollectionAdapter.CollectionGroup(null, "未分类", uncategorized));
         }
         return result;
     }
