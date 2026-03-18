@@ -338,6 +338,9 @@ public class EditProfileFragment extends Fragment {
                 }
                 getActivity().runOnUiThread(() -> {
                     showProgress(false);
+                    currentProfile = profile;
+                    pendingAvatar = null;
+                    userRepository.refresh();
                     showToast("资料已保存");
                     navigateBack();
                 });
