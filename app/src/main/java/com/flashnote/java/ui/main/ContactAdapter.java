@@ -61,8 +61,13 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
         void bind(ContactUser contact) {
             String nickname = normalize(contact.getNickname());
             String username = normalize(contact.getUsername());
+            String relationStatus = normalize(contact.getRelationStatus());
+            String latestMessage = normalize(contact.getLatestMessage());
             binding.nameText.setText(nickname == null ? (username == null ? "未命名用户" : username) : nickname);
-            binding.subTitleText.setText(username == null ? "" : "@" + username);
+            binding.metaText.setText("PENDING_SENT".equals(relationStatus)
+                    ? "等待对方同意"
+                    : (username == null ? "" : "@" + username));
+            binding.subTitleText.setText(resolveLatestLine(relationStatus, latestMessage));
 
             String avatar = normalize(contact.getAvatar());
             if (avatar == null || avatar.isEmpty()) {
@@ -88,6 +93,16 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
                 return "🙂";
             }
             return String.valueOf(source.charAt(0));
+        }
+
+        private String resolveLatestLine(String relationStatus, String latestMessage) {
+            if (latestMessage != null) {
+                return latestMessage;
+            }
+            if ("PENDING_SENT".equals(relationStatus)) {
+                return "已发送好友申请";
+            }
+            return "暂无聊天记录";
         }
     }
 }

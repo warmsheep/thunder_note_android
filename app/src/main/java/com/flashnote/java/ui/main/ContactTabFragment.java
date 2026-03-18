@@ -30,6 +30,8 @@ public class ContactTabFragment extends Fragment {
     private ContactAdapter contactAdapter;
     private FriendRequestAdapter requestAdapter;
     private boolean showingRequests = false;
+    private boolean awaitingSearchResult = false;
+    private android.app.AlertDialog searchResultDialog;
     private List<ContactUser> latestContacts = new ArrayList<>();
     private List<FriendRequest> latestRequests = new ArrayList<>();
 
@@ -48,6 +50,10 @@ public class ContactTabFragment extends Fragment {
         viewModel = new ViewModelProvider(this).get(ContactViewModel.class);
 
         contactAdapter = new ContactAdapter(contact -> {
+            if (!"FRIEND".equals(contact.getRelationStatus())) {
+                toast("等待对方同意后即可开始聊天");
+                return;
+            }
             if (contact.getUserId() == null || contact.getUserId() <= 0L) {
                 toast("联系人信息无效");
                 return;
@@ -95,6 +101,18 @@ public class ContactTabFragment extends Fragment {
             }
         });
 
+        viewModel.getSearchResults().observe(getViewLifecycleOwner(), users -> {
+            if (!awaitingSearchResult) {
+                return;
+            }
+            awaitingSearchResult = false;
+            if (users == null || users.isEmpty()) {
+                toast("未找到相关用户");
+                return;
+            }
+            showSearchResultDialog(users);
+        });
+
         viewModel.getPendingRequestCount().observe(getViewLifecycleOwner(), count -> {
             boolean showDot = count != null && count > 0;
             binding.tabRequestDot.setVisibility(showDot ? View.VISIBLE : View.GONE);
@@ -132,6 +150,11 @@ public class ContactTabFragment extends Fragment {
                     return;
                 }
                 ContactUser contact = latestContacts.get(position);
+                if (!"FRIEND".equals(contact.getRelationStatus())) {
+                    toast("等待对方同意中，暂不可删除");
+                    renderCurrentTab();
+                    return;
+                }
                 new android.app.AlertDialog.Builder(requireContext())
                         .setTitle("删除联系人")
                         .setMessage("确定删除该联系人吗？")
@@ -156,6 +179,9 @@ public class ContactTabFragment extends Fragment {
             binding.recyclerView.setAdapter(requestAdapter);
             requestAdapter.submitList(latestRequests);
             boolean empty = latestRequests.isEmpty();
+            binding.emptyIcon.setImageResource(android.R.drawable.ic_menu_info_details);
+            binding.emptyIcon.setColorFilter(getResources().getColor(com.flashnote.java.R.color.text_secondary, null));
+            binding.emptyTitleText.setText("暂无新的好友请求");
             binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
             binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
             return;
@@ -163,6 +189,9 @@ public class ContactTabFragment extends Fragment {
         binding.recyclerView.setAdapter(contactAdapter);
         contactAdapter.submitList(new ArrayList<>(latestContacts));
         boolean empty = latestContacts.isEmpty();
+        binding.emptyIcon.setImageResource(com.flashnote.java.R.drawable.ic_nav_contact);
+        binding.emptyIcon.setColorFilter(getResources().getColor(com.flashnote.java.R.color.primary, null));
+        binding.emptyTitleText.setText("暂无联系人");
         binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
         binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
     }
@@ -178,8 +207,8 @@ public class ContactTabFragment extends Fragment {
                 .setView(input)
                 .setPositiveButton("搜索", (dialog, which) -> {
                     String keyword = input.getText() == null ? "" : input.getText().toString().trim();
+                    awaitingSearchResult = true;
                     viewModel.searchContacts(keyword);
-                    viewModel.getSearchResults().observe(getViewLifecycleOwner(), this::showSearchResultDialog);
                 })
                 .setNegativeButton("取消", null)
                 .show();
@@ -194,7 +223,10 @@ public class ContactTabFragment extends Fragment {
         ContactSearchAdapter adapter = new ContactSearchAdapter(user -> viewModel.sendFriendRequest(user.getUserId()));
         adapter.submitList(users);
         recyclerView.setAdapter(adapter);
-        new android.app.AlertDialog.Builder(requireContext())
+        if (searchResultDialog != null && searchResultDialog.isShowing()) {
+            searchResultDialog.dismiss();
+        }
+        searchResultDialog = new android.app.AlertDialog.Builder(requireContext())
                 .setTitle("搜索结果")
                 .setView(recyclerView)
                 .setNegativeButton("关闭", null)
@@ -210,6 +242,10 @@ public class ContactTabFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (searchResultDialog != null) {
+            searchResultDialog.dismiss();
+            searchResultDialog = null;
+        }
         binding = null;
     }
 }

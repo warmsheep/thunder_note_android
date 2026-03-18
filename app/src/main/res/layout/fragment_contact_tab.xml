@@ -110,13 +110,15 @@
         android:padding="24dp"
         android:visibility="gone">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="👥"
-            android:textSize="30sp" />
+        <ImageView
+            android:id="@+id/emptyIcon"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:src="@drawable/ic_nav_contact"
+            app:tint="@color/primary" />
 
         <TextView
+            android:id="@+id/emptyTitleText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"

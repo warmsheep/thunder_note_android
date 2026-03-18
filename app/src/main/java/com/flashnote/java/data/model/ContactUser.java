@@ -15,6 +15,12 @@ public class ContactUser {
     @SerializedName("avatar")
     private String avatar;
 
+    @SerializedName("relationStatus")
+    private String relationStatus;
+
+    @SerializedName("latestMessage")
+    private String latestMessage;
+
     public Long getUserId() {
         return userId;
     }
@@ -45,5 +51,21 @@ public class ContactUser {
 
     public void setAvatar(String avatar) {
         this.avatar = avatar;
+    }
+
+    public String getRelationStatus() {
+        return relationStatus;
+    }
+
+    public void setRelationStatus(String relationStatus) {
+        this.relationStatus = relationStatus;
+    }
+
+    public String getLatestMessage() {
+        return latestMessage;
+    }
+
+    public void setLatestMessage(String latestMessage) {
+        this.latestMessage = latestMessage;
     }
 }
