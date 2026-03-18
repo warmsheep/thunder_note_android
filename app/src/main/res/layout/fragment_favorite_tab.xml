@@ -12,9 +12,9 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingLeft="14dp"
-        android:paddingTop="10dp"
+        android:paddingTop="12dp"
         android:paddingRight="14dp"
-        android:paddingBottom="10dp">
+        android:paddingBottom="12dp">
 
         <TextView
             android:layout_width="0dp"

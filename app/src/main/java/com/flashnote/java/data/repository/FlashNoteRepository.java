@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface FlashNoteRepository {
     interface SearchCallback {
-        void onSuccess(List<FlashNoteSearchResult> results);
+        void onSuccess(List<FlashNoteSearchResult> noteNameResults, List<FlashNoteSearchResult> messageContentResults);
 
         void onError(String message);
     }

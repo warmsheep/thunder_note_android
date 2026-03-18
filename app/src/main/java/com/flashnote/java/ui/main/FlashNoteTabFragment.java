@@ -73,6 +73,7 @@ public class FlashNoteTabFragment extends Fragment {
     private List<FlashNote> latestNotes = new ArrayList<>();
     private List<FlashNote> searchedNotes = new ArrayList<>();
     private List<FlashNoteSearchResult> latestSearchResults = new ArrayList<>();
+    private List<FlashNoteSearchResult> latestMessageContentResults = new ArrayList<>();
     private String currentQuery = "";
     private final Rect swipeDeleteRect = new Rect();
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
@@ -350,9 +351,10 @@ public class FlashNoteTabFragment extends Fragment {
     private void renderNotes() {
         if (!currentQuery.isEmpty()) {
             if (searchResultAdapter != null) {
-                searchResultAdapter.submitList(latestSearchResults);
+                searchResultAdapter.submitList(latestSearchResults, latestMessageContentResults);
             }
-            boolean empty = latestSearchResults == null || latestSearchResults.isEmpty();
+            boolean empty = (latestSearchResults == null || latestSearchResults.isEmpty()) 
+                    && (latestMessageContentResults == null || latestMessageContentResults.isEmpty());
             binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
             binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
         } else {
@@ -461,6 +463,7 @@ public class FlashNoteTabFragment extends Fragment {
         binding.searchInput.setText("");
         currentQuery = "";
         latestSearchResults = new ArrayList<>();
+        latestMessageContentResults = new ArrayList<>();
         if (binding.recyclerView.getAdapter() != adapter) {
             binding.recyclerView.setAdapter(adapter);
         }
@@ -472,18 +475,20 @@ public class FlashNoteTabFragment extends Fragment {
         if (normalizedQuery.isEmpty()) {
             currentQuery = "";
             latestSearchResults = new ArrayList<>();
+            latestMessageContentResults = new ArrayList<>();
             renderNotes();
             return;
         }
         currentQuery = normalizedQuery;
         viewModel.searchNotes(normalizedQuery, new com.flashnote.java.data.repository.FlashNoteRepository.SearchCallback() {
             @Override
-            public void onSuccess(List<FlashNoteSearchResult> results) {
+            public void onSuccess(List<FlashNoteSearchResult> noteNameResults, List<FlashNoteSearchResult> messageContentResults) {
                 if (!isAdded() || getActivity() == null) {
                     return;
                 }
                 getActivity().runOnUiThread(() -> {
-                    latestSearchResults = results == null ? new ArrayList<>() : new ArrayList<>(results);
+                    latestSearchResults = noteNameResults == null ? new ArrayList<>() : new ArrayList<>(noteNameResults);
+                    latestMessageContentResults = messageContentResults == null ? new ArrayList<>() : new ArrayList<>(messageContentResults);
                     renderNotes();
                 });
             }
@@ -539,13 +544,14 @@ public class FlashNoteTabFragment extends Fragment {
                     }
                     viewModel.searchNotes(query, new com.flashnote.java.data.repository.FlashNoteRepository.SearchCallback() {
                         @Override
-                        public void onSuccess(List<FlashNoteSearchResult> results) {
+                        public void onSuccess(List<FlashNoteSearchResult> noteNameResults, List<FlashNoteSearchResult> messageContentResults) {
                             if (!isAdded() || getActivity() == null) {
                                 return;
                             }
                             getActivity().runOnUiThread(() -> {
                                 currentQuery = query;
-                                latestSearchResults = results == null ? new ArrayList<>() : new ArrayList<>(results);
+                                latestSearchResults = noteNameResults == null ? new ArrayList<>() : new ArrayList<>(noteNameResults);
+                                latestMessageContentResults = messageContentResults == null ? new ArrayList<>() : new ArrayList<>(messageContentResults);
                                 searchedNotes = new ArrayList<>();
                                 for (FlashNoteSearchResult result : latestSearchResults) {
                                     if (result.getFlashNote() != null) {
@@ -574,6 +580,7 @@ public class FlashNoteTabFragment extends Fragment {
                     currentQuery = "";
                     searchedNotes = new ArrayList<>();
                     latestSearchResults = new ArrayList<>();
+                    latestMessageContentResults = new ArrayList<>();
                     renderNotes();
                 })
                 .setNegativeButton(R.string.action_cancel, null)

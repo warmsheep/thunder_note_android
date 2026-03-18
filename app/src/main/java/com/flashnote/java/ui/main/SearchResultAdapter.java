@@ -47,34 +47,28 @@ public class SearchResultAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         this.listener = listener;
     }
 
-    public void submitList(List<FlashNoteSearchResult> results) {
+    public void submitList(List<FlashNoteSearchResult> noteNameResults, List<FlashNoteSearchResult> messageContentResults) {
         items.clear();
-        List<RowItem> noteRows = new ArrayList<>();
-        List<RowItem> messageRows = new ArrayList<>();
-        if (results != null) {
-            for (FlashNoteSearchResult result : results) {
+        if (noteNameResults != null && !noteNameResults.isEmpty()) {
+            items.add(new RowItem(TYPE_SECTION, "闪记", null, null));
+            for (FlashNoteSearchResult result : noteNameResults) {
                 FlashNote note = result.getFlashNote();
-                if (note == null) {
-                    continue;
-                }
-                if (result.isNoteMatched()) {
-                    noteRows.add(new RowItem(TYPE_NOTE, null, note, null));
-                }
-                List<MatchedMessageInfo> matchedMessages = result.getMatchedMessages();
-                if (matchedMessages != null) {
-                    for (MatchedMessageInfo matched : matchedMessages) {
-                        messageRows.add(new RowItem(TYPE_MESSAGE, null, note, matched));
-                    }
+                if (note != null) {
+                    items.add(new RowItem(TYPE_NOTE, null, note, null));
                 }
             }
         }
-        if (!noteRows.isEmpty()) {
-            items.add(new RowItem(TYPE_SECTION, "闪记", null, null));
-            items.addAll(noteRows);
-        }
-        if (!messageRows.isEmpty()) {
+        if (messageContentResults != null && !messageContentResults.isEmpty()) {
             items.add(new RowItem(TYPE_SECTION, "闪记消息", null, null));
-            items.addAll(messageRows);
+            for (FlashNoteSearchResult result : messageContentResults) {
+                FlashNote note = result.getFlashNote();
+                List<MatchedMessageInfo> matchedMessages = result.getMatchedMessages();
+                if (note != null && matchedMessages != null) {
+                    for (MatchedMessageInfo matched : matchedMessages) {
+                        items.add(new RowItem(TYPE_MESSAGE, null, note, matched));
+                    }
+                }
+            }
         }
         notifyDataSetChanged();
     }

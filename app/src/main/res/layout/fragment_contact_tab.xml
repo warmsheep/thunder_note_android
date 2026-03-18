@@ -13,9 +13,9 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingLeft="14dp"
-        android:paddingTop="10dp"
+        android:paddingTop="12dp"
         android:paddingRight="14dp"
-        android:paddingBottom="10dp">
+        android:paddingBottom="12dp">
 
         <TextView
             android:layout_width="0dp"
@@ -29,9 +29,9 @@
 
         <ImageView
             android:id="@+id/searchButton"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:padding="4dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:padding="2dp"
             android:src="@drawable/ic_action_search"
             app:tint="@color/text_secondary" />
 
@@ -39,7 +39,7 @@
             android:id="@+id/refreshButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="16dp"
             android:text="刷新"
             android:textColor="@color/primary"
             android:textSize="@dimen/text_size_button_small" />

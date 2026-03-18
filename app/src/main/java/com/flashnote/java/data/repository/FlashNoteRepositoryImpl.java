@@ -99,16 +99,11 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                     ApiResponse<FlashNoteSearchResponse> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         FlashNoteSearchResponse searchResponse = apiResponse.getData();
-                        List<FlashNoteSearchResult> combined = new ArrayList<>();
                         List<FlashNoteSearchResult> noteName = searchResponse.getNoteNameMatched();
                         List<FlashNoteSearchResult> messageContent = searchResponse.getMessageContentMatched();
-                        if (noteName != null) {
-                            combined.addAll(noteName);
-                        }
-                        if (messageContent != null) {
-                            combined.addAll(messageContent);
-                        }
-                        callback.onSuccess(combined);
+                        noteName = noteName != null ? noteName : new ArrayList<>();
+                        messageContent = messageContent != null ? messageContent : new ArrayList<>();
+                        callback.onSuccess(noteName, messageContent);
                         return;
                     }
                     String errMsg = apiResponse.getMessage();
