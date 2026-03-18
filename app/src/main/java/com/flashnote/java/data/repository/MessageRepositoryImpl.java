@@ -27,6 +27,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     private final Map<Long, Integer> currentPages = new HashMap<>();
     private final Map<Long, Boolean> hasMoreMap = new HashMap<>();
     private final Map<Long, MutableLiveData<Boolean>> hasMoreLiveDataMap = new HashMap<>();
+    private long currentFlashNoteId = 0L;
 
     public MessageRepositoryImpl(MessageService messageService) {
         this.messageService = messageService;
@@ -75,12 +76,24 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void bindFlashNote(long flashNoteId) {
+        currentFlashNoteId = flashNoteId;
+        boolean hasExistingConversation = conversations.containsKey(flashNoteId);
         MutableLiveData<List<Message>> liveData = ensureLiveData(flashNoteId);
+        MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(flashNoteId);
+        if (hasExistingConversation) {
+            Boolean hasMore = hasMoreMap.get(flashNoteId);
+            hasMoreLiveData.setValue(hasMore == null || hasMore);
+            return;
+        }
         if (liveData.getValue() == null || liveData.getValue().isEmpty()) {
             currentPages.put(flashNoteId, 1);
             hasMoreMap.put(flashNoteId, true);
+            hasMoreLiveData.setValue(true);
             loadMessages(flashNoteId, 1, 20);
+            return;
         }
+        Boolean hasMore = hasMoreMap.get(flashNoteId);
+        hasMoreLiveData.setValue(hasMore == null || hasMore);
     }
 
     @Override
@@ -194,7 +207,7 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public LiveData<Boolean> getHasMore() {
-        return isLoading;
+        return ensureHasMoreLiveData(currentFlashNoteId);
     }
 
     private MutableLiveData<Boolean> ensureHasMoreLiveData(long flashNoteId) {

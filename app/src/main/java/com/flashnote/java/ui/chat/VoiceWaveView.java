@@ -1,5 +1,7 @@
 package com.flashnote.java.ui.chat;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
@@ -7,7 +9,7 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
-import android.view.animation.LinearInterpolator;
+import android.view.animation.AccelerateDecelerateInterpolator;
 
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -16,9 +18,9 @@ import com.flashnote.java.R;
 
 public class VoiceWaveView extends View {
     
-    private static final int BAR_COUNT = 5;
-    private static final float CORNER_RADIUS = 4f;
-    private static final float BAR_SPACING_RATIO = 0.25f;
+    private static final int BAR_COUNT = 12;
+    private static final float CORNER_RADIUS = 3f;
+    private static final float BAR_SPACING_RATIO = 0.15f;
     private static final int ANIMATION_DURATION = 600;
     
     private Paint barPaint;
@@ -61,8 +63,9 @@ public class VoiceWaveView extends View {
         animators = new ValueAnimator[BAR_COUNT];
         
         for (int i = 0; i < BAR_COUNT; i++) {
-            barHeights[i] = 0.5f;
-            targetHeights[i] = 0.5f;
+            float restingHeight = getRestingHeight(i);
+            barHeights[i] = restingHeight;
+            targetHeights[i] = restingHeight;
         }
     }
     
@@ -92,7 +95,9 @@ public class VoiceWaveView extends View {
         }
         
         for (int i = 0; i < BAR_COUNT; i++) {
-            barHeights[i] = 0.5f;
+            float restingHeight = getRestingHeight(i);
+            barHeights[i] = restingHeight;
+            targetHeights[i] = restingHeight;
         }
         invalidate();
     }
@@ -106,26 +111,47 @@ public class VoiceWaveView extends View {
             animators[index].cancel();
         }
         
-        final float newTarget = 0.2f + (float) Math.random() * 0.8f;
+        float centerBias = getCenterBias(index);
+        float minTarget = 0.22f + 0.22f * centerBias;
+        float maxTarget = 0.55f + 0.45f * centerBias;
+        final float newTarget = minTarget + (float) Math.random() * (maxTarget - minTarget);
+        targetHeights[index] = newTarget;
         
-        int duration = ANIMATION_DURATION + (int) (Math.random() * 200);
+        int duration = ANIMATION_DURATION + (int) (Math.random() * 220) - (int) (120f * centerBias);
+        duration = Math.max(320, duration);
         
-        animators[index] = ValueAnimator.ofFloat(barHeights[index], newTarget);
-        animators[index].setDuration(duration);
-        animators[index].setInterpolator(new LinearInterpolator());
-        animators[index].setRepeatCount(ValueAnimator.INFINITE);
-        animators[index].setRepeatMode(ValueAnimator.REVERSE);
-        
-        postDelayed(() -> {
-            if (isPlaying && animators[index] != null) {
-                animators[index].start();
-            }
-        }, index * 80);
-        
-        animators[index].addUpdateListener(animation -> {
+        ValueAnimator animator = ValueAnimator.ofFloat(barHeights[index], newTarget);
+        animators[index] = animator;
+        animator.setDuration(duration);
+        animator.setInterpolator(new AccelerateDecelerateInterpolator());
+        animator.addUpdateListener(animation -> {
             barHeights[index] = (float) animation.getAnimatedValue();
             invalidate();
         });
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (isPlaying && animators[index] == animation) {
+                    startBarAnimation(index);
+                }
+            }
+        });
+        
+        postDelayed(() -> {
+            if (isPlaying && animators[index] == animator) {
+                animator.start();
+            }
+        }, index * 35L);
+    }
+
+    private float getCenterBias(int index) {
+        float center = (BAR_COUNT - 1) / 2f;
+        float normalizedDistance = Math.abs(index - center) / center;
+        return Math.max(0f, 1f - normalizedDistance);
+    }
+
+    private float getRestingHeight(int index) {
+        return 0.3f + 0.3f * getCenterBias(index);
     }
     
     @Override

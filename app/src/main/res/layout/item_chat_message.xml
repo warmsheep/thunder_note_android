@@ -53,15 +53,17 @@
                 <FrameLayout
                     android:id="@+id/mediaImageContainer"
                     android:layout_width="@dimen/chat_media_preview_width"
-                    android:layout_height="@dimen/chat_media_preview_height"
+                    android:layout_height="wrap_content"
                     android:layout_marginBottom="@dimen/chat_media_spacing_small"
                     android:visibility="gone">
 
                     <ImageView
                         android:id="@+id/mediaImage"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:scaleType="centerCrop" />
+                        android:layout_height="wrap_content"
+                        android:adjustViewBounds="true"
+                        android:maxHeight="@dimen/chat_media_preview_max_height"
+                        android:scaleType="fitCenter" />
 
                     <ImageView
                         android:id="@+id/playIcon"
@@ -83,7 +85,7 @@
                     android:id="@+id/voiceContainer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="@dimen/chat_media_spacing_small"
+                    android:layout_marginBottom="4dp"
                     android:gravity="center_vertical"
                     android:minWidth="@dimen/chat_voice_min_width"
                     android:orientation="horizontal"
@@ -201,15 +203,17 @@
             <FrameLayout
                 android:id="@+id/rightMediaImageContainer"
                 android:layout_width="@dimen/chat_media_preview_width"
-                android:layout_height="@dimen/chat_media_preview_height"
+                android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/chat_media_spacing_small"
                 android:visibility="gone">
 
                 <ImageView
                     android:id="@+id/rightMediaImage"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop" />
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:maxHeight="@dimen/chat_media_preview_max_height"
+                    android:scaleType="fitCenter" />
 
                 <ImageView
                     android:id="@+id/rightPlayIcon"
@@ -231,7 +235,7 @@
                 android:id="@+id/rightVoiceContainer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/chat_media_spacing_small"
+                android:layout_marginBottom="4dp"
                 android:gravity="center_vertical"
                 android:minWidth="@dimen/chat_voice_min_width"
                 android:orientation="horizontal"

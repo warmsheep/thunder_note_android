@@ -123,24 +123,26 @@ public class RecordingWaveView extends View {
     public void updateAmplitude(float amplitude) {
         currentAmplitude = Math.max(0f, Math.min(1f, amplitude));
         
-        // Generate target heights based on amplitude with some randomness
         for (int i = 0; i < BAR_COUNT; i++) {
-            float randomFactor = 0.3f + (float) Math.random() * 0.7f;
-            float baseHeight = MIN_BAR_HEIGHT_RATIO + (1f - MIN_BAR_HEIGHT_RATIO) * currentAmplitude * randomFactor;
+            float centerBias = getCenterBias(i);
+            float randomFactor = 0.3f + (float) Math.random() * (0.6f + 0.3f * centerBias);
+            float amplitudeFactor = Math.min(1f, currentAmplitude * (1f + 0.5f * centerBias));
+            float baseHeight = MIN_BAR_HEIGHT_RATIO + (1f - MIN_BAR_HEIGHT_RATIO) * amplitudeFactor * randomFactor;
+            baseHeight *= (0.5f + 0.5f * centerBias);
             targetHeights[i] = Math.max(MIN_BAR_HEIGHT_RATIO, Math.min(1f, baseHeight));
         }
     }
 
     private void updateBarHeights() {
-        // Smooth interpolation towards target heights
-        float interpolation = 0.3f;
-        
         for (int i = 0; i < BAR_COUNT; i++) {
+            float centerBias = getCenterBias(i);
+            float interpolation = 0.3f + 0.1f * centerBias;
             barHeights[i] = barHeights[i] + (targetHeights[i] - barHeights[i]) * interpolation;
             
-            // Add slight random fluctuation when amplitude is high
-            if (currentAmplitude > 0.1f && Math.random() > 0.7f) {
-                float fluctuation = (float) (Math.random() - 0.5f) * 0.1f;
+            float fluctuationChance = 0.75f - 0.25f * centerBias;
+            if (currentAmplitude > 0.1f && Math.random() > fluctuationChance) {
+                float fluctuationRange = 0.1f + 0.08f * centerBias;
+                float fluctuation = (float) (Math.random() - 0.5f) * fluctuationRange;
                 barHeights[i] = Math.max(MIN_BAR_HEIGHT_RATIO, Math.min(1f, barHeights[i] + fluctuation));
             }
         }
@@ -151,6 +153,12 @@ public class RecordingWaveView extends View {
                 targetHeights[i] = Math.max(MIN_BAR_HEIGHT_RATIO, targetHeights[i] * 0.95f);
             }
         }
+    }
+
+    private float getCenterBias(int index) {
+        float center = (BAR_COUNT - 1) / 2f;
+        float normalizedDistance = Math.abs(index - center) / center;
+        return Math.max(0f, 1f - normalizedDistance);
     }
 
     @Override

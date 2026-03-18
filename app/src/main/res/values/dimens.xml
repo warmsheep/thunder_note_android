@@ -44,12 +44,13 @@
     <!-- 聊天富媒体 -->
     <dimen name="chat_media_preview_width">200dp</dimen>
     <dimen name="chat_media_preview_height">150dp</dimen>
+    <dimen name="chat_media_preview_max_height">300dp</dimen>
     <dimen name="chat_media_play_icon_size">40dp</dimen>
     <dimen name="chat_media_spacing_small">8dp</dimen>
     <dimen name="chat_voice_min_width">120dp</dimen>
-    <dimen name="chat_voice_padding">8dp</dimen>
+    <dimen name="chat_voice_padding">4dp</dimen>
     <dimen name="chat_voice_play_btn_size">24dp</dimen>
-    <dimen name="chat_voice_waveform_width">80dp</dimen>
+    <dimen name="chat_voice_waveform_width">100dp</dimen>
     <dimen name="chat_voice_waveform_height">24dp</dimen>
     <dimen name="chat_file_min_width">180dp</dimen>
     <dimen name="chat_file_padding">10dp</dimen>

@@ -152,6 +152,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private void showImageMessage(MessageViewHolder holder, Message message, boolean mine) {
         hideAllMediaContainers(holder, mine);
         FrameRefs refs = getRefs(holder, mine);
+        Context context = holder.binding.getRoot().getContext();
+        int maxWidthPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_width);
+        int maxHeightPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_max_height);
 
         refs.imageContainer.setVisibility(View.VISIBLE);
         refs.playIcon.setVisibility(View.GONE);
@@ -159,17 +162,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         bindTextForMediaMessage(refs.messageText, message.getContent());
 
         if (!message.isUploading()) {
-            Glide.with(holder.binding.getRoot().getContext())
-                    .load(buildGlideUrl(holder.binding.getRoot().getContext(), message.getMediaUrl()))
+            Glide.with(context)
+                    .load(buildGlideUrl(context, message.getMediaUrl()))
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
+                    .fitCenter()
+                    .override(maxWidthPx, maxHeightPx)
                     .into(refs.imageView);
 
             refs.imageContainer.setOnClickListener(v -> {
-                Context context = v.getContext();
-                Intent intent = new Intent(context, ImageViewerActivity.class);
+                Intent intent = new Intent(v.getContext(), ImageViewerActivity.class);
                 intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
-                context.startActivity(intent);
+                v.getContext().startActivity(intent);
             });
         }
     }
@@ -177,6 +181,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private void showVideoMessage(MessageViewHolder holder, Message message, boolean mine) {
         hideAllMediaContainers(holder, mine);
         FrameRefs refs = getRefs(holder, mine);
+        Context context = holder.binding.getRoot().getContext();
+        int maxWidthPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_width);
+        int maxHeightPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_max_height);
 
         refs.imageContainer.setVisibility(View.VISIBLE);
         refs.playIcon.setVisibility(View.VISIBLE);
@@ -185,17 +192,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
         if (!message.isUploading()) {
             String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
-            Glide.with(holder.binding.getRoot().getContext())
-                    .load(buildGlideUrl(holder.binding.getRoot().getContext(), preview))
+            Glide.with(context)
+                    .load(buildGlideUrl(context, preview))
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
+                    .fitCenter()
+                    .override(maxWidthPx, maxHeightPx)
                     .into(refs.imageView);
 
             refs.imageContainer.setOnClickListener(v -> {
-                Context context = v.getContext();
-                Intent intent = new Intent(context, VideoPlayerActivity.class);
+                Context clickContext = v.getContext();
+                Intent intent = new Intent(clickContext, VideoPlayerActivity.class);
                 intent.putExtra(VideoPlayerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
-                context.startActivity(intent);
+                clickContext.startActivity(intent);
             });
         }
     }
@@ -665,7 +674,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 }
                 return true;
             };
-            binding.getRoot().setOnLongClickListener(longClickListener);
+            binding.bubbleCard.setOnLongClickListener(longClickListener);
+            binding.rightContainer.setOnLongClickListener(longClickListener);
             binding.mediaImageContainer.setOnLongClickListener(longClickListener);
             binding.rightMediaImageContainer.setOnLongClickListener(longClickListener);
             binding.voiceContainer.setOnLongClickListener(longClickListener);

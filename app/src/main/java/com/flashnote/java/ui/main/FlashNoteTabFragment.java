@@ -172,6 +172,8 @@ public class FlashNoteTabFragment extends Fragment {
                         deleteIcon.draw(c);
                     }
                 }
+
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
             }
             
             @Override

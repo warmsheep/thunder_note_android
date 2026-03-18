@@ -11,12 +11,15 @@ import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.repository.MessageRepository;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ChatViewModel extends AndroidViewModel {
     private final MessageRepository repository;
     private final MutableLiveData<Long> flashNoteId = new MutableLiveData<>(0L);
     private LiveData<List<Message>> messages;
+    private final Map<Long, String> draftByFlashNoteId = new HashMap<>();
 
     public ChatViewModel(@NonNull Application application) {
         super(application);
@@ -88,5 +91,29 @@ public class ChatViewModel extends AndroidViewModel {
 
     public void addLocalMessage(Message message) {
         repository.addLocalMessage(message);
+    }
+
+    public void saveDraft(String text) {
+        Long id = flashNoteId.getValue();
+        if (id == null) {
+            return;
+        }
+        if (text == null || text.trim().isEmpty()) {
+            draftByFlashNoteId.remove(id);
+            return;
+        }
+        draftByFlashNoteId.put(id, text);
+    }
+
+    public String getDraft(long id) {
+        String draft = draftByFlashNoteId.get(id);
+        return draft == null ? "" : draft;
+    }
+
+    public void clearDraft() {
+        Long id = flashNoteId.getValue();
+        if (id != null) {
+            draftByFlashNoteId.remove(id);
+        }
     }
 }

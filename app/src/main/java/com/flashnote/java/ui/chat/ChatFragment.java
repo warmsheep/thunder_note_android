@@ -21,6 +21,8 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.PopupWindow;
 import android.widget.Toast;
+import android.text.Editable;
+import android.text.TextWatcher;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -73,7 +75,12 @@ public class ChatFragment extends Fragment {
     // Recording UI state
     private Handler recordingTimerHandler;
     private Runnable recordingTimerRunnable;
+    private Runnable recordingAmplitudeRunnable;
     private int recordingSeconds = 0;
+    private long currentFlashNoteId = 0L;
+    private boolean isLoadingMore = false;
+    private boolean hasMoreMessages = true;
+    private boolean isInitialScrollCompleted = false;
 
     public static ChatFragment newInstance(long flashNoteId, String title) {
         ChatFragment fragment = new ChatFragment();
@@ -155,6 +162,7 @@ public class ChatFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
+        currentFlashNoteId = flashNoteId;
         String title = getArguments() == null ? "闪记" : getArguments().getString(ARG_TITLE, "闪记");
 
         binding.titleText.setText(title);
@@ -167,7 +175,7 @@ public class ChatFragment extends Fragment {
 
         FavoriteRepository favoriteRepository = FlashNoteApp.getInstance().getFavoriteRepository();
         fileRepository = FlashNoteApp.getInstance().getFileRepository();
-        chatViewModel = new ViewModelProvider(this).get(ChatViewModel.class);
+        chatViewModel = new ViewModelProvider(requireActivity()).get(ChatViewModel.class);
         FlashNoteViewModel flashNoteViewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
         adapter = new MessageAdapter((message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView));
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -183,8 +191,11 @@ public class ChatFragment extends Fragment {
         binding.recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
-                if (layoutManager != null && layoutManager.findFirstVisibleItemPosition() == 0) {
+                if (!isInitialScrollCompleted || dy >= 0 || isLoadingMore || !hasMoreMessages) {
+                    return;
+                }
+                if (!recyclerView.canScrollVertically(-1)) {
+                    isLoadingMore = true;
                     chatViewModel.loadMore();
                 }
             }
@@ -195,11 +206,15 @@ public class ChatFragment extends Fragment {
         
         if (chatViewModel.getMessages() != null) {
             chatViewModel.getMessages().observe(getViewLifecycleOwner(), messages -> {
+                boolean wasLoadingMore = isLoadingMore;
+                isLoadingMore = false;
                 adapter.submitList(messages);
                 // Scroll to bottom if not search location scenario
-                if (scrollToMessageId <= 0 && messages != null && !messages.isEmpty()) {
-                    binding.recyclerView.post(() -> 
-                        binding.recyclerView.scrollToPosition(messages.size() - 1));
+                if (scrollToMessageId <= 0 && messages != null && !messages.isEmpty() && !wasLoadingMore) {
+                    binding.recyclerView.post(() -> {
+                        binding.recyclerView.scrollToPosition(messages.size() - 1);
+                        isInitialScrollCompleted = true;
+                    });
                 }
                 // Scroll to target message if specified
                 if (scrollToMessageId > 0 && messages != null) {
@@ -208,15 +223,24 @@ public class ChatFragment extends Fragment {
                             final int position = i;
                             binding.recyclerView.post(() -> {
                                 binding.recyclerView.scrollToPosition(position);
+                                isInitialScrollCompleted = true;
                                 // Highlight after scroll completes
                                 binding.recyclerView.postDelayed(() -> highlightMessage(position), 300);
                             });
                             break;
                         }
                     }
+                } else if (!isInitialScrollCompleted) {
+                    isInitialScrollCompleted = true;
                 }
             });
         }
+        chatViewModel.getHasMore().observe(getViewLifecycleOwner(), hasMore -> {
+            hasMoreMessages = hasMore == null || hasMore;
+            if (!hasMoreMessages) {
+                isLoadingMore = false;
+            }
+        });
         chatViewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
             android.content.Context context = getContext();
             if (binding != null && context != null && error != null && !error.trim().isEmpty() && isAdded()) {
@@ -225,6 +249,7 @@ public class ChatFragment extends Fragment {
         });
 
         setupMessageInput(chatViewModel);
+        restoreDraft(flashNoteId);
         binding.sendButton.setOnClickListener(v -> sendMessage(chatViewModel));
         setupToolsPanel();
         setupMicButton();
@@ -235,6 +260,20 @@ public class ChatFragment extends Fragment {
         binding.messageInput.setMaxHeight(maxHeight);
         binding.messageInput.setHorizontallyScrolling(false);
         binding.messageInput.setVerticalScrollBarEnabled(true);
+        binding.messageInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                viewModel.saveDraft(s == null ? "" : s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
         binding.messageInput.setOnEditorActionListener((textView, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_DONE) {
                 sendMessage(viewModel);
@@ -256,6 +295,7 @@ public class ChatFragment extends Fragment {
             getActivity().runOnUiThread(() -> {
                 if (binding != null) {
                     binding.messageInput.setText(null);
+                    viewModel.clearDraft();
                 }
                 if (binding != null && binding.recyclerView != null) {
                     binding.recyclerView.post(() -> {
@@ -644,19 +684,24 @@ public class ChatFragment extends Fragment {
             public void run() {
                 recordingSeconds++;
                 binding.recordTimerText.setText(formatRecordingTime(recordingSeconds));
-                
+                recordingTimerHandler.postDelayed(this, 1000);
+            }
+        };
+        recordingAmplitudeRunnable = new Runnable() {
+            @Override
+            public void run() {
                 if (mediaRecorder != null) {
                     try {
                         float amp = mediaRecorder.getMaxAmplitude() / 32768f;
                         binding.recordWaveView.updateAmplitude(amp);
-                    } catch (Exception e) {
+                    } catch (Exception ignored) {
                     }
                 }
-                
                 recordingTimerHandler.postDelayed(this, 100);
             }
         };
-        recordingTimerHandler.postDelayed(recordingTimerRunnable, 100);
+        recordingTimerHandler.postDelayed(recordingTimerRunnable, 1000);
+        recordingTimerHandler.postDelayed(recordingAmplitudeRunnable, 100);
     }
 
     private void cancelRecording() {
@@ -691,10 +736,16 @@ public class ChatFragment extends Fragment {
         binding.micButton.setVisibility(View.VISIBLE);
         binding.recordWaveView.stopWave();
         
-        if (recordingTimerHandler != null && recordingTimerRunnable != null) {
-            recordingTimerHandler.removeCallbacks(recordingTimerRunnable);
+        if (recordingTimerHandler != null) {
+            if (recordingTimerRunnable != null) {
+                recordingTimerHandler.removeCallbacks(recordingTimerRunnable);
+            }
+            if (recordingAmplitudeRunnable != null) {
+                recordingTimerHandler.removeCallbacks(recordingAmplitudeRunnable);
+            }
             recordingTimerHandler = null;
             recordingTimerRunnable = null;
+            recordingAmplitudeRunnable = null;
         }
     }
 
@@ -1246,16 +1297,35 @@ public class ChatFragment extends Fragment {
         }
     }
 
+    private void restoreDraft(long flashNoteId) {
+        String draft = chatViewModel.getDraft(flashNoteId);
+        if (draft.isEmpty()) {
+            return;
+        }
+        binding.messageInput.setText(draft);
+        binding.messageInput.setSelection(draft.length());
+    }
+
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (binding != null && chatViewModel != null) {
+            String draft = binding.messageInput.getText() == null ? "" : binding.messageInput.getText().toString();
+            chatViewModel.saveDraft(draft);
+        }
         if (isRecording) {
             stopRecording();
         }
-        if (recordingTimerHandler != null && recordingTimerRunnable != null) {
-            recordingTimerHandler.removeCallbacks(recordingTimerRunnable);
+        if (recordingTimerHandler != null) {
+            if (recordingTimerRunnable != null) {
+                recordingTimerHandler.removeCallbacks(recordingTimerRunnable);
+            }
+            if (recordingAmplitudeRunnable != null) {
+                recordingTimerHandler.removeCallbacks(recordingAmplitudeRunnable);
+            }
             recordingTimerHandler = null;
             recordingTimerRunnable = null;
+            recordingAmplitudeRunnable = null;
         }
         binding = null;
     }

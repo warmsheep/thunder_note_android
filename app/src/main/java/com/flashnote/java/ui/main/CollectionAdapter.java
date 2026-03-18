@@ -99,16 +99,39 @@ public class CollectionAdapter extends RecyclerView.Adapter<CollectionAdapter.Co
         CollectionViewHolder(ItemCollectionBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
+            binding.editButton.setOnClickListener(v -> {
+                int position = getBindingAdapterPosition();
+                if (position == RecyclerView.NO_POSITION) {
+                    return;
+                }
+                CollectionGroup group = items.get(position);
+                if (group.getSource() == null) {
+                    return;
+                }
+                listener.onEditCollection(group);
+            });
+            binding.deleteButton.setOnClickListener(v -> {
+                int position = getBindingAdapterPosition();
+                if (position == RecyclerView.NO_POSITION) {
+                    return;
+                }
+                CollectionGroup group = items.get(position);
+                if (group.getSource() == null) {
+                    return;
+                }
+                listener.onDeleteCollection(group);
+            });
         }
 
         void bind(CollectionGroup group) {
             binding.nameText.setText(group.getName());
             binding.countText.setText(String.valueOf(group.getNotes().size()));
             binding.notesContainer.removeAllViews();
-            binding.editButton.setVisibility(View.VISIBLE);
-            binding.deleteButton.setVisibility(View.VISIBLE);
-            binding.editButton.setOnClickListener(v -> listener.onEditCollection(group));
-            binding.deleteButton.setOnClickListener(v -> listener.onDeleteCollection(group));
+            boolean editable = group.getSource() != null;
+            binding.editButton.setVisibility(editable ? View.VISIBLE : View.GONE);
+            binding.deleteButton.setVisibility(editable ? View.VISIBLE : View.GONE);
+            binding.editButton.setEnabled(editable);
+            binding.deleteButton.setEnabled(editable);
 
             if (group.getNotes().isEmpty()) {
                 TextView emptyText = new TextView(binding.getRoot().getContext());
