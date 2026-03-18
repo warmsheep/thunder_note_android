@@ -48,7 +48,12 @@ public class FavoriteTabFragment extends Fragment {
                     return;
                 }
                 if (getActivity() instanceof ShellNavigator navigator) {
-                    String title = item.getFlashNoteTitle() == null ? "已收藏消息" : item.getFlashNoteTitle();
+                    String title;
+                    if (item.getFlashNoteId() == -1L) {
+                        title = "收集箱";
+                    } else {
+                        title = item.getFlashNoteTitle() == null ? "已收藏消息" : item.getFlashNoteTitle();
+                    }
                     navigator.openChat(item.getFlashNoteId(), title, item.getMessageId());
                 }
             }

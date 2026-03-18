@@ -57,7 +57,9 @@ public class SearchResultAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                 if (note == null) {
                     continue;
                 }
-                noteRows.add(new RowItem(TYPE_NOTE, null, note, null));
+                if (result.isNoteMatched()) {
+                    noteRows.add(new RowItem(TYPE_NOTE, null, note, null));
+                }
                 List<MatchedMessageInfo> matchedMessages = result.getMatchedMessages();
                 if (matchedMessages != null) {
                     for (MatchedMessageInfo matched : matchedMessages) {

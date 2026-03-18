@@ -67,7 +67,11 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
         }
 
         void bind(FavoriteItem item) {
-            binding.titleText.setText(item.getFlashNoteTitle() == null ? "已收藏消息" : item.getFlashNoteTitle());
+            if (item.getFlashNoteId() != null && item.getFlashNoteId() == -1L) {
+                binding.titleText.setText("收集箱");
+            } else {
+                binding.titleText.setText(item.getFlashNoteTitle() == null ? "已收藏消息" : item.getFlashNoteTitle());
+            }
 
             String icon = item.getFlashNoteIcon();
             binding.iconText.setText(icon != null && !icon.isEmpty() ? icon : "⚡");

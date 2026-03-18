@@ -73,7 +73,7 @@ public class ChatViewModel extends AndroidViewModel {
             return;
         }
         Long noteId = flashNoteId.getValue();
-        if (noteId != null && noteId > 0L) {
+        if (noteId != null && noteId != 0L) {
             repository.sendText(noteId, text.trim(), onSuccess);
         }
     }
@@ -86,7 +86,7 @@ public class ChatViewModel extends AndroidViewModel {
     }
 
     public void sendMessageToFlashNote(long targetFlashNoteId, Message message, Runnable onSuccess) {
-        if (targetFlashNoteId <= 0 || message == null) {
+        if (targetFlashNoteId == 0L || message == null) {
             return;
         }
         repository.sendMessage(targetFlashNoteId, message, onSuccess);
@@ -102,7 +102,7 @@ public class ChatViewModel extends AndroidViewModel {
             return;
         }
         Long id = flashNoteId.getValue();
-        if (id != null && id > 0L) {
+        if (id != null && id != 0L) {
             repository.deleteMessage(id, messageId, onSuccess);
         }
     }
@@ -117,7 +117,7 @@ public class ChatViewModel extends AndroidViewModel {
             return;
         }
         Long id = flashNoteId.getValue();
-        if (id != null && id > 0L) {
+        if (id != null && id != 0L) {
             repository.sendMessage(id, message, onSuccess);
         }
     }
@@ -129,7 +129,7 @@ public class ChatViewModel extends AndroidViewModel {
             return;
         }
         Long id = flashNoteId.getValue();
-        if (id != null && id > 0L) {
+        if (id != null && id != 0L) {
             repository.loadMoreMessages(id);
         }
     }
@@ -186,7 +186,7 @@ public class ChatViewModel extends AndroidViewModel {
             return -1_000_000_000L - Math.abs(peerId);
         }
         Long noteId = flashNoteId.getValue();
-        if (noteId != null && noteId > 0L) {
+        if (noteId != null && noteId != 0L) {
             return noteId;
         }
         return null;
