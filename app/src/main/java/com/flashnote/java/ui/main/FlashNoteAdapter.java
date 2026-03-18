@@ -1,5 +1,8 @@
 package com.flashnote.java.ui.main;
 
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
@@ -138,7 +141,7 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
             });
         }
 
-        private String buildTitleLine(FlashNote item) {
+        private CharSequence buildTitleLine(FlashNote item) {
             String title = normalize(item.getTitle());
             if (title == null) {
                 title = "未命名闪记";
@@ -150,7 +153,15 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
             if (collection == null) {
                 collection = "未分类";
             }
-            return String.format(Locale.getDefault(), "%s - %s", title, collection);
+            String suffix = String.format(Locale.getDefault(), "  #%s", collection);
+            SpannableStringBuilder builder = new SpannableStringBuilder(title).append(suffix);
+            int start = builder.length() - suffix.length();
+            builder.setSpan(
+                    new ForegroundColorSpan(binding.getRoot().getContext().getColor(R.color.text_secondary)),
+                    start,
+                    builder.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            return builder;
         }
 
         private String normalize(String value) {

@@ -128,6 +128,10 @@ public class CollectionTabFragment extends Fragment {
 
         List<FlashNote> uncategorized = new ArrayList<>();
         for (FlashNote note : notes) {
+            if (Boolean.TRUE.equals(note.getInbox()) || (note.getId() != null && note.getId() == -1L)) {
+                uncategorized.add(0, note);
+                continue;
+            }
             String collectionName = normalizeName(note.getTags());
             if (collectionName == null) {
                 uncategorized.add(note);
@@ -137,11 +141,11 @@ public class CollectionTabFragment extends Fragment {
         }
 
         List<CollectionAdapter.CollectionGroup> result = new ArrayList<>();
-        for (Map.Entry<String, List<FlashNote>> entry : grouped.entrySet()) {
-            result.add(new CollectionAdapter.CollectionGroup(findCollectionByName(entry.getKey()), entry.getKey(), entry.getValue()));
-        }
         if (!uncategorized.isEmpty()) {
             result.add(new CollectionAdapter.CollectionGroup(null, "未分类", uncategorized));
+        }
+        for (Map.Entry<String, List<FlashNote>> entry : grouped.entrySet()) {
+            result.add(new CollectionAdapter.CollectionGroup(findCollectionByName(entry.getKey()), entry.getKey(), entry.getValue()));
         }
         return result;
     }

@@ -47,7 +47,7 @@
                 android:layout_marginStart="12dp"
                 android:text="+"
                 android:textColor="@color/text_secondary"
-                android:textSize="24sp"
+                android:textSize="26sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
