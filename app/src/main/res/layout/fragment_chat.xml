@@ -229,7 +229,7 @@
                     android:orientation="vertical">
 
                     <!-- Recording waveform visualization -->
-                    <com.flashnote.java.ui.chat.RecordingWaveView
+                    <com.flashnote.java.ui.chat.VoiceWaveView
                         android:id="@+id/recordWaveView"
                         android:layout_width="match_parent"
                         android:layout_height="32dp" />

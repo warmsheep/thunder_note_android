@@ -112,7 +112,7 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
         void bind(FlashNote item, String emoji) {
             binding.emojiText.setText(emoji);
             binding.titleText.setText(buildTitleLine(item));
-            String content = item.getContent();
+            String content = firstNonBlank(item.getLatestMessage(), item.getContent());
             if (content != null && !content.trim().isEmpty()) {
                 binding.summaryText.setText(content);
             } else {
@@ -151,6 +151,14 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
             }
             String trimmed = value.trim();
             return trimmed.isEmpty() ? null : trimmed;
+        }
+
+        private String firstNonBlank(String primary, String fallback) {
+            String normalizedPrimary = normalize(primary);
+            if (normalizedPrimary != null) {
+                return normalizedPrimary;
+            }
+            return normalize(fallback);
         }
     }
 }

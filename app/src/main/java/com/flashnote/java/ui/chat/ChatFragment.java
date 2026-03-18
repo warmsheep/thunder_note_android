@@ -78,7 +78,6 @@ public class ChatFragment extends Fragment {
     // Recording UI state
     private Handler recordingTimerHandler;
     private Runnable recordingTimerRunnable;
-    private Runnable recordingAmplitudeRunnable;
     private int recordingSeconds = 0;
     private long currentFlashNoteId = 0L;
     private boolean isLoadingMore = false;
@@ -337,25 +336,30 @@ public class ChatFragment extends Fragment {
             if (binding == null) {
                 return;
             }
-            binding.recyclerView.scrollToPosition(last);
-            binding.recyclerView.post(() -> {
-                if (binding != null) {
-                    binding.recyclerView.scrollToPosition(last);
-                }
-            });
-            if (isLastMediaMessage(messages, last)) {
-                binding.recyclerView.postDelayed(() -> {
-                    if (binding != null) {
-                        binding.recyclerView.scrollToPosition(last);
-                    }
-                }, 180);
-                binding.recyclerView.postDelayed(() -> {
-                    if (binding != null) {
-                        binding.recyclerView.scrollToPosition(last);
-                    }
-                }, 320);
-            }
+            ensureBottomVisible(last, isLastMediaMessage(messages, last) ? 6 : 3);
         });
+    }
+
+    private void ensureBottomVisible(int lastPosition, int attempts) {
+        if (binding == null || attempts <= 0) {
+            return;
+        }
+        RecyclerView recyclerView = binding.recyclerView;
+        recyclerView.scrollToPosition(lastPosition);
+        recyclerView.postDelayed(() -> {
+            if (binding == null) {
+                return;
+            }
+            RecyclerView.LayoutManager manager = recyclerView.getLayoutManager();
+            if (!(manager instanceof LinearLayoutManager layoutManager)) {
+                return;
+            }
+            int lastVisible = layoutManager.findLastCompletelyVisibleItemPosition();
+            if (lastVisible >= lastPosition && !recyclerView.canScrollVertically(1)) {
+                return;
+            }
+            ensureBottomVisible(lastPosition, attempts - 1);
+        }, 120);
     }
 
     private boolean isLastMediaMessage(@Nullable List<Message> messages, int lastIndex) {
@@ -626,13 +630,14 @@ public class ChatFragment extends Fragment {
             return;
         }
         Context context = requireContext();
+        File shareFile = prepareShareFile(file, message.getFileName());
         Uri contentUri = FileProvider.getUriForFile(
                 context,
                 context.getPackageName() + ".fileprovider",
-                file
+                shareFile
         );
         Intent intent = new Intent(Intent.ACTION_SEND);
-        intent.setType(resolveShareMimeType(file, message));
+        intent.setType(resolveShareMimeType(shareFile, message));
         intent.putExtra(Intent.EXTRA_STREAM, contentUri);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         intent.setClipData(android.content.ClipData.newRawUri("share", contentUri));
@@ -641,6 +646,42 @@ public class ChatFragment extends Fragment {
         } catch (ActivityNotFoundException e) {
             showToast("未找到可分享的应用");
         }
+    }
+
+    @NonNull
+    private File prepareShareFile(@NonNull File sourceFile, @Nullable String originalFileName) {
+        if (TextUtils.isEmpty(originalFileName)) {
+            return sourceFile;
+        }
+        String safeName = sanitizeFileName(originalFileName);
+        if (safeName.equals(sourceFile.getName())) {
+            return sourceFile;
+        }
+        File shareDir = new File(requireContext().getCacheDir(), "share");
+        if (!shareDir.exists()) {
+            shareDir.mkdirs();
+        }
+        File target = new File(shareDir, safeName);
+        try (InputStream inputStream = java.nio.file.Files.newInputStream(sourceFile.toPath());
+             FileOutputStream outputStream = new FileOutputStream(target)) {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            return target;
+        } catch (IOException ignored) {
+            return sourceFile;
+        }
+    }
+
+    @NonNull
+    private String sanitizeFileName(@NonNull String fileName) {
+        String sanitized = fileName.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+        if (sanitized.isEmpty()) {
+            return "shared_file";
+        }
+        return sanitized;
     }
 
     private String resolveShareMimeType(@NonNull File file, @NonNull Message message) {
@@ -886,7 +927,7 @@ public class ChatFragment extends Fragment {
         binding.sendButton.setVisibility(View.GONE);
         binding.micButton.setVisibility(View.GONE);
         
-        binding.recordWaveView.startWave();
+        binding.recordWaveView.startAnimation();
         
         recordingSeconds = 0;
         binding.recordTimerText.setText("0:00");
@@ -900,21 +941,7 @@ public class ChatFragment extends Fragment {
                 recordingTimerHandler.postDelayed(this, 1000);
             }
         };
-        recordingAmplitudeRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (mediaRecorder != null) {
-                    try {
-                        float amp = mediaRecorder.getMaxAmplitude() / 32768f;
-                        binding.recordWaveView.updateAmplitude(amp);
-                    } catch (Exception ignored) {
-                    }
-                }
-                recordingTimerHandler.postDelayed(this, 100);
-            }
-        };
         recordingTimerHandler.postDelayed(recordingTimerRunnable, 1000);
-        recordingTimerHandler.postDelayed(recordingAmplitudeRunnable, 100);
     }
 
     private void cancelRecording() {
@@ -947,18 +974,14 @@ public class ChatFragment extends Fragment {
         binding.addButton.setVisibility(View.VISIBLE);
         binding.sendButton.setVisibility(View.VISIBLE);
         binding.micButton.setVisibility(View.VISIBLE);
-        binding.recordWaveView.stopWave();
+        binding.recordWaveView.stopAnimation();
         
         if (recordingTimerHandler != null) {
             if (recordingTimerRunnable != null) {
                 recordingTimerHandler.removeCallbacks(recordingTimerRunnable);
             }
-            if (recordingAmplitudeRunnable != null) {
-                recordingTimerHandler.removeCallbacks(recordingAmplitudeRunnable);
-            }
             recordingTimerHandler = null;
             recordingTimerRunnable = null;
-            recordingAmplitudeRunnable = null;
         }
     }
 
@@ -1438,12 +1461,8 @@ public class ChatFragment extends Fragment {
             if (recordingTimerRunnable != null) {
                 recordingTimerHandler.removeCallbacks(recordingTimerRunnable);
             }
-            if (recordingAmplitudeRunnable != null) {
-                recordingTimerHandler.removeCallbacks(recordingAmplitudeRunnable);
-            }
             recordingTimerHandler = null;
             recordingTimerRunnable = null;
-            recordingAmplitudeRunnable = null;
         }
         binding = null;
     }

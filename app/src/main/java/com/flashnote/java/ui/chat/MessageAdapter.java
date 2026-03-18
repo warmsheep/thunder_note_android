@@ -87,12 +87,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             if (avatarUrl.startsWith("http") || avatarUrl.contains("/") || avatarUrl.contains(".")) {
                 this.userAvatarUrl = avatarUrl;
                 this.userAvatar = null;
+                this.localAvatarFile = null;
             } else {
                 this.userAvatar = avatarUrl;
                 this.userAvatarUrl = null;
+                this.localAvatarFile = null;
+                return;
             }
         }
-        if (context != null) {
+        if (context != null && this.userAvatarUrl != null) {
             File avatarFile = new File(context.getFilesDir(), "avatar.jpg");
             if (avatarFile.exists()) {
                 this.localAvatarFile = avatarFile;

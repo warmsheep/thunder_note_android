@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
+import android.text.TextWatcher;
+import android.text.Editable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -237,21 +239,58 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
 
-        EditText editText = new EditText(getContext());
+        android.content.Context context = getContext();
+        EditText editText = new EditText(context);
         editText.setHint("请输入简介");
-        editText.setMinLines(4);
-        editText.setMaxLines(8);
+        editText.setMinLines(1);
+        editText.setMaxLines(6);
         editText.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
         editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         editText.setSingleLine(false);
+        editText.setBackgroundResource(R.drawable.bg_input_rounded);
+        int horizontalPadding = (int) (14 * getResources().getDisplayMetrics().density);
+        int verticalPadding = (int) (10 * getResources().getDisplayMetrics().density);
+        editText.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding);
+        editText.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        editText.setVerticalScrollBarEnabled(false);
         if (currentProfile != null && currentProfile.getBio() != null) {
             editText.setText(currentProfile.getBio());
+            editText.setSelection(editText.getText().length());
         }
-        editText.setPadding(48, 32, 48, 32);
+        editText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
 
-        new AlertDialog.Builder(getContext())
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                editText.post(() -> {
+                    if (editText.getLayout() == null) {
+                        return;
+                    }
+                    int lineCount = Math.max(1, Math.min(6, editText.getLineCount()));
+                    editText.setLines(lineCount);
+                });
+            }
+        });
+
+        android.widget.FrameLayout container = new android.widget.FrameLayout(context);
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        int margin = (int) (20 * getResources().getDisplayMetrics().density);
+        params.setMargins(margin, 0, margin, 0);
+        editText.setLayoutParams(params);
+        container.addView(editText);
+
+        new AlertDialog.Builder(context)
             .setTitle("编辑简介")
-            .setView(editText)
+            .setView(container)
             .setPositiveButton("保存", (dialog, which) -> {
                 String newBio = editText.getText().toString().trim();
                 updateBio(newBio);
@@ -579,6 +618,10 @@ public class ProfileTabFragment extends Fragment {
                 }
                 getActivity().runOnUiThread(() -> {
                     if (binding != null) {
+                        clearLocalAvatarCache();
+                        if (currentProfile != null) {
+                            currentProfile.setAvatar(emoji);
+                        }
                         binding.avatarImage.setVisibility(View.GONE);
                         binding.avatarText.setVisibility(View.VISIBLE);
                         binding.avatarText.setText(emoji);
@@ -600,6 +643,16 @@ public class ProfileTabFragment extends Fragment {
                 });
             }
         });
+    }
+
+    private void clearLocalAvatarCache() {
+        if (!isAdded() || getContext() == null) {
+            return;
+        }
+        File avatarFile = new File(getContext().getFilesDir(), "avatar.jpg");
+        if (avatarFile.exists()) {
+            avatarFile.delete();
+        }
     }
 
     private void openChangePassword() {

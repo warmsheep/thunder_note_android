@@ -149,9 +149,11 @@ public class FlashNoteTabFragment extends Fragment {
             public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
                 View itemView = viewHolder.itemView;
 
+                super.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive);
+
                 if (dX < 0) {
                     float revealWidth = Math.min(Math.abs(dX), deleteAreaWidth);
-                    if (revealWidth > deleteAreaWidth / 3f) {
+                    if (revealWidth > 0f) {
                         int left = itemView.getRight() - (int) revealWidth;
                         int top = itemView.getTop();
                         int bottom = itemView.getBottom();
@@ -159,15 +161,13 @@ public class FlashNoteTabFragment extends Fragment {
                         background.draw(c);
 
                         int iconSize = deleteIcon.getIntrinsicHeight();
-                        int iconLeft = left + ((int) revealWidth - iconSize) / 2;
+                        int iconLeft = itemView.getRight() - Math.max((int) revealWidth, iconSize + (int) (16 * requireContext().getResources().getDisplayMetrics().density)) / 2 - iconSize / 2;
                         int iconTop = top + (itemView.getHeight() - iconSize) / 2;
                         deleteIcon.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize);
                         deleteIcon.setTint(Color.WHITE);
                         deleteIcon.draw(c);
                     }
                 }
-
-                super.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive);
             }
             
             @Override

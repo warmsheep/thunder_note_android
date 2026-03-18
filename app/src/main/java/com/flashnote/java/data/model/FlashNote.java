@@ -19,6 +19,9 @@ public class FlashNote {
     
     @SerializedName("content")
     private String content;
+
+    @SerializedName("latestMessage")
+    private String latestMessage;
     
     @SerializedName("tags")
     private String tags;
@@ -82,6 +85,14 @@ public class FlashNote {
 
     public String getTags() {
         return tags;
+    }
+
+    public String getLatestMessage() {
+        return latestMessage;
+    }
+
+    public void setLatestMessage(String latestMessage) {
+        this.latestMessage = latestMessage;
     }
 
     public void setTags(String tags) {
