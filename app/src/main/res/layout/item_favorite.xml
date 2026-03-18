@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@color/surface"
@@ -54,17 +55,18 @@
 
             <FrameLayout
                 android:id="@+id/mediaPreviewContainer"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:visibility="gone">
 
                 <ImageView
                     android:id="@+id/mediaPreviewImage"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
                     android:background="@drawable/bg_placeholder_card"
-                    android:scaleType="centerCrop" />
+                    android:scaleType="fitCenter" />
 
                 <ImageView
                     android:id="@+id/mediaPlayIcon"
@@ -139,20 +141,6 @@
                 android:textColor="@color/text_hint"
                 android:textSize="@dimen/text_size_tiny" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/removeButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:background="@drawable/bg_placeholder_card"
-            android:paddingLeft="10dp"
-            android:paddingTop="6dp"
-            android:paddingRight="10dp"
-            android:paddingBottom="6dp"
-            android:text="移除"
-            android:textColor="@color/text_secondary"
-            android:textSize="@dimen/text_size_button_small" />
     </LinearLayout>
 
 </LinearLayout>

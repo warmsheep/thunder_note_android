@@ -26,13 +26,68 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
         void onOpenChat(ContactUser contact);
     }
 
+    public interface OnDeleteClickListener {
+        void onDelete(ContactUser contact, String action);
+    }
+
     private final List<ContactUser> items = new ArrayList<>();
     private final OnContactClickListener listener;
     private final TokenManager tokenManager;
+    private Long pendingDeleteContactId = null;
+    private String pendingDeleteAction = null;
+    private OnDeleteClickListener deleteListener;
 
     public ContactAdapter(OnContactClickListener listener) {
         this.listener = listener;
         this.tokenManager = FlashNoteApp.getInstance().getTokenManager();
+    }
+
+    public void setOnDeleteClickListener(OnDeleteClickListener listener) {
+        this.deleteListener = listener;
+    }
+
+    public void clearPendingDelete() {
+        Long prev = pendingDeleteContactId;
+        pendingDeleteContactId = null;
+        pendingDeleteAction = null;
+        if (prev != null) {
+            for (int i = 0; i < items.size(); i++) {
+                if (items.get(i).getUserId() != null && items.get(i).getUserId().equals(prev)) {
+                    notifyItemChanged(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    public void setPendingDeleteContactId(Long contactId, String action) {
+        Long prev = pendingDeleteContactId;
+        pendingDeleteContactId = contactId;
+        pendingDeleteAction = action;
+        if (prev != null && !prev.equals(contactId)) {
+            for (int i = 0; i < items.size(); i++) {
+                if (items.get(i).getUserId() != null && items.get(i).getUserId().equals(prev)) {
+                    notifyItemChanged(i);
+                    break;
+                }
+            }
+        }
+        if (contactId != null) {
+            for (int i = 0; i < items.size(); i++) {
+                if (items.get(i).getUserId() != null && items.get(i).getUserId().equals(contactId)) {
+                    notifyItemChanged(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    public Long getPendingDeleteContactId() {
+        return pendingDeleteContactId;
+    }
+
+    public String getPendingDeleteAction() {
+        return pendingDeleteAction;
     }
 
     public void submitList(List<ContactUser> contacts) {
@@ -112,6 +167,26 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
             }
 
             binding.getRoot().setOnClickListener(v -> listener.onOpenChat(contact));
+
+            boolean pendingDelete = contact.getUserId() != null && contact.getUserId().equals(pendingDeleteContactId);
+            binding.deleteOverlay.setVisibility(pendingDelete ? View.VISIBLE : View.GONE);
+            if (pendingDelete) {
+                String action = pendingDeleteAction;
+                if ("PENDING_SENT".equals(action)) {
+                    binding.deleteOverlay.setText("取消");
+                } else if ("PENDING_RECEIVED".equals(action)) {
+                    binding.deleteOverlay.setText("删除");
+                } else {
+                    binding.deleteOverlay.setText("删除");
+                }
+                binding.deleteOverlay.setOnClickListener(v -> {
+                    if (deleteListener != null) {
+                        deleteListener.onDelete(contact, action);
+                    }
+                });
+            } else {
+                binding.deleteOverlay.setOnClickListener(null);
+            }
         }
 
         private String normalize(String value) {

@@ -1,10 +1,17 @@
 package com.flashnote.java.ui.main;
 
+import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -20,6 +27,7 @@ import com.flashnote.java.R;
 import com.flashnote.java.data.model.FavoriteItem;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.databinding.ItemFavoriteBinding;
+import com.flashnote.java.databinding.PopupFavoriteActionsBinding;
 import com.flashnote.java.ui.media.FilePreviewActivity;
 import com.flashnote.java.ui.media.ImageViewerActivity;
 import com.flashnote.java.ui.media.MediaUrlResolver;
@@ -90,9 +98,14 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
             binding.fileInfoContainer.setVisibility(View.GONE);
             binding.voiceInfoContainer.setVisibility(View.GONE);
 
+            binding.contentText.setOnClickListener(null);
             binding.mediaPreviewContainer.setOnClickListener(null);
             binding.fileInfoContainer.setOnClickListener(null);
             binding.voiceInfoContainer.setOnClickListener(null);
+            binding.contentText.setOnLongClickListener(null);
+            binding.mediaPreviewContainer.setOnLongClickListener(null);
+            binding.fileInfoContainer.setOnLongClickListener(null);
+            binding.voiceInfoContainer.setOnLongClickListener(null);
 
             String mediaType = item.getMediaType();
             if (mediaType == null || mediaType.isEmpty() || "TEXT".equalsIgnoreCase(mediaType)) {
@@ -102,27 +115,108 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
                 binding.mediaPreviewContainer.setVisibility(View.VISIBLE);
                 loadMediaThumbnail(item.getMediaUrl());
                 binding.mediaPreviewContainer.setOnClickListener(v -> openImagePreview(v.getContext(), item));
+                binding.mediaPreviewContainer.setOnLongClickListener(v -> {
+                    showFavoriteActions(item, v);
+                    return true;
+                });
             } else if ("VIDEO".equalsIgnoreCase(mediaType)) {
                 binding.mediaPreviewContainer.setVisibility(View.VISIBLE);
                 binding.mediaPlayIcon.setVisibility(View.VISIBLE);
                 loadMediaThumbnail(item.getMediaUrl());
                 binding.mediaPreviewContainer.setOnClickListener(v -> openVideoPlayer(v.getContext(), item));
+                binding.mediaPreviewContainer.setOnLongClickListener(v -> {
+                    showFavoriteActions(item, v);
+                    return true;
+                });
             } else if ("FILE".equalsIgnoreCase(mediaType)) {
                 binding.fileInfoContainer.setVisibility(View.VISIBLE);
                 binding.fileInfoName.setText(item.getFileName() != null ? item.getFileName() : "文件");
                 binding.fileInfoIcon.setImageResource(resolveFileIcon(item.getFileName()));
                 binding.fileInfoContainer.setOnClickListener(v -> openFile(v.getContext(), item));
+                binding.fileInfoContainer.setOnLongClickListener(v -> {
+                    showFavoriteActions(item, v);
+                    return true;
+                });
             } else if ("VOICE".equalsIgnoreCase(mediaType)) {
                 binding.voiceInfoContainer.setVisibility(View.VISIBLE);
                 Integer duration = item.getMediaDuration();
                 binding.voiceInfoDuration.setText((duration != null && duration > 0 ? duration : 0) + "s");
+                binding.voiceInfoContainer.setOnLongClickListener(v -> {
+                    showFavoriteActions(item, v);
+                    return true;
+                });
             } else {
                 binding.contentText.setVisibility(View.VISIBLE);
                 binding.contentText.setText(item.getContent() != null ? item.getContent() : "");
             }
 
             binding.getRoot().setOnClickListener(v -> listener.onOpen(item));
-            binding.removeButton.setOnClickListener(v -> listener.onRemove(item));
+            binding.getRoot().setOnLongClickListener(v -> {
+                showFavoriteActions(item, v);
+                return true;
+            });
+        }
+
+        private void showFavoriteActions(FavoriteItem item, View anchorView) {
+            Context ctx = binding.getRoot().getContext();
+            PopupFavoriteActionsBinding popupBinding = PopupFavoriteActionsBinding.inflate(LayoutInflater.from(ctx));
+            PopupWindow popupWindow = new PopupWindow(
+                    popupBinding.getRoot(),
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    true
+            );
+            popupWindow.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            popupWindow.setOutsideTouchable(true);
+
+            popupBinding.actionCopy.setOnClickListener(v -> {
+                popupWindow.dismiss();
+                String textToCopy = item.getContent();
+                if (textToCopy == null || textToCopy.isEmpty()) {
+                    textToCopy = item.getFileName() != null ? item.getFileName() : "";
+                }
+                ClipboardManager clipboard = (ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("favorite", textToCopy);
+                clipboard.setPrimaryClip(clip);
+                Toast.makeText(ctx, "已复制", Toast.LENGTH_SHORT).show();
+            });
+
+            popupBinding.actionDelete.setOnClickListener(v -> {
+                popupWindow.dismiss();
+                new AlertDialog.Builder(ctx)
+                        .setTitle("删除收藏")
+                        .setMessage("确定要删除该收藏吗？")
+                        .setPositiveButton("删除", (dialog, which) -> listener.onRemove(item))
+                        .setNegativeButton("取消", null)
+                        .show();
+            });
+
+            anchorView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+            int popupWidth = popupBinding.getRoot().getMeasuredWidth();
+            int popupHeight = popupBinding.getRoot().getMeasuredHeight();
+
+            int[] location = new int[2];
+            anchorView.getLocationOnScreen(location);
+            int viewX = location[0];
+            int viewY = location[1];
+            int viewWidth = anchorView.getWidth();
+            int viewHeight = anchorView.getHeight();
+
+            float density = ctx.getResources().getDisplayMetrics().density;
+            int gap = (int) (4 * density);
+
+            int screenHeight = ctx.getResources().getDisplayMetrics().heightPixels;
+            boolean showAbove = viewY > screenHeight / 2;
+
+            int popupX = viewX + viewWidth / 2 - popupWidth / 2;
+            int popupY = showAbove ? viewY - popupHeight - gap : viewY + viewHeight + gap;
+
+            int screenWidth = ctx.getResources().getDisplayMetrics().widthPixels;
+            if (popupX < 0) popupX = 0;
+            if (popupX + popupWidth > screenWidth) popupX = screenWidth - popupWidth;
+            if (popupY < 0) popupY = 0;
+
+            popupWindow.showAtLocation(binding.getRoot(), Gravity.NO_GRAVITY, popupX, popupY);
         }
 
         private void loadMediaThumbnail(String mediaUrl) {
@@ -145,7 +239,7 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
                     .load(glideUrl)
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
-                    .centerCrop()
+                    .fitCenter()
                     .into(binding.mediaPreviewImage);
         }
 

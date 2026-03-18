@@ -1,5 +1,9 @@
 package com.flashnote.java.ui.main;
 
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -160,7 +164,41 @@ public class ContactTabFragment extends Fragment {
     }
 
     private void attachContactSwipeDelete() {
+        contactAdapter.setOnDeleteClickListener((contact, action) -> {
+            String title, message, confirmText;
+            if ("PENDING_SENT".equals(action)) {
+                title = "取消好友申请";
+                message = "确定要取消该好友申请吗？";
+                confirmText = "确定";
+            } else if ("PENDING_RECEIVED".equals(action)) {
+                title = "删除好友请求";
+                message = "确定要删除该好友请求吗？";
+                confirmText = "删除";
+            } else {
+                title = "删除联系人";
+                message = "确定删除该联系人吗？";
+                confirmText = "删除";
+            }
+            new android.app.AlertDialog.Builder(requireContext())
+                    .setTitle(title)
+                    .setMessage(message)
+                    .setPositiveButton(confirmText, (dialog, which) -> viewModel.deleteContact(contact.getUserId()))
+                    .setNegativeButton("取消", (dialog, which) -> {
+                        contactAdapter.clearPendingDelete();
+                        renderCurrentTab();
+                    })
+                    .setOnCancelListener(dialog -> {
+                        contactAdapter.clearPendingDelete();
+                        renderCurrentTab();
+                    })
+                    .show();
+        });
+
         ItemTouchHelper.SimpleCallback callback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+            private final ColorDrawable background = new ColorDrawable(Color.parseColor("#FF4444"));
+            private final Drawable deleteIcon = androidx.core.content.ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_menu_delete);
+            private final int deleteAreaWidth = (int) (72 * requireContext().getResources().getDisplayMetrics().density);
+
             @Override
             public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
                 return false;
@@ -168,27 +206,49 @@ public class ContactTabFragment extends Fragment {
 
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-                if (showingRequests) {
+                int position = viewHolder.getBindingAdapterPosition();
+                if (showingRequests || position < 0 || position >= latestContacts.size()) {
                     requestAdapter.notifyItemChanged(viewHolder.getBindingAdapterPosition());
                     return;
                 }
-                int position = viewHolder.getBindingAdapterPosition();
-                if (position < 0 || position >= latestContacts.size()) {
-                    return;
-                }
                 ContactUser contact = latestContacts.get(position);
-                if (!"FRIEND".equals(contact.getRelationStatus())) {
-                    toast("等待对方同意中，暂不可删除");
-                    renderCurrentTab();
-                    return;
+                String status = contact.getRelationStatus();
+                contactAdapter.setPendingDeleteContactId(contact.getUserId(), status);
+            }
+
+            @Override
+            public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
+                View itemView = viewHolder.itemView;
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+
+                if (dX < 0) {
+                    float revealWidth = Math.min(Math.abs(dX), deleteAreaWidth);
+                    if (revealWidth > 0f) {
+                        int left = itemView.getRight() - (int) revealWidth;
+                        int top = itemView.getTop();
+                        int bottom = itemView.getBottom();
+                        background.setBounds(left, top, itemView.getRight(), bottom);
+                        background.draw(c);
+
+                        int iconSize = deleteIcon.getIntrinsicHeight();
+                        int iconRightPadding = (int) (22 * requireContext().getResources().getDisplayMetrics().density);
+                        int iconLeft = itemView.getRight() - iconRightPadding - iconSize;
+                        int iconTop = top + (itemView.getHeight() - iconSize) / 2;
+                        deleteIcon.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize);
+                        deleteIcon.setTint(Color.WHITE);
+                        deleteIcon.draw(c);
+                    }
                 }
-                new android.app.AlertDialog.Builder(requireContext())
-                        .setTitle("删除联系人")
-                        .setMessage("确定删除该联系人吗？")
-                        .setPositiveButton("删除", (dialog, which) -> viewModel.deleteContact(contact.getUserId()))
-                        .setNegativeButton("取消", (dialog, which) -> renderCurrentTab())
-                        .setOnCancelListener(dialog -> renderCurrentTab())
-                        .show();
+            }
+
+            @Override
+            public void clearView(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
+                super.clearView(recyclerView, viewHolder);
+            }
+
+            @Override
+            public float getSwipeThreshold(@NonNull RecyclerView.ViewHolder viewHolder) {
+                return 0.4f;
             }
         };
         new ItemTouchHelper(callback).attachToRecyclerView(binding.recyclerView);

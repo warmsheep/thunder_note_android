@@ -220,7 +220,8 @@ public class FlashNoteTabFragment extends Fragment {
             public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
                 View itemView = viewHolder.itemView;
 
-                super.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive);
+                // Pass dX to super so item translates left, revealing red background underneath
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
 
                 if (dX < 0) {
                     float revealWidth = Math.min(Math.abs(dX), deleteAreaWidth);
