@@ -618,8 +618,20 @@ public class ChatFragment extends Fragment {
         if (TextUtils.isEmpty(objectName)) {
             return null;
         }
-        File cached = new File(requireContext().getCacheDir(), objectName.replace('/', '_'));
-        return cached.exists() ? cached : null;
+        Context context = requireContext();
+        File cached = new File(context.getCacheDir(), objectName.replace('/', '_'));
+        if (cached.exists()) {
+            return cached;
+        }
+        File externalCache = context.getExternalCacheDir() == null
+                ? null
+                : new File(context.getExternalCacheDir(), objectName.replace('/', '_'));
+        if (externalCache != null && externalCache.exists()) {
+            return externalCache;
+        }
+        String originalName = sanitizeFileName(fallbackFileNameFromObjectName(objectName));
+        File shared = new File(new File(context.getCacheDir(), "share"), originalName);
+        return shared.exists() ? shared : null;
     }
 
     @Nullable
@@ -631,7 +643,7 @@ public class ChatFragment extends Fragment {
             Uri uri = Uri.parse(mediaUrl);
             String objectName = uri.getQueryParameter("objectName");
             if (!TextUtils.isEmpty(objectName)) {
-                return objectName;
+                return Uri.decode(objectName);
             }
             String path = uri.getPath();
             if (!TextUtils.isEmpty(path) && path.startsWith("/")) {
@@ -640,6 +652,15 @@ public class ChatFragment extends Fragment {
             return null;
         }
         return mediaUrl;
+    }
+
+    @NonNull
+    private String fallbackFileNameFromObjectName(@NonNull String objectName) {
+        int slashIndex = objectName.lastIndexOf('/');
+        if (slashIndex >= 0 && slashIndex < objectName.length() - 1) {
+            return objectName.substring(slashIndex + 1);
+        }
+        return objectName;
     }
 
     private void shareFileByIntent(@NonNull File file, @NonNull Message message) {

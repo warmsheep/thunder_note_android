@@ -11,6 +11,7 @@ import com.flashnote.java.data.model.FlashNoteSearchResult;
 import com.flashnote.java.data.remote.FlashNoteService;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import retrofit2.Call;
@@ -63,7 +64,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                     ApiResponse<List<FlashNote>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         clearError();
-                        notesLiveData.postValue(apiResponse.getData());
+                        notesLiveData.postValue(sortNotes(apiResponse.getData()));
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("FlashNoteRepo", errMsg);
@@ -139,7 +140,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                         List<FlashNote> current = notesLiveData.getValue();
                         List<FlashNote> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
                         updated.add(0, apiResponse.getData());
-                        notesLiveData.postValue(updated);
+                        notesLiveData.postValue(sortNotes(updated));
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("FlashNoteRepo", errMsg);
@@ -189,7 +190,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                                     updated.add(n);
                                 }
                             }
-                            notesLiveData.postValue(updated);
+                            notesLiveData.postValue(sortNotes(updated));
                         }
                     } else {
                         String errMsg = apiResponse.getMessage();
@@ -324,6 +325,15 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
         if (!replaced) {
             updated.add(0, updatedNote);
         }
-        notesLiveData.postValue(updated);
+        notesLiveData.postValue(sortNotes(updated));
+    }
+
+    private List<FlashNote> sortNotes(List<FlashNote> source) {
+        List<FlashNote> sorted = source == null ? new ArrayList<>() : new ArrayList<>(source);
+        sorted.sort(Comparator
+                .comparing((FlashNote note) -> Boolean.TRUE.equals(note.getPinned()))
+                .reversed()
+                .thenComparing(FlashNote::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        return sorted;
     }
 }

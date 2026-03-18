@@ -662,7 +662,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 binding.timeDivider.setVisibility(View.GONE);
             }
 
-            boolean mine = !"assistant".equals(message.getRole()) && !"ai".equals(message.getRole());
+            Long currentUserId = tokenManager.getUserId();
+            boolean mine;
+            if (currentUserId != null && message.getSenderId() != null) {
+                mine = currentUserId.equals(message.getSenderId());
+            } else {
+                mine = !"assistant".equals(message.getRole()) && !"ai".equals(message.getRole());
+            }
             binding.bubbleCard.setCardBackgroundColor(binding.getRoot().getContext().getColor(mine ? R.color.chat_mine : R.color.surface));
 
             binding.leftContainer.setVisibility(mine ? View.GONE : View.VISIBLE);

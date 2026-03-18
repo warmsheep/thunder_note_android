@@ -53,6 +53,10 @@ public class CollectionTabFragment extends Fragment {
         adapter = new CollectionAdapter(new CollectionAdapter.OnFlashNoteClickListener() {
             @Override
             public void onOpenFlashNote(FlashNote item) {
+                if (Boolean.TRUE.equals(item.getHidden()) && item.getId() != null && item.getId() > 0L) {
+                    flashNoteViewModel.setHidden(item.getId(), false);
+                    item.setHidden(false);
+                }
                 if (getActivity() instanceof ShellNavigator navigator) {
                     navigator.openChat(item.getId(), item.getTitle());
                 }

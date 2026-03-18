@@ -91,23 +91,13 @@ public class MessageRepositoryImpl implements MessageRepository {
         currentFlashNoteId = flashNoteId;
         currentPeerUserId = 0L;
         currentConversationKey = keyForFlashNote(flashNoteId);
-        boolean hasExistingConversation = conversations.containsKey(currentConversationKey);
         MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
         MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
-        if (hasExistingConversation) {
-            Boolean hasMore = hasMoreMap.get(currentConversationKey);
-            hasMoreLiveData.setValue(hasMore == null || hasMore);
-            return;
-        }
-        if (liveData.getValue() == null || liveData.getValue().isEmpty()) {
-            currentPages.put(currentConversationKey, 1);
-            hasMoreMap.put(currentConversationKey, true);
-            hasMoreLiveData.setValue(true);
-            loadMessages(currentConversationKey, flashNoteId, null, 1, 20);
-            return;
-        }
-        Boolean hasMore = hasMoreMap.get(currentConversationKey);
-        hasMoreLiveData.setValue(hasMore == null || hasMore);
+        liveData.setValue(new ArrayList<>());
+        currentPages.put(currentConversationKey, 1);
+        hasMoreMap.put(currentConversationKey, true);
+        hasMoreLiveData.setValue(true);
+        loadMessages(currentConversationKey, flashNoteId, null, 1, 20);
     }
 
     @Override
@@ -115,23 +105,13 @@ public class MessageRepositoryImpl implements MessageRepository {
         currentPeerUserId = peerUserId;
         currentFlashNoteId = 0L;
         currentConversationKey = keyForContact(peerUserId);
-        boolean hasExistingConversation = conversations.containsKey(currentConversationKey);
         MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
         MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
-        if (hasExistingConversation) {
-            Boolean hasMore = hasMoreMap.get(currentConversationKey);
-            hasMoreLiveData.setValue(hasMore == null || hasMore);
-            return;
-        }
-        if (liveData.getValue() == null || liveData.getValue().isEmpty()) {
-            currentPages.put(currentConversationKey, 1);
-            hasMoreMap.put(currentConversationKey, true);
-            hasMoreLiveData.setValue(true);
-            loadMessages(currentConversationKey, null, peerUserId, 1, 20);
-            return;
-        }
-        Boolean hasMore = hasMoreMap.get(currentConversationKey);
-        hasMoreLiveData.setValue(hasMore == null || hasMore);
+        liveData.setValue(new ArrayList<>());
+        currentPages.put(currentConversationKey, 1);
+        hasMoreMap.put(currentConversationKey, true);
+        hasMoreLiveData.setValue(true);
+        loadMessages(currentConversationKey, null, peerUserId, 1, 20);
     }
 
     @Override
