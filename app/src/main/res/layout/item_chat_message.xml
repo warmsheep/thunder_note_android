@@ -25,14 +25,27 @@
         android:gravity="top"
         android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/avatarText"
+        <FrameLayout
             android:layout_width="@dimen/icon_size_avatar"
-            android:layout_height="@dimen/icon_size_avatar"
-            android:background="@drawable/bg_logo_primary_soft"
-            android:gravity="center"
-            android:text="🤖"
-            android:textSize="@dimen/icon_text_size_avatar" />
+            android:layout_height="@dimen/icon_size_avatar">
+
+            <ImageView
+                android:id="@+id/avatarImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_avatar_circle"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/avatarText"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_avatar_circle"
+                android:gravity="center"
+                android:text="🤖"
+                android:textSize="@dimen/icon_text_size_avatar" />
+        </FrameLayout>
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/bubbleCard"

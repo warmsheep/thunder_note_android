@@ -207,6 +207,23 @@ public class ChatFragment extends Fragment {
                 adapter.notifyDataSetChanged();
             }
         });
+        
+        if (isContactConversation) {
+            userRepository.getContacts().observe(getViewLifecycleOwner(), contacts -> {
+                if (contacts != null) {
+                    for (com.flashnote.java.data.model.ContactUser contact : contacts) {
+                        if (contact.getUserId() != null && contact.getUserId() == peerUserId) {
+                            String avatar = contact.getAvatar();
+                            if (avatar != null && !avatar.isEmpty()) {
+                                adapter.setPeerAvatar(avatar);
+                                adapter.notifyDataSetChanged();
+                            }
+                            break;
+                        }
+                    }
+                }
+            });
+        }
         userRepository.refresh();
 
         binding.recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {

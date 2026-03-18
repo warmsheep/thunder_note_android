@@ -57,6 +57,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private String userAvatar = "😊";
     private String userAvatarUrl = null;
     private File localAvatarFile = null;
+    private String peerAvatar = null;
+    private String peerAvatarUrl = null;
 
     private MediaPlayer mediaPlayer;
     private Long currentPlayingMessageId;
@@ -100,6 +102,21 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             if (avatarFile.exists()) {
                 this.localAvatarFile = avatarFile;
             }
+        }
+    }
+
+    public void setPeerAvatar(String avatarUrl) {
+        if (avatarUrl == null || avatarUrl.trim().isEmpty()) {
+            this.peerAvatar = null;
+            this.peerAvatarUrl = null;
+            return;
+        }
+        if (avatarUrl.startsWith("http") || avatarUrl.contains("/")) {
+            this.peerAvatarUrl = avatarUrl;
+            this.peerAvatar = null;
+        } else {
+            this.peerAvatar = avatarUrl;
+            this.peerAvatarUrl = null;
         }
     }
 
@@ -673,7 +690,23 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
             binding.leftContainer.setVisibility(mine ? View.GONE : View.VISIBLE);
             binding.rightContainer.setVisibility(mine ? View.VISIBLE : View.GONE);
-            binding.avatarText.setText("🤖");
+            
+            if (!mine) {
+                if (peerAvatarUrl != null) {
+                    binding.avatarImage.setVisibility(View.VISIBLE);
+                    binding.avatarText.setVisibility(View.GONE);
+                    Glide.with(binding.getRoot().getContext())
+                            .load(buildGlideUrl(binding.getRoot().getContext(), peerAvatarUrl))
+                            .placeholder(R.drawable.bg_avatar_circle)
+                            .error(R.drawable.bg_avatar_circle)
+                            .circleCrop()
+                            .into(binding.avatarImage);
+                } else {
+                    binding.avatarImage.setVisibility(View.GONE);
+                    binding.avatarText.setVisibility(View.VISIBLE);
+                    binding.avatarText.setText(peerAvatar == null || peerAvatar.isEmpty() ? "🤖" : peerAvatar);
+                }
+            }
             
             if (mine) {
                 if (userAvatarUrl != null) {

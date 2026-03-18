@@ -1,10 +1,13 @@
 package com.flashnote.java.ui.main;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -28,10 +31,13 @@ public class ContactTabFragment extends Fragment {
     private FragmentContactTabBinding binding;
     private ContactViewModel viewModel;
     private ContactAdapter contactAdapter;
+    private ContactSearchAdapter searchAdapter;
     private FriendRequestAdapter requestAdapter;
     private boolean showingRequests = false;
-    private boolean awaitingSearchResult = false;
-    private android.app.AlertDialog searchResultDialog;
+    private boolean isSearchVisible = false;
+    private String currentSearchQuery = "";
+    private final Handler searchHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingSearch;
     private List<ContactUser> latestContacts = new ArrayList<>();
     private List<FriendRequest> latestRequests = new ArrayList<>();
 
@@ -84,8 +90,34 @@ public class ContactTabFragment extends Fragment {
 
         binding.tabContacts.setOnClickListener(v -> switchTab(false));
         binding.tabRequestsWrap.setOnClickListener(v -> switchTab(true));
-        binding.refreshButton.setOnClickListener(v -> viewModel.refreshContacts());
-        binding.searchButton.setOnClickListener(v -> showSearchDialog());
+        binding.searchButton.setOnClickListener(v -> toggleSearchContainer());
+        binding.searchCloseButton.setOnClickListener(v -> closeSearchContainer());
+        binding.searchInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (pendingSearch != null) {
+                    searchHandler.removeCallbacks(pendingSearch);
+                }
+                pendingSearch = () -> performSearch(s.toString());
+                searchHandler.postDelayed(pendingSearch, 300);
+            }
+        });
+        binding.searchInput.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                if (pendingSearch != null) {
+                    searchHandler.removeCallbacks(pendingSearch);
+                }
+                performSearch(binding.searchInput.getText().toString());
+                return true;
+            }
+            return false;
+        });
 
         viewModel.getContacts().observe(getViewLifecycleOwner(), contacts -> {
             latestContacts = contacts == null ? new ArrayList<>() : new ArrayList<>(contacts);
@@ -102,15 +134,10 @@ public class ContactTabFragment extends Fragment {
         });
 
         viewModel.getSearchResults().observe(getViewLifecycleOwner(), users -> {
-            if (!awaitingSearchResult) {
+            if (!isSearchVisible) {
                 return;
             }
-            awaitingSearchResult = false;
-            if (users == null || users.isEmpty()) {
-                toast("未找到相关用户");
-                return;
-            }
-            showSearchResultDialog(users);
+            showSearchResults(users);
         });
 
         viewModel.getPendingRequestCount().observe(getViewLifecycleOwner(), count -> {
@@ -179,7 +206,7 @@ public class ContactTabFragment extends Fragment {
             binding.recyclerView.setAdapter(requestAdapter);
             requestAdapter.submitList(latestRequests);
             boolean empty = latestRequests.isEmpty();
-            binding.emptyIcon.setImageResource(android.R.drawable.ic_menu_info_details);
+            binding.emptyIcon.setImageResource(com.flashnote.java.R.drawable.ic_person_empty);
             binding.emptyIcon.setColorFilter(getResources().getColor(com.flashnote.java.R.color.text_secondary, null));
             binding.emptyTitleText.setText("暂无新的好友请求");
             binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
@@ -196,41 +223,60 @@ public class ContactTabFragment extends Fragment {
         binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
     }
 
-    private void showSearchDialog() {
-        if (!isAdded() || getContext() == null) {
-            return;
+    private void toggleSearchContainer() {
+        if (isSearchVisible) {
+            closeSearchContainer();
+        } else {
+            isSearchVisible = true;
+            binding.searchContainer.setVisibility(View.VISIBLE);
+            binding.searchInput.requestFocus();
+            if (searchAdapter == null) {
+                searchAdapter = new ContactSearchAdapter(user -> {
+                    viewModel.sendFriendRequest(user.getUserId());
+                    // Re-search current query to refresh the list
+                    if (!currentSearchQuery.isEmpty()) {
+                        viewModel.searchContacts(currentSearchQuery);
+                    }
+                });
+            }
+            binding.recyclerView.setAdapter(searchAdapter);
         }
-        EditText input = new EditText(getContext());
-        input.setHint("搜索联系人");
-        new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("搜索联系人")
-                .setView(input)
-                .setPositiveButton("搜索", (dialog, which) -> {
-                    String keyword = input.getText() == null ? "" : input.getText().toString().trim();
-                    awaitingSearchResult = true;
-                    viewModel.searchContacts(keyword);
-                })
-                .setNegativeButton("取消", null)
-                .show();
     }
 
-    private void showSearchResultDialog(List<ContactSearchUser> users) {
-        if (!isAdded() || getContext() == null || users == null) {
+    private void closeSearchContainer() {
+        isSearchVisible = false;
+        currentSearchQuery = "";
+        binding.searchContainer.setVisibility(View.GONE);
+        binding.searchInput.setText("");
+        if (binding.recyclerView.getAdapter() != contactAdapter && binding.recyclerView.getAdapter() != requestAdapter) {
+            binding.recyclerView.setAdapter(showingRequests ? requestAdapter : contactAdapter);
+        }
+        renderCurrentTab();
+    }
+
+    private void performSearch(String query) {
+        String keyword = query == null ? "" : query.trim();
+        currentSearchQuery = keyword;
+        if (keyword.isEmpty()) {
+            if (searchAdapter != null) {
+                searchAdapter.submitList(new ArrayList<>());
+            }
+            showSearchResults(new ArrayList<>());
             return;
         }
-        RecyclerView recyclerView = new RecyclerView(requireContext());
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        ContactSearchAdapter adapter = new ContactSearchAdapter(user -> viewModel.sendFriendRequest(user.getUserId()));
-        adapter.submitList(users);
-        recyclerView.setAdapter(adapter);
-        if (searchResultDialog != null && searchResultDialog.isShowing()) {
-            searchResultDialog.dismiss();
+        viewModel.searchContacts(keyword);
+    }
+
+    private void showSearchResults(List<ContactSearchUser> users) {
+        if (searchAdapter != null) {
+            searchAdapter.submitList(users);
         }
-        searchResultDialog = new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("搜索结果")
-                .setView(recyclerView)
-                .setNegativeButton("关闭", null)
-                .show();
+        boolean empty = users == null || users.isEmpty();
+        binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
+        binding.emptyIcon.setImageResource(android.R.drawable.ic_menu_search);
+        binding.emptyIcon.setColorFilter(getResources().getColor(com.flashnote.java.R.color.text_secondary, null));
+        binding.emptyTitleText.setText("未找到相关用户");
+        binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
     }
 
     private void toast(String text) {
@@ -242,10 +288,6 @@ public class ContactTabFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        if (searchResultDialog != null) {
-            searchResultDialog.dismiss();
-            searchResultDialog = null;
-        }
         binding = null;
     }
 }
