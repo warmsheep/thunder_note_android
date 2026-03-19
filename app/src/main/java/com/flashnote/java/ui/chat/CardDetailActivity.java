@@ -2,12 +2,14 @@ package com.flashnote.java.ui.chat;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.PorterDuff;
 import android.os.Bundle;
 import android.view.MenuItem;
+
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.flashnote.java.data.model.CardItem;
 import com.flashnote.java.data.model.CardPayload;
@@ -19,18 +21,35 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CardDetailActivity extends AppCompatActivity {
+    private static final String EXTRA_TITLE = "title";
+    private static final String EXTRA_PAYLOAD_JSON = "payloadJson";
+    private static final String EXTRA_USER_AVATAR = "userAvatar";
+    private static final String EXTRA_USER_AVATAR_URL = "userAvatarUrl";
+    private static final String EXTRA_PEER_AVATAR = "peerAvatar";
 
     private ActivityCardDetailBinding binding;
     private MessageAdapter adapter;
     private List<Message> messageList = new ArrayList<>();
 
     public static void start(Context context, String title, CardPayload payload) {
+        start(context, title, payload, null, null, null);
+    }
+
+    public static void start(Context context,
+                             String title,
+                             CardPayload payload,
+                             @Nullable String userAvatar,
+                             @Nullable String userAvatarUrl,
+                             @Nullable String peerAvatar) {
         if (payload == null) {
             return;
         }
         Intent intent = new Intent(context, CardDetailActivity.class);
-        intent.putExtra("title", title);
-        intent.putExtra("payloadJson", new Gson().toJson(payload));
+        intent.putExtra(EXTRA_TITLE, title);
+        intent.putExtra(EXTRA_PAYLOAD_JSON, new Gson().toJson(payload));
+        intent.putExtra(EXTRA_USER_AVATAR, userAvatar);
+        intent.putExtra(EXTRA_USER_AVATAR_URL, userAvatarUrl);
+        intent.putExtra(EXTRA_PEER_AVATAR, peerAvatar);
         context.startActivity(intent);
     }
 
@@ -40,13 +59,17 @@ public class CardDetailActivity extends AppCompatActivity {
         binding = ActivityCardDetailBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        String title = getIntent().getStringExtra("title");
-        String payloadJson = getIntent().getStringExtra("payloadJson");
+        String title = getIntent().getStringExtra(EXTRA_TITLE);
+        String payloadJson = getIntent().getStringExtra(EXTRA_PAYLOAD_JSON);
 
         setSupportActionBar(binding.toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle(title != null ? title : "卡片消息详情");
+        }
+        binding.toolbar.setTitleTextColor(getColor(com.flashnote.java.R.color.text_primary));
+        if (binding.toolbar.getNavigationIcon() != null) {
+            binding.toolbar.getNavigationIcon().mutate().setColorFilter(getColor(com.flashnote.java.R.color.text_primary), PorterDuff.Mode.SRC_IN);
         }
 
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -54,6 +77,9 @@ public class CardDetailActivity extends AppCompatActivity {
         binding.recyclerView.addItemDecoration(dividerItemDecoration);
 
         adapter = new MessageAdapter(null);
+        adapter.setUserAvatar(getIntent().getStringExtra(EXTRA_USER_AVATAR));
+        adapter.setUserAvatarUrl(getIntent().getStringExtra(EXTRA_USER_AVATAR_URL), this);
+        adapter.setPeerAvatar(getIntent().getStringExtra(EXTRA_PEER_AVATAR));
         binding.recyclerView.setAdapter(adapter);
 
         loadMessages(payloadJson);
@@ -89,7 +115,8 @@ public class CardDetailActivity extends AppCompatActivity {
         message.setThumbnailUrl(item.getThumbnailUrl());
         message.setFileName(item.getFileName());
         message.setFileSize(item.getFileSize());
-        message.setRole("assistant");
+        message.setRole(item.getRole());
+        message.setSenderId(item.getSenderId());
         return message;
     }
 

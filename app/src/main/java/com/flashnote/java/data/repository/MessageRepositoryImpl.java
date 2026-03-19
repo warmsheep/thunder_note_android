@@ -492,7 +492,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         messageService.merge(request).enqueue(new Callback<ApiResponse<Message>>() {
             @Override
             public void onResponse(Call<ApiResponse<Message>> call, Response<ApiResponse<Message>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().getCode() == 200) {
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     if (callback != null) {
                         callback.onSuccess(response.body().getData());
                     }
@@ -522,7 +522,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         messageService.merge(request).enqueue(new Callback<ApiResponse<Message>>() {
             @Override
             public void onResponse(Call<ApiResponse<Message>> call, Response<ApiResponse<Message>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().getCode() == 200) {
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     if (callback != null) {
                         callback.onSuccess(response.body().getData());
                     }

@@ -501,7 +501,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             String detailTitle = payload != null && !TextUtils.isEmpty(payload.getTitle())
                     ? payload.getTitle()
                     : message.getContent();
-            CardDetailActivity.start(context, detailTitle, payload);
+            String detailPeerAvatar = peerAvatarUrl != null ? peerAvatarUrl : peerAvatar;
+            CardDetailActivity.start(context, detailTitle, payload, userAvatar, userAvatarUrl, detailPeerAvatar);
         });
     }
 

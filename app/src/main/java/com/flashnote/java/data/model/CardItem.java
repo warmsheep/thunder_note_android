@@ -24,6 +24,12 @@ public class CardItem {
     @SerializedName("originalMsgId")
     private Long originalMsgId;
 
+    @SerializedName("senderId")
+    private Long senderId;
+
+    @SerializedName("role")
+    private String role;
+
     public String getType() {
         return type;
     }
@@ -78,5 +84,21 @@ public class CardItem {
 
     public void setOriginalMsgId(Long originalMsgId) {
         this.originalMsgId = originalMsgId;
+    }
+
+    public Long getSenderId() {
+        return senderId;
+    }
+
+    public void setSenderId(Long senderId) {
+        this.senderId = senderId;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 }
