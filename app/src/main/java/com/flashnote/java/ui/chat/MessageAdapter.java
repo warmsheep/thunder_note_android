@@ -25,6 +25,8 @@ import com.bumptech.glide.load.model.LazyHeaders;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.TokenManager;
+import com.flashnote.java.data.model.CardItem;
+import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.databinding.ItemChatMessageBinding;
@@ -46,6 +48,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         void onLongClick(Message message, View clickedView);
     }
 
+    public interface OnSelectionChangedListener {
+        void onSelectionChanged(int selectedCount);
+    }
+
     private static final long TEN_MINUTES_IN_MILLIS = 10 * 60 * 1000;
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -63,6 +69,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private MediaPlayer mediaPlayer;
     private Long currentPlayingMessageId;
 
+    private boolean selectionMode = false;
+    private final java.util.Set<Long> selectedIds = new java.util.LinkedHashSet<>();
+    @Nullable
+    private OnSelectionChangedListener selectionChangedListener;
+
     public MessageAdapter(OnMessageLongClickListener listener) {
         this.listener = listener;
         FlashNoteApp app = FlashNoteApp.getInstance();
@@ -75,7 +86,65 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         if (messages != null) {
             items.addAll(messages);
         }
+        if (selectionMode) {
+            java.util.Set<Long> existingIds = new java.util.LinkedHashSet<>();
+            for (Message item : items) {
+                if (item != null && item.getId() != null) {
+                    existingIds.add(item.getId());
+                }
+            }
+            selectedIds.retainAll(existingIds);
+            dispatchSelectionChanged();
+        }
         notifyDataSetChanged();
+    }
+
+    public void setOnSelectionChangedListener(@Nullable OnSelectionChangedListener listener) {
+        this.selectionChangedListener = listener;
+    }
+
+    public void setSelectionMode(boolean mode) {
+        if (this.selectionMode == mode) {
+            return;
+        }
+        this.selectionMode = mode;
+        if (!mode) {
+            selectedIds.clear();
+        }
+        dispatchSelectionChanged();
+        notifyDataSetChanged();
+    }
+
+    public boolean isSelectionMode() {
+        return selectionMode;
+    }
+
+    public java.util.List<Long> getSelectedIds() {
+        return new java.util.ArrayList<>(selectedIds);
+    }
+
+    public int getSelectedCount() {
+        return selectedIds.size();
+    }
+
+    public void toggleSelection(@Nullable Message message) {
+        if (message == null || message.getId() == null) {
+            return;
+        }
+        Long id = message.getId();
+        if (selectedIds.contains(id)) {
+            selectedIds.remove(id);
+        } else {
+            selectedIds.add(id);
+        }
+        dispatchSelectionChanged();
+        notifyDataSetChanged();
+    }
+
+    private void dispatchSelectionChanged() {
+        if (selectionChangedListener != null) {
+            selectionChangedListener.onSelectionChanged(selectedIds.size());
+        }
     }
 
     public void setUserAvatar(String avatar) {
@@ -176,6 +245,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     @Override
     public void onViewRecycled(@NonNull MessageViewHolder holder) {
         super.onViewRecycled(holder);
+        holder.binding.getRoot().setOnClickListener(null);
+        holder.binding.leftContainer.setOnClickListener(null);
+        holder.binding.bubbleCard.setOnClickListener(null);
+        holder.binding.rightContainer.setOnClickListener(null);
         holder.binding.voicePlayBtn.setOnClickListener(null);
         holder.binding.rightVoicePlayBtn.setOnClickListener(null);
         holder.binding.voiceContainer.setOnClickListener(null);
@@ -184,6 +257,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         holder.binding.rightMediaImageContainer.setOnClickListener(null);
         holder.binding.fileContainer.setOnClickListener(null);
         holder.binding.rightFileContainer.setOnClickListener(null);
+        holder.binding.compositeContainer.setOnClickListener(null);
+        holder.binding.rightCompositeContainer.setOnClickListener(null);
+        holder.binding.checkbox.setOnClickListener(null);
+        holder.binding.rightCheckbox.setOnClickListener(null);
         stopVoiceWaveAnimation(holder.binding.voiceWaveform);
         stopVoiceWaveAnimation(holder.binding.rightVoiceWaveform);
     }
@@ -316,6 +393,116 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
             refs.fileContainer.setOnClickListener(v -> openFileMessage(v.getContext(), message));
         }
+    }
+
+    private void showCompositeMessage(MessageViewHolder holder, Message message, boolean mine) {
+        hideAllMediaContainers(holder, mine);
+        FrameRefs refs = getRefs(holder, mine);
+        Context context = holder.binding.getRoot().getContext();
+
+        refs.compositeContainer.setVisibility(View.VISIBLE);
+        refs.messageText.setVisibility(View.GONE);
+
+        CardPayload payload = message.getPayload();
+        if (payload == null) {
+            refs.compositeTitle.setText("未知的卡片内容");
+            refs.compositeSummary.setVisibility(View.GONE);
+            refs.compositeGrid.setVisibility(View.GONE);
+            return;
+        }
+
+        refs.compositeTitle.setText(TextUtils.isEmpty(payload.getTitle()) ? "闪记" : payload.getTitle());
+
+        StringBuilder summary = new StringBuilder();
+        if (!TextUtils.isEmpty(payload.getSummary())) {
+            summary.append(payload.getSummary());
+        }
+        List<CardItem> items = payload.getItems();
+        if (summary.length() == 0 && items != null && !items.isEmpty()) {
+            for (int i = 0; i < Math.min(items.size(), 3); i++) {
+                CardItem item = items.get(i);
+                if (!TextUtils.isEmpty(item.getContent())) {
+                    if (summary.length() > 0) summary.append("\n");
+                    summary.append(item.getContent());
+                } else if ("IMAGE".equalsIgnoreCase(item.getType())) {
+                    if (summary.length() > 0) summary.append("\n");
+                    summary.append("[图片]");
+                } else if ("VIDEO".equalsIgnoreCase(item.getType())) {
+                    if (summary.length() > 0) summary.append("\n");
+                    summary.append("[视频]");
+                } else if ("FILE".equalsIgnoreCase(item.getType())) {
+                    if (summary.length() > 0) summary.append("\n");
+                    summary.append("[文件]");
+                } else if ("VOICE".equalsIgnoreCase(item.getType())) {
+                    if (summary.length() > 0) summary.append("\n");
+                    summary.append("[语音]");
+                }
+            }
+        }
+        
+        if (summary.length() > 0) {
+            refs.compositeSummary.setVisibility(View.VISIBLE);
+            refs.compositeSummary.setText(summary.toString());
+        } else {
+            refs.compositeSummary.setVisibility(View.GONE);
+        }
+
+        List<String> mediaUrls = new ArrayList<>();
+        if (items != null) {
+            for (CardItem item : items) {
+                if ("IMAGE".equalsIgnoreCase(item.getType())) {
+                    mediaUrls.add(item.getUrl());
+                } else if ("VIDEO".equalsIgnoreCase(item.getType())) {
+                    mediaUrls.add(TextUtils.isEmpty(item.getThumbnailUrl()) ? item.getUrl() : item.getThumbnailUrl());
+                }
+            }
+        }
+
+        if (mediaUrls.isEmpty()) {
+            refs.compositeGrid.setVisibility(View.GONE);
+        } else {
+            refs.compositeGrid.setVisibility(View.VISIBLE);
+            refs.compositeGrid.removeAllViews();
+            
+            int count = Math.min(mediaUrls.size(), 9);
+            int cols = count == 1 ? 1 : (count == 4 || count == 2 ? 2 : 3);
+            refs.compositeGrid.setColumnCount(cols);
+            
+            int sizePx = count == 1 ? context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_width) :
+                    (int) (90 * context.getResources().getDisplayMetrics().density);
+            int marginPx = (int) (2 * context.getResources().getDisplayMetrics().density);
+
+            for (int i = 0; i < count; i++) {
+                ImageView iv = new ImageView(context);
+                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                
+                android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams();
+                params.width = sizePx;
+                params.height = sizePx;
+                params.setMargins(marginPx, marginPx, marginPx, marginPx);
+                iv.setLayoutParams(params);
+                
+                Glide.with(context)
+                        .load(buildGlideUrl(context, mediaUrls.get(i)))
+                        .placeholder(R.drawable.bg_placeholder_card)
+                        .error(R.drawable.bg_placeholder_card)
+                        .override(sizePx, sizePx)
+                        .into(iv);
+                        
+                refs.compositeGrid.addView(iv);
+            }
+        }
+
+        refs.compositeContainer.setOnClickListener(v -> {
+            if (selectionMode) {
+                toggleSelection(message);
+                return;
+            }
+            String detailTitle = payload != null && !TextUtils.isEmpty(payload.getTitle())
+                    ? payload.getTitle()
+                    : message.getContent();
+            CardDetailActivity.start(context, detailTitle, payload);
+        });
     }
 
     private void toggleVoicePlayback(Context context, Message message, View voiceContainer, View voiceWaveform) {
@@ -496,6 +683,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         refs.voiceUploadProgress.setVisibility(View.GONE);
         refs.fileContainer.setVisibility(View.GONE);
         refs.fileUploadProgress.setVisibility(View.GONE);
+        refs.compositeContainer.setVisibility(View.GONE);
         stopVoiceWaveAnimation(refs.voiceWaveform);
     }
 
@@ -516,7 +704,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     holder.binding.rightFileNameText,
                     holder.binding.rightFileSizeText,
                     holder.binding.rightFileUploadProgress,
-                    holder.binding.rightMessageText
+                    holder.binding.rightMessageText,
+                    holder.binding.rightCompositeContainer,
+                    holder.binding.rightCompositeTitle,
+                    holder.binding.rightCompositeSummary,
+                    holder.binding.rightCompositeGrid
             );
         }
         return new FrameRefs(
@@ -534,7 +726,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 holder.binding.fileNameText,
                 holder.binding.fileSizeText,
                 holder.binding.fileUploadProgress,
-                holder.binding.messageText
+                holder.binding.messageText,
+                holder.binding.compositeContainer,
+                holder.binding.compositeTitle,
+                holder.binding.compositeSummary,
+                holder.binding.compositeGrid
         );
     }
 
@@ -745,12 +941,17 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 showVoiceMessage(this, message, mine);
             } else if ("FILE".equalsIgnoreCase(mediaType)) {
                 showFileMessage(this, message, mine);
+            } else if ("COMPOSITE".equalsIgnoreCase(mediaType) || "CARD".equalsIgnoreCase(mediaType)) {
+                showCompositeMessage(this, message, mine);
             } else {
                 showTextOnly(this, message, mine);
             }
 
-            // 为所有可点击的容器添加长按监听
             View.OnLongClickListener longClickListener = v -> {
+                if (selectionMode) {
+                    toggleSelection(message);
+                    return true;
+                }
                 if (listener != null) {
                     View bubbleView = mine ? binding.rightContainer : binding.bubbleCard;
                     listener.onLongClick(message, bubbleView);
@@ -765,6 +966,52 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             binding.rightVoiceContainer.setOnLongClickListener(longClickListener);
             binding.fileContainer.setOnLongClickListener(longClickListener);
             binding.rightFileContainer.setOnLongClickListener(longClickListener);
+            binding.compositeContainer.setOnLongClickListener(longClickListener);
+            binding.rightCompositeContainer.setOnLongClickListener(longClickListener);
+
+            if (selectionMode) {
+                boolean selected = message.getId() != null && selectedIds.contains(message.getId());
+                binding.checkbox.setChecked(selected);
+                binding.rightCheckbox.setChecked(selected);
+
+                if (mine) {
+                    binding.checkbox.setVisibility(View.GONE);
+                    binding.rightCheckbox.setVisibility(View.VISIBLE);
+                } else {
+                    binding.checkbox.setVisibility(View.VISIBLE);
+                    binding.rightCheckbox.setVisibility(View.GONE);
+                }
+                
+                View.OnClickListener selectClickListener = v -> {
+                    toggleSelection(message);
+                };
+                binding.getRoot().setOnClickListener(selectClickListener);
+                binding.leftContainer.setOnClickListener(selectClickListener);
+                binding.bubbleCard.setOnClickListener(selectClickListener);
+                binding.rightContainer.setOnClickListener(selectClickListener);
+                binding.mediaImageContainer.setOnClickListener(selectClickListener);
+                binding.rightMediaImageContainer.setOnClickListener(selectClickListener);
+                binding.voiceContainer.setOnClickListener(selectClickListener);
+                binding.rightVoiceContainer.setOnClickListener(selectClickListener);
+                binding.fileContainer.setOnClickListener(selectClickListener);
+                binding.rightFileContainer.setOnClickListener(selectClickListener);
+                binding.compositeContainer.setOnClickListener(selectClickListener);
+                binding.rightCompositeContainer.setOnClickListener(selectClickListener);
+                binding.checkbox.setOnClickListener(selectClickListener);
+                binding.rightCheckbox.setOnClickListener(selectClickListener);
+                
+                binding.bubbleCard.setOnLongClickListener(null);
+                binding.rightContainer.setOnLongClickListener(null);
+            } else {
+                binding.checkbox.setVisibility(View.GONE);
+                binding.rightCheckbox.setVisibility(View.GONE);
+                binding.getRoot().setOnClickListener(null);
+                binding.leftContainer.setOnClickListener(null);
+                binding.bubbleCard.setOnClickListener(null);
+                binding.rightContainer.setOnClickListener(null);
+                binding.checkbox.setOnClickListener(null);
+                binding.rightCheckbox.setOnClickListener(null);
+            }
         }
     }
 
@@ -784,6 +1031,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         final TextView fileSizeText;
         final ProgressBar fileUploadProgress;
         final TextView messageText;
+        final View compositeContainer;
+        final TextView compositeTitle;
+        final TextView compositeSummary;
+        final android.widget.GridLayout compositeGrid;
 
         FrameRefs(View imageContainer,
                   ImageView imageView,
@@ -799,7 +1050,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                   TextView fileNameText,
                   TextView fileSizeText,
                   ProgressBar fileUploadProgress,
-                  TextView messageText) {
+                  TextView messageText,
+                  View compositeContainer,
+                  TextView compositeTitle,
+                  TextView compositeSummary,
+                  android.widget.GridLayout compositeGrid) {
             this.imageContainer = imageContainer;
             this.imageView = imageView;
             this.playIcon = playIcon;
@@ -815,6 +1070,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             this.fileSizeText = fileSizeText;
             this.fileUploadProgress = fileUploadProgress;
             this.messageText = messageText;
+            this.compositeContainer = compositeContainer;
+            this.compositeTitle = compositeTitle;
+            this.compositeSummary = compositeSummary;
+            this.compositeGrid = compositeGrid;
         }
     }
 }

@@ -47,6 +47,9 @@ public class Message {
     @SerializedName("fileSize")
     private Long fileSize;
     
+    @SerializedName("payload")
+    private CardPayload payload;
+    
     private transient boolean uploading = false;
 
     public Message() {}
@@ -56,6 +59,14 @@ public class Message {
         this.flashNoteId = flashNoteId;
         this.role = role;
         this.content = content;
+    }
+
+    public CardPayload getPayload() {
+        return payload;
+    }
+
+    public void setPayload(CardPayload payload) {
+        this.payload = payload;
     }
 
     public Long getId() {

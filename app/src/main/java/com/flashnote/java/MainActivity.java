@@ -11,6 +11,7 @@ import com.flashnote.java.ui.auth.LoginFragment;
 import com.flashnote.java.ui.auth.RegisterFragment;
 import com.flashnote.java.ui.auth.SplashFragment;
 import com.flashnote.java.ui.chat.ChatFragment;
+import com.flashnote.java.ui.chat.CardEditorFragment;
 import com.flashnote.java.ui.main.EditProfileFragment;
 import com.flashnote.java.ui.main.MainShellFragment;
 import com.flashnote.java.ui.main.QuickCaptureTextFragment;
@@ -71,6 +72,11 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     @Override
     public void openQuickCaptureTextEditor() {
         replaceRootFragment(new QuickCaptureTextFragment(), true, false);
+    }
+
+    @Override
+    public void openCardEditor(long flashNoteId, long peerUserId, String title) {
+        replaceRootFragment(CardEditorFragment.newInstance(flashNoteId, peerUserId, title), true, false);
     }
 
     @Override

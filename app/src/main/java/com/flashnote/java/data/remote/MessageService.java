@@ -3,6 +3,7 @@ package com.flashnote.java.data.remote;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.MessageListRequest;
+import com.flashnote.java.data.model.MessageMergeRequest;
 
 import java.util.List;
 
@@ -19,6 +20,9 @@ public interface MessageService {
 
     @POST("api/messages")
     Call<ApiResponse<Message>> send(@Body Message message);
+
+    @POST("api/messages/merge")
+    Call<ApiResponse<Message>> merge(@Body MessageMergeRequest request);
 
     @DELETE("api/messages/{id}")
     Call<ApiResponse<Void>> delete(@Path("id") Long id);

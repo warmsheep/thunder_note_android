@@ -17,6 +17,8 @@ public interface ShellNavigator {
 
     void openQuickCaptureTextEditor();
 
+    void openCardEditor(long flashNoteId, long peerUserId, String title);
+
     void openEditProfile();
 
     void openChangePassword();

@@ -25,6 +25,18 @@
         android:gravity="top"
         android:orientation="horizontal">
 
+        <CheckBox
+            android:id="@+id/checkbox"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/selector_chat_selection"
+            android:button="@null"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:visibility="gone" />
+
         <FrameLayout
             android:layout_width="@dimen/icon_size_avatar"
             android:layout_height="@dimen/icon_size_avatar">
@@ -192,6 +204,55 @@
                     android:maxWidth="@dimen/chat_message_text_max_width"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_body_small" />
+
+                <LinearLayout
+                    android:id="@+id/compositeContainer"
+                    android:layout_width="@dimen/chat_message_text_max_width"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/compositeTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp"/>
+
+                    <TextView
+                        android:id="@+id/compositeSummary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="14sp"
+                        android:maxLines="3"
+                        android:ellipsize="end" />
+
+                    <GridLayout
+                        android:id="@+id/compositeGrid"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:useDefaultMargins="true"
+                        android:visibility="gone" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="#E0E0E0" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="闪记卡片消息"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
@@ -203,6 +264,18 @@
         android:gravity="end|top"
         android:orientation="horizontal"
         android:visibility="gone">
+
+        <CheckBox
+            android:id="@+id/rightCheckbox"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/selector_chat_selection"
+            android:button="@null"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:visibility="gone" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -342,6 +415,55 @@
                 android:maxWidth="@dimen/chat_message_text_max_width"
                 android:textColor="@color/text_primary"
                 android:textSize="@dimen/text_size_body_small" />
+
+            <LinearLayout
+                android:id="@+id/rightCompositeContainer"
+                android:layout_width="@dimen/chat_message_text_max_width"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/rightCompositeTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+
+                <TextView
+                    android:id="@+id/rightCompositeSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:maxLines="3"
+                    android:ellipsize="end" />
+
+                <GridLayout
+                    android:id="@+id/rightCompositeGrid"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:useDefaultMargins="true"
+                    android:visibility="gone" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:background="#E0E0E0" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="闪记卡片消息"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
         </LinearLayout>
 
         <TextView

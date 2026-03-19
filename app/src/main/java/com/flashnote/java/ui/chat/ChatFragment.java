@@ -45,9 +45,11 @@ import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.FavoriteRepository;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.UserRepository;
+import com.flashnote.java.databinding.DialogMergeCardTitleBinding;
 import com.flashnote.java.databinding.FragmentChatBinding;
 import com.flashnote.java.databinding.PopupMessageActionsBinding;
 import com.flashnote.java.ui.main.FlashNoteViewModel;
+import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.flashnote.java.util.VideoCompressor;
 
 import java.io.File;
@@ -87,6 +89,7 @@ public class ChatFragment extends Fragment {
     private int loadMoreAnchorPosition = RecyclerView.NO_POSITION;
     private int loadMoreAnchorOffset = 0;
     private int messageCountBeforeLoadMore = 0;
+    private boolean isMultiSelectMode = false;
 
     public static ChatFragment newInstance(long flashNoteId, String title) {
         ChatFragment fragment = new ChatFragment();
@@ -187,6 +190,10 @@ public class ChatFragment extends Fragment {
             if (!isAdded()) {
                 return;
             }
+            if (isMultiSelectMode) {
+                exitMultiSelectMode();
+                return;
+            }
             getParentFragmentManager().popBackStack();
         });
 
@@ -195,6 +202,7 @@ public class ChatFragment extends Fragment {
         chatViewModel = new ViewModelProvider(requireActivity()).get(ChatViewModel.class);
         FlashNoteViewModel flashNoteViewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
         adapter = new MessageAdapter((message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView));
+        adapter.setOnSelectionChangedListener(this::updateMergeSelectionCount);
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerView.setAdapter(adapter);
         binding.recyclerView.setItemAnimator(null);
@@ -307,6 +315,9 @@ public class ChatFragment extends Fragment {
         binding.sendButton.setOnClickListener(v -> sendMessage(chatViewModel));
         setupToolsPanel();
         setupMicButton();
+        binding.mergeCancelButton.setOnClickListener(v -> exitMultiSelectMode());
+        binding.mergeConfirmButton.setOnClickListener(v -> handleMergeAction());
+        updateMergeSelectionCount(0);
     }
 
     private void setupMessageInput(@NonNull ChatViewModel viewModel) {
@@ -497,6 +508,11 @@ public class ChatFragment extends Fragment {
             handleDelete(message, chatViewModel);
         });
 
+        popupBinding.actionSelect.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            enterMultiSelectMode(message);
+        });
+
         popupBinding.getRoot().measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         int popupWidth = popupBinding.getRoot().getMeasuredWidth();
         int popupHeight = popupBinding.getRoot().getMeasuredHeight();
@@ -524,6 +540,93 @@ public class ChatFragment extends Fragment {
         if (popupY < 0) popupY = 0;
 
         popupWindow.showAtLocation(binding.getRoot(), Gravity.NO_GRAVITY, popupX, popupY);
+    }
+
+    private void enterMultiSelectMode(@Nullable Message firstSelectedMessage) {
+        if (adapter == null || binding == null) return;
+        isMultiSelectMode = true;
+        adapter.setSelectionMode(true);
+        if (firstSelectedMessage != null) {
+            adapter.toggleSelection(firstSelectedMessage);
+        }
+        binding.inputContainer.setVisibility(View.GONE);
+        binding.toolsPanel.setVisibility(View.GONE);
+        binding.mergePanel.setVisibility(View.VISIBLE);
+        updateMergeSelectionCount(adapter.getSelectedCount());
+    }
+
+    private void exitMultiSelectMode() {
+        if (adapter == null || binding == null) return;
+        isMultiSelectMode = false;
+        adapter.setSelectionMode(false);
+        binding.inputContainer.setVisibility(View.VISIBLE);
+        binding.mergePanel.setVisibility(View.GONE);
+        updateMergeSelectionCount(0);
+    }
+
+    private void handleMergeAction() {
+        if (adapter == null || chatViewModel == null || !isAdded()) return;
+        List<Long> selectedIds = new ArrayList<>(adapter.getSelectedIds());
+        int selectedCount = selectedIds.size();
+        if (selectedCount <= 0) {
+            showToast("请先选择消息");
+            return;
+        }
+
+        if (selectedCount < 2) {
+            showToast("请至少选择 2 条消息进行合并");
+            return;
+        }
+
+        DialogMergeCardTitleBinding dialogBinding = DialogMergeCardTitleBinding.inflate(getLayoutInflater());
+        dialogBinding.mergeHintText.setText("将 " + selectedCount + " 条消息整理为一张可分享的卡片");
+        dialogBinding.titleInput.setText("闪记卡片消息（" + selectedCount + "条）");
+        if (dialogBinding.titleInput.getText() != null) {
+            dialogBinding.titleInput.setSelection(dialogBinding.titleInput.getText().length());
+        }
+
+        new android.app.AlertDialog.Builder(requireContext())
+                .setView(dialogBinding.getRoot())
+                .setNegativeButton("取消", null)
+                .setPositiveButton("合并", (dialog, which) -> submitMerge(selectedIds, dialogBinding.titleInput.getText() == null ? "" : dialogBinding.titleInput.getText().toString().trim()))
+                .show();
+    }
+
+    private void submitMerge(List<Long> selectedIds, String title) {
+        if (chatViewModel == null) {
+            return;
+        }
+        if (title.isEmpty()) {
+            showToast("请输入卡片标题");
+            return;
+        }
+
+        chatViewModel.mergeMessages(selectedIds, title, new com.flashnote.java.data.repository.MessageRepository.MergeCallback() {
+            @Override
+            public void onSuccess(Message mergedMessage) {
+                if (!isAdded() || getActivity() == null) return;
+                getActivity().runOnUiThread(() -> {
+                    chatViewModel.addLocalMessage(mergedMessage);
+                    showToast("合并成功");
+                    exitMultiSelectMode();
+                });
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (!isAdded() || getActivity() == null) return;
+                getActivity().runOnUiThread(() -> {
+                    showToast("合并失败: " + errorMessage);
+                });
+            }
+        });
+    }
+
+    private void updateMergeSelectionCount(int selectedCount) {
+        if (binding == null) {
+            return;
+        }
+        binding.mergeTitleText.setText("已选择 " + selectedCount + " 条消息");
     }
 
     private void handleDelete(Message message, ChatViewModel chatViewModel) {
@@ -846,6 +949,7 @@ public class ChatFragment extends Fragment {
                         forwardMsg.setMediaDuration(message.getMediaDuration());
                         forwardMsg.setThumbnailUrl(message.getThumbnailUrl());
                         forwardMsg.setContent(message.getContent());
+                        forwardMsg.setPayload(message.getPayload());
                         forwardMsg.setFlashNoteId(target.getId());
                         forwardMsg.setRole("user");
                         chatViewModel.sendMessageToFlashNote(target.getId(), forwardMsg, () -> {
@@ -893,6 +997,11 @@ public class ChatFragment extends Fragment {
             hideToolsPanel();
             openCamera();
         });
+
+        binding.toolCard.setOnClickListener(v -> {
+            hideToolsPanel();
+            openCardEditor();
+        });
     }
 
     private void toggleToolsPanel() {
@@ -903,6 +1012,20 @@ public class ChatFragment extends Fragment {
     private void hideToolsPanel() {
         isToolsPanelVisible = false;
         binding.toolsPanel.setVisibility(View.GONE);
+    }
+
+    private void openCardEditor() {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID, 0L);
+        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID, 0L);
+        String pageTitle = binding == null || binding.titleText.getText() == null
+                ? "新建卡片"
+                : binding.titleText.getText().toString();
+        if (getActivity() instanceof ShellNavigator navigator) {
+            navigator.openCardEditor(flashNoteId, peerUserId, pageTitle);
+        }
     }
 
     private void setupMicButton() {

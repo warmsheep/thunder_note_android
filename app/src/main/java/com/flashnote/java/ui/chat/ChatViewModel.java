@@ -92,6 +92,13 @@ public class ChatViewModel extends AndroidViewModel {
         repository.sendMessage(targetFlashNoteId, message, onSuccess);
     }
 
+    public void sendMessageToFlashNote(long targetFlashNoteId, Message message, MessageRepository.SendCallback callback) {
+        if (targetFlashNoteId == 0L || message == null) {
+            return;
+        }
+        repository.sendMessage(targetFlashNoteId, message, callback);
+    }
+
     public void deleteMessage(long messageId, Runnable onSuccess) {
         if (messageId <= 0) {
             return;
@@ -107,6 +114,22 @@ public class ChatViewModel extends AndroidViewModel {
         }
     }
 
+    public void mergeMessages(java.util.List<Long> messageIds, String title, com.flashnote.java.data.repository.MessageRepository.MergeCallback callback) {
+        if (messageIds == null || messageIds.isEmpty()) {
+            if (callback != null) callback.onError("No messages selected");
+            return;
+        }
+        Long peerId = peerUserId.getValue();
+        if (peerId != null && peerId > 0L) {
+            repository.mergeContactMessages(peerId, messageIds, title, callback);
+            return;
+        }
+        Long id = flashNoteId.getValue();
+        if (id != null && id != 0L) {
+            repository.mergeMessages(id, messageIds, title, callback);
+        }
+    }
+
     public void sendMedia(Message message, Runnable onSuccess) {
         if (message == null) {
             return;
@@ -119,6 +142,21 @@ public class ChatViewModel extends AndroidViewModel {
         Long id = flashNoteId.getValue();
         if (id != null && id != 0L) {
             repository.sendMessage(id, message, onSuccess);
+        }
+    }
+
+    public void sendMedia(Message message, MessageRepository.SendCallback callback) {
+        if (message == null) {
+            return;
+        }
+        Long peerId = peerUserId.getValue();
+        if (peerId != null && peerId > 0L) {
+            repository.sendMessageToContact(peerId, message, callback);
+            return;
+        }
+        Long id = flashNoteId.getValue();
+        if (id != null && id != 0L) {
+            repository.sendMessage(id, message, callback);
         }
     }
 

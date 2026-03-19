@@ -12,6 +12,16 @@ public interface MessageRepository {
         void onError(String message, int code);
     }
 
+    interface MergeCallback {
+        void onSuccess(Message mergedMessage);
+        void onError(String message);
+    }
+
+    interface SendCallback {
+        void onSuccess();
+        void onError(String message);
+    }
+
     LiveData<List<Message>> getMessages(long flashNoteId);
 
     LiveData<List<Message>> getContactMessages(long peerUserId);
@@ -38,7 +48,11 @@ public interface MessageRepository {
 
     void sendMessage(long flashNoteId, Message message, Runnable onSuccess);
 
+    void sendMessage(long flashNoteId, Message message, SendCallback callback);
+
     void sendMessageToContact(long peerUserId, Message message, Runnable onSuccess);
+
+    void sendMessageToContact(long peerUserId, Message message, SendCallback callback);
 
     void loadMoreMessages(long flashNoteId);
 
@@ -51,4 +65,8 @@ public interface MessageRepository {
     void addLocalMessage(Message message);
 
     void addLocalContactMessage(long peerUserId, Message message);
+
+    void mergeMessages(long flashNoteId, List<Long> messageIds, String title, MergeCallback callback);
+
+    void mergeContactMessages(long peerUserId, List<Long> messageIds, String title, MergeCallback callback);
 }

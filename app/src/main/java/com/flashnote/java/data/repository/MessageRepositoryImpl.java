@@ -347,19 +347,29 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void sendMessage(long flashNoteId, Message message, Runnable onSuccess) {
-        sendMessageInternal(keyForFlashNote(flashNoteId), flashNoteId, null, message, onSuccess);
+        sendMessage(flashNoteId, message, runnableToCallback(onSuccess));
+    }
+
+    @Override
+    public void sendMessage(long flashNoteId, Message message, SendCallback callback) {
+        sendMessageInternal(keyForFlashNote(flashNoteId), flashNoteId, null, message, callback);
     }
 
     @Override
     public void sendMessageToContact(long peerUserId, Message message, Runnable onSuccess) {
-        sendMessageInternal(keyForContact(peerUserId), null, peerUserId, message, onSuccess);
+        sendMessageToContact(peerUserId, message, runnableToCallback(onSuccess));
+    }
+
+    @Override
+    public void sendMessageToContact(long peerUserId, Message message, SendCallback callback) {
+        sendMessageInternal(keyForContact(peerUserId), null, peerUserId, message, callback);
     }
 
     private void sendMessageInternal(long conversationKey,
                                      Long flashNoteId,
                                      Long peerUserId,
                                      Message message,
-                                     Runnable onSuccess) {
+                                     SendCallback callback) {
         isLoading.setValue(true);
         message.setFlashNoteId(flashNoteId);
         message.setReceiverId(peerUserId);
@@ -380,18 +390,24 @@ public class MessageRepositoryImpl implements MessageRepository {
                         updated.remove(message);
                         updated.add(apiResponse.getData());
                         liveData.setValue(updated);
-                        if (onSuccess != null) {
-                            onSuccess.run();
+                        if (callback != null) {
+                            callback.onSuccess();
                         }
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("MessageRepo", errMsg);
                         errorMessage.setValue(errMsg);
+                        if (callback != null) {
+                            callback.onError(errMsg);
+                        }
                     }
                 } else {
                     String errMsg = "Failed to send message: " + response.code();
                     DebugLog.w("MessageRepo", errMsg);
                     errorMessage.setValue(errMsg);
+                    if (callback != null) {
+                        callback.onError(errMsg);
+                    }
                 }
             }
 
@@ -401,8 +417,26 @@ public class MessageRepositoryImpl implements MessageRepository {
                 String errMsg = "Network error: " + t.getMessage();
                 DebugLog.w("MessageRepo", errMsg);
                 errorMessage.setValue(errMsg);
+                if (callback != null) {
+                    callback.onError(errMsg);
+                }
             }
         });
+    }
+
+    private SendCallback runnableToCallback(Runnable onSuccess) {
+        return new SendCallback() {
+            @Override
+            public void onSuccess() {
+                if (onSuccess != null) {
+                    onSuccess.run();
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+            }
+        };
     }
 
     @Override
@@ -446,6 +480,66 @@ public class MessageRepositoryImpl implements MessageRepository {
         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
         updated.add(message);
         liveData.setValue(updated);
+    }
+
+    @Override
+    public void mergeMessages(long flashNoteId, List<Long> messageIds, String title, MergeCallback callback) {
+        com.flashnote.java.data.model.MessageMergeRequest request = new com.flashnote.java.data.model.MessageMergeRequest();
+        request.setFlashNoteId(flashNoteId);
+        request.setMessageIds(messageIds);
+        request.setTitle(title);
+
+        messageService.merge(request).enqueue(new Callback<ApiResponse<Message>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Message>> call, Response<ApiResponse<Message>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getCode() == 200) {
+                    if (callback != null) {
+                        callback.onSuccess(response.body().getData());
+                    }
+                } else {
+                    if (callback != null) {
+                        callback.onError(response.body() != null ? response.body().getMessage() : "Merge failed");
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Message>> call, Throwable t) {
+                if (callback != null) {
+                    callback.onError(t.getMessage());
+                }
+            }
+        });
+    }
+
+    @Override
+    public void mergeContactMessages(long peerUserId, List<Long> messageIds, String title, MergeCallback callback) {
+        com.flashnote.java.data.model.MessageMergeRequest request = new com.flashnote.java.data.model.MessageMergeRequest();
+        request.setReceiverId(peerUserId);
+        request.setMessageIds(messageIds);
+        request.setTitle(title);
+
+        messageService.merge(request).enqueue(new Callback<ApiResponse<Message>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Message>> call, Response<ApiResponse<Message>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getCode() == 200) {
+                    if (callback != null) {
+                        callback.onSuccess(response.body().getData());
+                    }
+                } else {
+                    if (callback != null) {
+                        callback.onError(response.body() != null ? response.body().getMessage() : "Merge failed");
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Message>> call, Throwable t) {
+                if (callback != null) {
+                    callback.onError(t.getMessage());
+                }
+            }
+        });
     }
 
     private long keyForFlashNote(long flashNoteId) {

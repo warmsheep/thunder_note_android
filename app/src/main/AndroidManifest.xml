@@ -28,6 +28,10 @@
             android:exported="false"
             android:theme="@style/Theme.FlashNoteJava" />
         <activity
+            android:name=".ui.chat.CardDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FlashNoteJava" />
+        <activity
             android:name=".ui.media.ImageViewerActivity"
             android:exported="false"
             android:theme="@style/Theme.FlashNoteJava" />

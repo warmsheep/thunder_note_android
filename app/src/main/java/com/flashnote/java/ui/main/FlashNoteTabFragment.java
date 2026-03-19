@@ -10,6 +10,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.os.Bundle;
 import android.os.Handler;
@@ -901,6 +902,12 @@ public class FlashNoteTabFragment extends Fragment {
             popupWindow.dismiss();
             openFilePicker();
         });
+        popupView.findViewById(R.id.actionCard).setOnClickListener(v -> {
+            popupWindow.dismiss();
+            if (getActivity() instanceof ShellNavigator navigator) {
+                navigator.openCardEditor(COLLECTION_BOX_NOTE_ID, 0L, "收集箱卡片");
+            }
+        });
         popupView.findViewById(R.id.actionCamera).setOnClickListener(v -> {
             popupWindow.dismiss();
             openCamera();
@@ -993,7 +1000,8 @@ public class FlashNoteTabFragment extends Fragment {
             message.setFlashNoteId(COLLECTION_BOX_NOTE_ID);
             message.setMediaType(mediaType.equals("FILE") ? "FILE" : "IMAGE");
             message.setMediaUrl(file.getAbsolutePath());
-            message.setFileName(file.getName());
+            String originalName = getOriginalFileName(uri);
+            message.setFileName(originalName != null && !originalName.isBlank() ? originalName : file.getName());
             message.setFileSize(file.length());
             message.setRole("user");
             message.setUploading(true);
@@ -1006,17 +1014,28 @@ public class FlashNoteTabFragment extends Fragment {
                     }
                     message.setMediaUrl(value);
                     message.setUploading(false);
-                    messageRepository.sendMessage(COLLECTION_BOX_NOTE_ID, message, () -> {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
-                            if (binding != null) {
-                                playCaptureAnimation(binding.fabAdd);
+                    messageRepository.sendMessage(COLLECTION_BOX_NOTE_ID, message, new MessageRepository.SendCallback() {
+                        @Override
+                        public void onSuccess() {
+                            if (!isAdded() || getActivity() == null) {
+                                return;
                             }
-                            Toast.makeText(requireContext(), "已保存到收集箱", Toast.LENGTH_SHORT).show();
-                            viewModel.refresh();
-                        });
+                            getActivity().runOnUiThread(() -> {
+                                if (binding != null) {
+                                    playCaptureAnimation(binding.fabAdd);
+                                }
+                                Toast.makeText(requireContext(), "已保存到收集箱", Toast.LENGTH_SHORT).show();
+                                viewModel.refresh();
+                            });
+                        }
+
+                        @Override
+                        public void onError(String messageText) {
+                            if (!isAdded() || getActivity() == null) {
+                                return;
+                            }
+                            getActivity().runOnUiThread(() -> Toast.makeText(requireContext(), TextUtils.isEmpty(messageText) ? "保存失败" : messageText, Toast.LENGTH_SHORT).show());
+                        }
                     });
                 }
 
@@ -1046,7 +1065,8 @@ public class FlashNoteTabFragment extends Fragment {
                 callback.onReady(null);
                 return;
             }
-            File tempFile = new File(requireContext().getCacheDir(), prefix + "_" + System.currentTimeMillis());
+            String extension = getFileExtension(uri);
+            File tempFile = new File(requireContext().getCacheDir(), prefix + "_" + System.currentTimeMillis() + "." + extension);
             try (inputStream; FileOutputStream fos = new FileOutputStream(tempFile)) {
                 byte[] buffer = new byte[4096];
                 int bytesRead;
@@ -1073,6 +1093,36 @@ public class FlashNoteTabFragment extends Fragment {
                         .setDuration(180)
                         .start())
                 .start();
+    }
+
+    @Nullable
+    private String getOriginalFileName(@NonNull Uri uri) {
+        if (!isAdded()) {
+            return null;
+        }
+        try (android.database.Cursor cursor = requireContext().getContentResolver().query(uri, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                if (nameIndex >= 0) {
+                    return cursor.getString(nameIndex);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    @NonNull
+    private String getFileExtension(@NonNull Uri uri) {
+        if (!isAdded()) {
+            return "tmp";
+        }
+        String mimeType = requireContext().getContentResolver().getType(uri);
+        String extension = mimeType == null ? null : android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
+        if (extension == null || extension.isBlank()) {
+            extension = android.webkit.MimeTypeMap.getFileExtensionFromUrl(uri.toString());
+        }
+        return extension == null || extension.isBlank() ? "tmp" : extension;
     }
 
     @Override
