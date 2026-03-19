@@ -16,6 +16,7 @@ import androidx.core.content.FileProvider;
 
 import com.flashnote.java.R;
 import com.flashnote.java.databinding.ActivityFilePreviewBinding;
+import com.flashnote.java.util.MarkdownRenderer;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -69,7 +70,7 @@ public class FilePreviewActivity extends AppCompatActivity {
         }
 
         if (isText(ext)) {
-            showTextPreview(file);
+            showTextPreview(file, "md".equals(ext));
             return;
         }
 
@@ -87,7 +88,7 @@ public class FilePreviewActivity extends AppCompatActivity {
         closePdfRenderer();
     }
 
-    private void showTextPreview(File previewFile) {
+    private void showTextPreview(File previewFile, boolean markdown) {
         try (FileInputStream inputStream = new FileInputStream(previewFile)) {
             long fileLength = previewFile.length();
             int maxBytes = 1024 * 1024;
@@ -97,7 +98,12 @@ public class FilePreviewActivity extends AppCompatActivity {
             if (read <= 0) {
                 binding.textPreview.setText(getString(R.string.file_preview_empty_text));
             } else {
-                binding.textPreview.setText(new String(bytes, 0, read, StandardCharsets.UTF_8));
+                String content = new String(bytes, 0, read, StandardCharsets.UTF_8);
+                if (markdown) {
+                    MarkdownRenderer.render(binding.textPreview, content);
+                } else {
+                    binding.textPreview.setText(content);
+                }
             }
             binding.textPreviewContainer.setVisibility(android.view.View.VISIBLE);
             binding.pdfPreviewImage.setVisibility(android.view.View.GONE);
