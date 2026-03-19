@@ -4,6 +4,7 @@ import android.content.Context;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.media.MediaMetadataRetriever;
 import android.media.MediaMuxer;
 import android.os.Handler;
 import android.os.Looper;
@@ -58,9 +59,12 @@ public class VideoCompressor {
     private static boolean remuxVideo(String inputPath, String outputPath) {
         MediaExtractor extractor = null;
         MediaMuxer muxer = null;
+        MediaMetadataRetriever retriever = null;
         try {
             extractor = new MediaExtractor();
             extractor.setDataSource(inputPath);
+            retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(inputPath);
 
             int videoTrackIndex = -1;
             int audioTrackIndex = -1;
@@ -82,6 +86,13 @@ public class VideoCompressor {
             }
 
             muxer = new MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            String rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
+            if (rotation != null && !rotation.isEmpty()) {
+                try {
+                    muxer.setOrientationHint(Integer.parseInt(rotation));
+                } catch (NumberFormatException ignored) {
+                }
+            }
             int muxerVideoTrack = muxer.addTrack(extractor.getTrackFormat(videoTrackIndex));
             int muxerAudioTrack = -1;
             if (audioTrackIndex >= 0) {
@@ -109,6 +120,12 @@ public class VideoCompressor {
             try {
                 if (muxer != null) {
                     muxer.release();
+                }
+            } catch (Exception ignored) {
+            }
+            try {
+                if (retriever != null) {
+                    retriever.release();
                 }
             } catch (Exception ignored) {
             }
