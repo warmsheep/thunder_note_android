@@ -238,6 +238,14 @@
                         android:useDefaultMargins="true"
                         android:visibility="gone" />
 
+                    <LinearLayout
+                        android:id="@+id/compositeFileList"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="vertical"
+                        android:visibility="gone" />
+
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
@@ -447,6 +455,14 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:useDefaultMargins="true"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/rightCompositeFileList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"
                     android:visibility="gone" />
 
                 <View

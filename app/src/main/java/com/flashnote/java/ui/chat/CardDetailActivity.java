@@ -2,13 +2,10 @@ package com.flashnote.java.ui.chat;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.PorterDuff;
 import android.os.Bundle;
-import android.view.MenuItem;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.flashnote.java.data.model.CardItem;
@@ -62,19 +59,10 @@ public class CardDetailActivity extends AppCompatActivity {
         String title = getIntent().getStringExtra(EXTRA_TITLE);
         String payloadJson = getIntent().getStringExtra(EXTRA_PAYLOAD_JSON);
 
-        setSupportActionBar(binding.toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle(title != null ? title : "卡片消息详情");
-        }
-        binding.toolbar.setTitleTextColor(getColor(com.flashnote.java.R.color.text_primary));
-        if (binding.toolbar.getNavigationIcon() != null) {
-            binding.toolbar.getNavigationIcon().mutate().setColorFilter(getColor(com.flashnote.java.R.color.text_primary), PorterDuff.Mode.SRC_IN);
-        }
+        binding.titleText.setText(title != null ? title : "卡片消息详情");
+        binding.backButton.setOnClickListener(v -> finish());
 
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
-        binding.recyclerView.addItemDecoration(dividerItemDecoration);
 
         adapter = new MessageAdapter(null);
         adapter.setUserAvatar(getIntent().getStringExtra(EXTRA_USER_AVATAR));
@@ -115,17 +103,13 @@ public class CardDetailActivity extends AppCompatActivity {
         message.setThumbnailUrl(item.getThumbnailUrl());
         message.setFileName(item.getFileName());
         message.setFileSize(item.getFileSize());
-        message.setRole(item.getRole());
-        message.setSenderId(item.getSenderId());
+        if (item.getSenderId() != null || (item.getRole() != null && !item.getRole().isEmpty())) {
+            message.setRole(item.getRole());
+            message.setSenderId(item.getSenderId());
+        } else {
+            message.setRole("assistant");
+        }
         return message;
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            finish();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
 }

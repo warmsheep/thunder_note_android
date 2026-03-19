@@ -6,10 +6,12 @@ import android.content.Intent;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -34,6 +36,7 @@ import com.flashnote.java.ui.media.FilePreviewActivity;
 import com.flashnote.java.ui.media.ImageViewerActivity;
 import com.flashnote.java.ui.media.MediaUrlResolver;
 import com.flashnote.java.ui.media.VideoPlayerActivity;
+import com.flashnote.java.util.MarkdownRenderer;
 
 import java.io.File;
 import java.time.Duration;
@@ -280,7 +283,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         hideAllMediaContainers(holder, mine);
         TextView messageText = mine ? holder.binding.rightMessageText : holder.binding.messageText;
         messageText.setVisibility(View.VISIBLE);
-        messageText.setText(safeText(message.getContent()));
+        MarkdownRenderer.renderIfMarkdown(messageText, safeText(message.getContent()));
     }
 
     private void showImageMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -442,7 +445,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         
         if (summary.length() > 0) {
             refs.compositeSummary.setVisibility(View.VISIBLE);
-            refs.compositeSummary.setText(summary.toString());
+            MarkdownRenderer.renderIfMarkdown(refs.compositeSummary, summary.toString());
         } else {
             refs.compositeSummary.setVisibility(View.GONE);
         }
@@ -492,6 +495,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 refs.compositeGrid.addView(iv);
             }
         }
+
+        bindCompositeFiles(refs, items, context);
 
         refs.compositeContainer.setOnClickListener(v -> {
             if (selectionMode) {
@@ -685,6 +690,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         refs.fileContainer.setVisibility(View.GONE);
         refs.fileUploadProgress.setVisibility(View.GONE);
         refs.compositeContainer.setVisibility(View.GONE);
+        refs.compositeFileList.setVisibility(View.GONE);
+        refs.compositeFileList.removeAllViews();
         stopVoiceWaveAnimation(refs.voiceWaveform);
     }
 
@@ -709,7 +716,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     holder.binding.rightCompositeContainer,
                     holder.binding.rightCompositeTitle,
                     holder.binding.rightCompositeSummary,
-                    holder.binding.rightCompositeGrid
+                    holder.binding.rightCompositeGrid,
+                    holder.binding.rightCompositeFileList
             );
         }
         return new FrameRefs(
@@ -731,7 +739,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 holder.binding.compositeContainer,
                 holder.binding.compositeTitle,
                 holder.binding.compositeSummary,
-                holder.binding.compositeGrid
+                holder.binding.compositeGrid,
+                holder.binding.compositeFileList
         );
     }
 
@@ -746,7 +755,80 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             return;
         }
         textView.setVisibility(View.VISIBLE);
-        textView.setText(content);
+        MarkdownRenderer.renderIfMarkdown(textView, content);
+    }
+
+    private void bindCompositeFiles(FrameRefs refs, @Nullable List<CardItem> items, Context context) {
+        refs.compositeFileList.removeAllViews();
+        if (items == null || items.isEmpty()) {
+            refs.compositeFileList.setVisibility(View.GONE);
+            return;
+        }
+
+        int iconSize = context.getResources().getDimensionPixelSize(R.dimen.chat_file_icon_size);
+        int spacing = context.getResources().getDimensionPixelSize(R.dimen.chat_media_spacing_small);
+        float bodyTextSize = context.getResources().getDimension(R.dimen.text_size_body_small);
+        float tinyTextSize = context.getResources().getDimension(R.dimen.text_size_tiny);
+        boolean hasFiles = false;
+
+        for (CardItem item : items) {
+            if (!"FILE".equalsIgnoreCase(item.getType())) {
+                continue;
+            }
+            hasFiles = true;
+
+            LinearLayout row = new LinearLayout(context);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            row.setPadding(0, spacing / 2, 0, spacing / 2);
+
+            ImageView icon = new ImageView(context);
+            LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(iconSize, iconSize);
+            icon.setLayoutParams(iconParams);
+            String fileName = !TextUtils.isEmpty(item.getFileName()) ? item.getFileName() : fallbackFileName(item.getUrl());
+            icon.setImageResource(resolveFileIcon(fileName));
+            row.addView(icon);
+
+            LinearLayout textColumn = new LinearLayout(context);
+            textColumn.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            textParams.setMarginStart(spacing);
+            textColumn.setLayoutParams(textParams);
+
+            TextView nameView = new TextView(context);
+            nameView.setText(fileName);
+            nameView.setSingleLine(true);
+            nameView.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+            nameView.setTextColor(context.getColor(R.color.text_primary));
+            nameView.setTextSize(TypedValue.COMPLEX_UNIT_PX, bodyTextSize);
+            textColumn.addView(nameView);
+
+            if (item.getFileSize() != null && item.getFileSize() > 0) {
+                TextView sizeView = new TextView(context);
+                sizeView.setText(formatFileSize(item.getFileSize()));
+                sizeView.setTextColor(context.getColor(R.color.text_secondary));
+                sizeView.setTextSize(TypedValue.COMPLEX_UNIT_PX, tinyTextSize);
+                textColumn.addView(sizeView);
+            }
+
+            row.addView(textColumn);
+            if (!TextUtils.isEmpty(item.getUrl())) {
+                row.setOnClickListener(v -> {
+                    if (selectionMode) {
+                        return;
+                    }
+                    Message fileMessage = new Message();
+                    fileMessage.setMediaType("FILE");
+                    fileMessage.setMediaUrl(item.getUrl());
+                    fileMessage.setFileName(fileName);
+                    fileMessage.setFileSize(item.getFileSize());
+                    openFileMessage(context, fileMessage);
+                });
+            }
+            refs.compositeFileList.addView(row);
+        }
+
+        refs.compositeFileList.setVisibility(hasFiles ? View.VISIBLE : View.GONE);
     }
 
     private String safeText(String text) {
@@ -1036,6 +1118,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         final TextView compositeTitle;
         final TextView compositeSummary;
         final android.widget.GridLayout compositeGrid;
+        final LinearLayout compositeFileList;
 
         FrameRefs(View imageContainer,
                   ImageView imageView,
@@ -1055,7 +1138,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                   View compositeContainer,
                   TextView compositeTitle,
                   TextView compositeSummary,
-                  android.widget.GridLayout compositeGrid) {
+                  android.widget.GridLayout compositeGrid,
+                  LinearLayout compositeFileList) {
             this.imageContainer = imageContainer;
             this.imageView = imageView;
             this.playIcon = playIcon;
@@ -1075,6 +1159,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             this.compositeTitle = compositeTitle;
             this.compositeSummary = compositeSummary;
             this.compositeGrid = compositeGrid;
+            this.compositeFileList = compositeFileList;
         }
     }
 }
