@@ -47,6 +47,9 @@ public class FavoriteItem {
     @SerializedName(value = "messageCreatedAt", alternate = {"flashNoteCreatedAt"})
     private LocalDateTime messageCreatedAt;
 
+    @SerializedName("payload")
+    private CardPayload payload;
+
     public Long getId() {
         return id;
     }
@@ -157,5 +160,13 @@ public class FavoriteItem {
 
     public void setMessageCreatedAt(LocalDateTime messageCreatedAt) {
         this.messageCreatedAt = messageCreatedAt;
+    }
+
+    public CardPayload getPayload() {
+        return payload;
+    }
+
+    public void setPayload(CardPayload payload) {
+        this.payload = payload;
     }
 }

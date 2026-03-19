@@ -10,145 +10,159 @@
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:padding="8dp">
 
         <LinearLayout
-            android:id="@+id/actionCopy"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
             android:gravity="center"
-            android:orientation="vertical"
-            android:padding="12dp">
+            android:orientation="horizontal">
 
-            <ImageView
-                android:layout_width="@dimen/icon_size_popup_action"
-                android:layout_height="@dimen/icon_size_popup_action"
-                android:src="@android:drawable/ic_menu_agenda" />
-
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/actionCopy"
+                android:layout_width="72dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="复制"
-                android:textColor="#FFFFFF"
-                android:textSize="@dimen/text_size_popup_action" />
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <ImageView
+                    android:layout_width="@dimen/icon_size_popup_action"
+                    android:layout_height="@dimen/icon_size_popup_action"
+                    android:src="@android:drawable/ic_menu_agenda" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="复制"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/text_size_popup_action" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/actionShare"
+                android:layout_width="72dp"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <ImageView
+                    android:layout_width="@dimen/icon_size_popup_action"
+                    android:layout_height="@dimen/icon_size_popup_action"
+                    android:src="@android:drawable/ic_menu_send" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="分享"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/text_size_popup_action" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/actionForward"
+                android:layout_width="72dp"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <ImageView
+                    android:layout_width="@dimen/icon_size_popup_action"
+                    android:layout_height="@dimen/icon_size_popup_action"
+                    android:src="@android:drawable/ic_menu_share" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="转发"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/text_size_popup_action" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/actionShare"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
             android:gravity="center"
-            android:orientation="vertical"
-            android:padding="12dp">
+            android:orientation="horizontal">
 
-            <ImageView
-                android:layout_width="@dimen/icon_size_popup_action"
-                android:layout_height="@dimen/icon_size_popup_action"
-                android:src="@android:drawable/ic_menu_send" />
-
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/actionFavorite"
+                android:layout_width="72dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="分享"
-                android:textColor="#FFFFFF"
-                android:textSize="@dimen/text_size_popup_action" />
-        </LinearLayout>
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
 
-        <LinearLayout
-            android:id="@+id/actionForward"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="12dp">
+                <ImageView
+                    android:layout_width="@dimen/icon_size_popup_action"
+                    android:layout_height="@dimen/icon_size_popup_action"
+                    android:src="@drawable/ic_action_favorite" />
 
-            <ImageView
-                android:layout_width="@dimen/icon_size_popup_action"
-                android:layout_height="@dimen/icon_size_popup_action"
-                android:src="@android:drawable/ic_menu_share" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="收藏"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/text_size_popup_action" />
+            </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/actionSelect"
+                android:layout_width="72dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="转发"
-                android:textColor="#FFFFFF"
-                android:textSize="@dimen/text_size_popup_action" />
-        </LinearLayout>
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
 
-        <LinearLayout
-            android:id="@+id/actionFavorite"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="12dp">
+                <ImageView
+                    android:layout_width="@dimen/icon_size_popup_action"
+                    android:layout_height="@dimen/icon_size_popup_action"
+                    android:src="@android:drawable/ic_menu_agenda" />
 
-            <ImageView
-                android:layout_width="@dimen/icon_size_popup_action"
-                android:layout_height="@dimen/icon_size_popup_action"
-                android:src="@drawable/ic_action_favorite" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="多选"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/text_size_popup_action" />
+            </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/actionDelete"
+                android:layout_width="72dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="收藏"
-                android:textColor="#FFFFFF"
-                android:textSize="@dimen/text_size_popup_action" />
-        </LinearLayout>
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="12dp">
 
-        <LinearLayout
-            android:id="@+id/actionSelect"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="12dp">
+                <ImageView
+                    android:layout_width="@dimen/icon_size_popup_action"
+                    android:layout_height="@dimen/icon_size_popup_action"
+                    android:src="@android:drawable/ic_menu_delete" />
 
-            <ImageView
-                android:layout_width="@dimen/icon_size_popup_action"
-                android:layout_height="@dimen/icon_size_popup_action"
-                android:src="@android:drawable/ic_menu_agenda" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="多选"
-                android:textColor="#FFFFFF"
-                android:textSize="@dimen/text_size_popup_action" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/actionDelete"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="12dp">
-
-            <ImageView
-                android:layout_width="@dimen/icon_size_popup_action"
-                android:layout_height="@dimen/icon_size_popup_action"
-                android:src="@android:drawable/ic_menu_delete" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="删除"
-                android:textColor="#FFFFFF"
-                android:textSize="@dimen/text_size_popup_action" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="删除"
+                    android:textColor="#FFFFFF"
+                    android:textSize="@dimen/text_size_popup_action" />
+            </LinearLayout>
         </LinearLayout>
 
     </LinearLayout>

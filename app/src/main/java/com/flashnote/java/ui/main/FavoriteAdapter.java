@@ -13,6 +13,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.PopupWindow;
 import android.widget.Toast;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
@@ -24,10 +25,13 @@ import com.bumptech.glide.load.model.GlideUrl;
 import com.bumptech.glide.load.model.LazyHeaders;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
+import com.flashnote.java.data.model.CardItem;
+import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.FavoriteItem;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.databinding.ItemFavoriteBinding;
 import com.flashnote.java.databinding.PopupFavoriteActionsBinding;
+import com.flashnote.java.ui.chat.CardDetailActivity;
 import com.flashnote.java.ui.media.FilePreviewActivity;
 import com.flashnote.java.ui.media.ImageViewerActivity;
 import com.flashnote.java.ui.media.MediaUrlResolver;
@@ -36,6 +40,8 @@ import com.flashnote.java.ui.media.VideoPlayerActivity;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -93,6 +99,7 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
             }
 
             binding.contentText.setVisibility(View.GONE);
+            binding.compositeContainer.setVisibility(View.GONE);
             binding.mediaPreviewContainer.setVisibility(View.GONE);
             binding.mediaPlayIcon.setVisibility(View.GONE);
             binding.fileInfoContainer.setVisibility(View.GONE);
@@ -103,12 +110,17 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
             binding.fileInfoContainer.setOnClickListener(null);
             binding.voiceInfoContainer.setOnClickListener(null);
             binding.contentText.setOnLongClickListener(null);
+            binding.compositeContainer.setOnClickListener(null);
+            binding.compositeContainer.setOnLongClickListener(null);
             binding.mediaPreviewContainer.setOnLongClickListener(null);
             binding.fileInfoContainer.setOnLongClickListener(null);
             binding.voiceInfoContainer.setOnLongClickListener(null);
 
+            CardPayload payload = item.getPayload();
             String mediaType = item.getMediaType();
-            if (mediaType == null || mediaType.isEmpty() || "TEXT".equalsIgnoreCase(mediaType)) {
+            if (("COMPOSITE".equalsIgnoreCase(mediaType) || "CARD".equalsIgnoreCase(mediaType)) && payload != null) {
+                bindCompositeCard(item, payload);
+            } else if (mediaType == null || mediaType.isEmpty() || "TEXT".equalsIgnoreCase(mediaType)) {
                 binding.contentText.setVisibility(View.VISIBLE);
                 binding.contentText.setText(item.getContent() != null ? item.getContent() : "");
             } else if ("IMAGE".equalsIgnoreCase(mediaType)) {
@@ -150,11 +162,135 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
                 binding.contentText.setText(item.getContent() != null ? item.getContent() : "");
             }
 
-            binding.getRoot().setOnClickListener(v -> listener.onOpen(item));
+            binding.getRoot().setOnClickListener(v -> {
+                if (("COMPOSITE".equalsIgnoreCase(item.getMediaType()) || "CARD".equalsIgnoreCase(item.getMediaType()))
+                        && item.getPayload() != null) {
+                    String detailTitle = item.getPayload().getTitle() == null || item.getPayload().getTitle().isEmpty()
+                            ? item.getContent()
+                            : item.getPayload().getTitle();
+                    CardDetailActivity.start(v.getContext(), detailTitle, item.getPayload());
+                    return;
+                }
+                listener.onOpen(item);
+            });
             binding.getRoot().setOnLongClickListener(v -> {
                 showFavoriteActions(item, v);
                 return true;
             });
+        }
+
+        private void bindCompositeCard(FavoriteItem item, CardPayload payload) {
+            binding.compositeContainer.setVisibility(View.VISIBLE);
+            binding.compositeTitle.setText(payload.getTitle() == null || payload.getTitle().isEmpty() ? "闪记" : payload.getTitle());
+
+            String summaryText = buildCompositeSummary(payload);
+            if (summaryText.isEmpty()) {
+                binding.compositeSummary.setVisibility(View.GONE);
+            } else {
+                binding.compositeSummary.setVisibility(View.VISIBLE);
+                binding.compositeSummary.setText(summaryText);
+            }
+
+            bindCompositeGrid(payload);
+
+            binding.compositeContainer.setOnClickListener(v -> {
+                String detailTitle = payload.getTitle() == null || payload.getTitle().isEmpty() ? item.getContent() : payload.getTitle();
+                CardDetailActivity.start(v.getContext(), detailTitle, payload);
+            });
+            binding.compositeContainer.setOnLongClickListener(v -> {
+                showFavoriteActions(item, v);
+                return true;
+            });
+        }
+
+        private String buildCompositeSummary(CardPayload payload) {
+            if (payload.getSummary() != null && !payload.getSummary().isEmpty()) {
+                return payload.getSummary();
+            }
+            List<CardItem> items = payload.getItems();
+            if (items == null || items.isEmpty()) {
+                return "";
+            }
+            StringBuilder summary = new StringBuilder();
+            for (int i = 0; i < Math.min(items.size(), 3); i++) {
+                CardItem cardItem = items.get(i);
+                String line = cardItem.getContent();
+                if (line == null || line.isEmpty()) {
+                    if ("IMAGE".equalsIgnoreCase(cardItem.getType())) {
+                        line = "[图片]";
+                    } else if ("VIDEO".equalsIgnoreCase(cardItem.getType())) {
+                        line = "[视频]";
+                    } else if ("FILE".equalsIgnoreCase(cardItem.getType())) {
+                        line = "[文件]";
+                    } else if ("VOICE".equalsIgnoreCase(cardItem.getType())) {
+                        line = "[语音]";
+                    }
+                }
+                if (line == null || line.isEmpty()) {
+                    continue;
+                }
+                if (summary.length() > 0) {
+                    summary.append('\n');
+                }
+                summary.append(line);
+            }
+            return summary.toString();
+        }
+
+        private void bindCompositeGrid(CardPayload payload) {
+            List<CardItem> items = payload.getItems();
+            List<String> mediaUrls = new ArrayList<>();
+            if (items != null) {
+                for (CardItem item : items) {
+                    if (item == null) {
+                        continue;
+                    }
+                    if ("IMAGE".equalsIgnoreCase(item.getType()) && item.getUrl() != null && !item.getUrl().isEmpty()) {
+                        mediaUrls.add(item.getUrl());
+                    } else if ("VIDEO".equalsIgnoreCase(item.getType())) {
+                        String preview = item.getThumbnailUrl() == null || item.getThumbnailUrl().isEmpty() ? item.getUrl() : item.getThumbnailUrl();
+                        if (preview != null && !preview.isEmpty()) {
+                            mediaUrls.add(preview);
+                        }
+                    }
+                }
+            }
+
+            if (mediaUrls.isEmpty()) {
+                binding.compositeGrid.setVisibility(View.GONE);
+                binding.compositeGrid.removeAllViews();
+                return;
+            }
+
+            binding.compositeGrid.setVisibility(View.VISIBLE);
+            binding.compositeGrid.removeAllViews();
+
+            Context context = binding.getRoot().getContext();
+            int count = Math.min(mediaUrls.size(), 9);
+            int cols = count == 1 ? 1 : (count == 2 || count == 4 ? 2 : 3);
+            binding.compositeGrid.setColumnCount(cols);
+            int sizePx = count == 1
+                    ? context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_width)
+                    : (int) (90 * context.getResources().getDisplayMetrics().density);
+            int marginPx = (int) (2 * context.getResources().getDisplayMetrics().density);
+
+            for (int i = 0; i < count; i++) {
+                ImageView imageView = new ImageView(context);
+                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams();
+                params.width = sizePx;
+                params.height = sizePx;
+                params.setMargins(marginPx, marginPx, marginPx, marginPx);
+                imageView.setLayoutParams(params);
+
+                Glide.with(context)
+                        .load(buildGlideUrl(mediaUrls.get(i)))
+                        .placeholder(R.drawable.bg_placeholder_card)
+                        .error(R.drawable.bg_placeholder_card)
+                        .override(sizePx, sizePx)
+                        .into(imageView);
+                binding.compositeGrid.addView(imageView);
+            }
         }
 
         private void showFavoriteActions(FavoriteItem item, View anchorView) {
@@ -224,23 +360,24 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
                 binding.mediaPreviewImage.setImageResource(R.drawable.bg_placeholder_card);
                 return;
             }
-            String token = FlashNoteApp.getInstance().getTokenManager().getAccessToken();
-            String requestUrl = MediaUrlResolver.resolve(mediaUrl);
-            GlideUrl glideUrl;
-            if (token != null && !token.isEmpty()) {
-                glideUrl = new GlideUrl(requestUrl,
-                        new LazyHeaders.Builder()
-                                .addHeader("Authorization", "Bearer " + token)
-                                .build());
-            } else {
-                glideUrl = new GlideUrl(requestUrl);
-            }
             Glide.with(binding.getRoot().getContext())
-                    .load(glideUrl)
+                    .load(buildGlideUrl(mediaUrl))
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
                     .fitCenter()
                     .into(binding.mediaPreviewImage);
+        }
+
+        private GlideUrl buildGlideUrl(String mediaUrl) {
+            String token = FlashNoteApp.getInstance().getTokenManager().getAccessToken();
+            String requestUrl = MediaUrlResolver.resolve(mediaUrl);
+            if (token != null && !token.isEmpty()) {
+                return new GlideUrl(requestUrl,
+                        new LazyHeaders.Builder()
+                                .addHeader("Authorization", "Bearer " + token)
+                                .build());
+            }
+            return new GlideUrl(requestUrl);
         }
 
         private void openImagePreview(Context context, FavoriteItem item) {
