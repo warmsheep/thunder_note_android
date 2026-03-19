@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 public class CardEditorFragment extends Fragment {
     private static final String ARG_FLASH_NOTE_ID = "flashNoteId";
@@ -57,6 +58,7 @@ public class CardEditorFragment extends Fragment {
     private boolean saving;
     private String currentAttachmentType;
     private final List<PendingAttachment> attachments = new ArrayList<>();
+    private int pendingAttachmentJobs;
 
     public static CardEditorFragment newInstance(long flashNoteId, long peerUserId, @Nullable String title) {
         CardEditorFragment fragment = new CardEditorFragment();
@@ -123,6 +125,7 @@ public class CardEditorFragment extends Fragment {
         binding.formatQuote.setOnClickListener(v -> insertLinePrefix("> "));
         binding.formatTodo.setOnClickListener(v -> insertLinePrefix("- [ ] "));
         updateAttachmentViews();
+        syncActionState();
     }
 
     private void openMediaPicker() {
@@ -200,12 +203,18 @@ public class CardEditorFragment extends Fragment {
             return;
         }
         String prefix = "FILE".equals(type) ? "file" : type.toLowerCase(Locale.ROOT);
+        pendingAttachmentJobs++;
+        syncActionState();
         copyUriToTempFile(uri, prefix, file -> {
+            pendingAttachmentJobs = Math.max(0, pendingAttachmentJobs - 1);
             if (!isAdded() || binding == null) {
+                syncActionState();
                 return;
             }
             if (file == null) {
                 showToast("文件处理失败");
+                updateAttachmentViews();
+                syncActionState();
                 return;
             }
             PendingAttachment attachment = new PendingAttachment();
@@ -217,6 +226,7 @@ public class CardEditorFragment extends Fragment {
             attachments.add(attachment);
             currentAttachmentType = type;
             updateAttachmentViews();
+            syncActionState();
         });
     }
 
@@ -243,7 +253,11 @@ public class CardEditorFragment extends Fragment {
         binding.emptyAttachmentText.setVisibility(empty ? View.VISIBLE : View.GONE);
         binding.mediaGrid.setVisibility(!empty && !"FILE".equals(currentAttachmentType) ? View.VISIBLE : View.GONE);
         binding.fileListContainer.setVisibility(!empty && "FILE".equals(currentAttachmentType) ? View.VISIBLE : View.GONE);
-        binding.attachmentTipText.setText(empty ? "最多添加 9 个同类型附件" : "已添加 " + attachments.size() + " / 9 个附件");
+        if (pendingAttachmentJobs > 0) {
+            binding.attachmentTipText.setText("正在处理 " + pendingAttachmentJobs + " 个附件，已添加 " + attachments.size() + " / 9 个附件");
+        } else {
+            binding.attachmentTipText.setText(empty ? "最多添加 9 个同类型附件" : "已添加 " + attachments.size() + " / 9 个附件");
+        }
 
         for (int i = 0; i < attachments.size(); i++) {
             PendingAttachment attachment = attachments.get(i);
@@ -276,6 +290,7 @@ public class CardEditorFragment extends Fragment {
             currentAttachmentType = null;
         }
         updateAttachmentViews();
+        syncActionState();
     }
 
     private void saveCard() {
@@ -288,6 +303,10 @@ public class CardEditorFragment extends Fragment {
             showToast("请输入卡片标题");
             return;
         }
+        if (pendingAttachmentJobs > 0) {
+            showToast("附件仍在处理中，请稍候");
+            return;
+        }
         if (attachments.isEmpty()) {
             showToast("请先添加至少一个附件");
             return;
@@ -298,10 +317,13 @@ public class CardEditorFragment extends Fragment {
         binding.saveButton.setText("保存中...");
 
         List<CardItem> items = new ArrayList<>();
+        Long currentUserId = FlashNoteApp.getInstance().getTokenManager().getUserId();
         if (!content.isEmpty()) {
             CardItem textItem = new CardItem();
             textItem.setType("TEXT");
             textItem.setContent(content);
+            textItem.setSenderId(currentUserId);
+            textItem.setRole("user");
             items.add(textItem);
         }
         uploadAttachmentSequentially(0, items, title, content);
@@ -327,8 +349,7 @@ public class CardEditorFragment extends Fragment {
                 }
                 saving = false;
                 if (binding != null) {
-                    binding.saveButton.setEnabled(true);
-                    binding.saveButton.setText("保存");
+                    syncActionState();
                 }
                 showToast(message);
             }
@@ -363,8 +384,7 @@ public class CardEditorFragment extends Fragment {
                 getActivity().runOnUiThread(() -> {
                     saving = false;
                     if (binding != null) {
-                        binding.saveButton.setEnabled(true);
-                        binding.saveButton.setText("保存");
+                        syncActionState();
                     }
                     if (flashNoteId == COLLECTION_BOX_NOTE_ID && peerUserId == 0L) {
                         getParentFragmentManager().setFragmentResult("quick_capture_saved", Bundle.EMPTY);
@@ -382,8 +402,7 @@ public class CardEditorFragment extends Fragment {
                 getActivity().runOnUiThread(() -> {
                     saving = false;
                     if (binding != null) {
-                        binding.saveButton.setEnabled(true);
-                        binding.saveButton.setText("保存");
+                        syncActionState();
                     }
                     showToast(TextUtils.isEmpty(messageText) ? "卡片发送失败" : messageText);
                 });
@@ -426,6 +445,8 @@ public class CardEditorFragment extends Fragment {
                 item.setUrl(value);
                 item.setFileName(attachment.displayName);
                 item.setFileSize(uploadFile.length());
+                item.setSenderId(FlashNoteApp.getInstance().getTokenManager().getUserId());
+                item.setRole("user");
                 if ("VIDEO".equals(attachment.type)) {
                     item.setThumbnailUrl(value);
                 }
@@ -541,9 +562,9 @@ public class CardEditorFragment extends Fragment {
                     callback.onReady(null);
                     return;
                 }
-                String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+                String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.getDefault()).format(new Date());
                 String extension = getFileExtension(uri);
-                tempFile = new File(requireContext().getCacheDir(), prefix + "_" + timeStamp + "." + extension);
+                tempFile = new File(requireContext().getCacheDir(), prefix + "_" + timeStamp + "_" + UUID.randomUUID() + "." + extension);
                 try (InputStream inputStream = requireContext().getContentResolver().openInputStream(uri);
                      FileOutputStream outputStream = new FileOutputStream(tempFile)) {
                     if (inputStream == null) {
@@ -650,6 +671,21 @@ public class CardEditorFragment extends Fragment {
             return;
         }
         Toast.makeText(getContext(), text, Toast.LENGTH_SHORT).show();
+    }
+
+    private void syncActionState() {
+        if (binding == null) {
+            return;
+        }
+        boolean busy = saving || pendingAttachmentJobs > 0;
+        binding.saveButton.setEnabled(!busy);
+        if (saving) {
+            binding.saveButton.setText("保存中...");
+        } else if (pendingAttachmentJobs > 0) {
+            binding.saveButton.setText("处理中...");
+        } else {
+            binding.saveButton.setText("保存");
+        }
     }
 
     @Override
