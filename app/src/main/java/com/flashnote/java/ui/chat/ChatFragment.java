@@ -67,6 +67,7 @@ public class ChatFragment extends Fragment {
     private static final String ARG_PEER_USER_ID = "peerUserId";
     private static final String ARG_TITLE = "title";
     private static final String ARG_SCROLL_TO_MESSAGE_ID = "scrollToMessageId";
+    private static final long INBOX_NOTE_ID = -1L;
 
     private FragmentChatBinding binding;
     private ChatViewModel chatViewModel;
@@ -199,7 +200,7 @@ public class ChatFragment extends Fragment {
 
         FavoriteRepository favoriteRepository = FlashNoteApp.getInstance().getFavoriteRepository();
         fileRepository = FlashNoteApp.getInstance().getFileRepository();
-        chatViewModel = new ViewModelProvider(requireActivity()).get(ChatViewModel.class);
+        chatViewModel = new ViewModelProvider(this).get(ChatViewModel.class);
         FlashNoteViewModel flashNoteViewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
         adapter = new MessageAdapter((message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView));
         adapter.setOnSelectionChangedListener(this::updateMergeSelectionCount);
@@ -1235,7 +1236,7 @@ public class ChatFragment extends Fragment {
                 message.setMediaUrl(mediaUrl);
                 message.setUploading(false);
 
-                chatViewModel.sendMedia(message, () -> {
+                sendMediaToCapturedConversation(message, flashNoteId, peerUserId, () -> {
                     if (isAdded() && binding != null && getActivity() != null) {
                         requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                     }
@@ -1343,7 +1344,7 @@ public class ChatFragment extends Fragment {
                     message.setMediaUrl(mediaUrl);
                     message.setUploading(false);
 
-                    chatViewModel.sendMedia(message, () -> {
+                    sendMediaToCapturedConversation(message, flashNoteId, peerUserId, () -> {
                         if (isAdded() && binding != null && getActivity() != null) {
                             requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                         }
@@ -1396,7 +1397,7 @@ public class ChatFragment extends Fragment {
                             message.setFileSize(compressedFile.length());
                             message.setUploading(false);
 
-                            chatViewModel.sendMedia(message, () -> {
+                            sendMediaToCapturedConversation(message, flashNoteId, peerUserId, () -> {
                                 if (isAdded() && binding != null && getActivity() != null) {
                                     requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                                 }
@@ -1454,7 +1455,7 @@ public class ChatFragment extends Fragment {
                     message.setMediaUrl(mediaUrl);
                     message.setUploading(false);
 
-                    chatViewModel.sendMedia(message, () -> {
+                    sendMediaToCapturedConversation(message, flashNoteId, peerUserId, () -> {
                         if (isAdded() && binding != null && getActivity() != null) {
                             requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                         }
@@ -1502,7 +1503,7 @@ public class ChatFragment extends Fragment {
                     message.setMediaUrl(mediaUrl);
                     message.setUploading(false);
 
-                    chatViewModel.sendMedia(message, () -> {
+                    sendMediaToCapturedConversation(message, flashNoteId, peerUserId, () -> {
                         if (isAdded() && binding != null && getActivity() != null) {
                             requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                         }
@@ -1548,6 +1549,19 @@ public class ChatFragment extends Fragment {
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> callback.onFileReady(null));
             }
         }).start();
+    }
+
+    private void sendMediaToCapturedConversation(@NonNull Message message,
+                                                 long targetFlashNoteId,
+                                                 long targetPeerUserId,
+                                                 @NonNull Runnable onSuccess) {
+        if (targetPeerUserId > 0L) {
+            chatViewModel.sendMessageToContact(targetPeerUserId, message, onSuccess);
+            return;
+        }
+        if (targetFlashNoteId > 0L || targetFlashNoteId == INBOX_NOTE_ID) {
+            chatViewModel.sendMessageToFlashNote(targetFlashNoteId, message, onSuccess);
+        }
     }
 
     private String getFileExtension(Uri uri) {

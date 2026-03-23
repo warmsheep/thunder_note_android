@@ -33,8 +33,6 @@ public class FlashNoteViewModel extends AndroidViewModel {
         errorMessage = repository.getErrorMessage();
         repository.clearError();
         collectionRepository.clearError();
-        repository.refresh();
-        collectionRepository.refresh();
     }
 
     public LiveData<List<FlashNote>> getNotes() {
@@ -54,6 +52,17 @@ public class FlashNoteViewModel extends AndroidViewModel {
         collectionRepository.clearError();
         repository.refresh();
         collectionRepository.refresh();
+    }
+
+    public void refreshIfNeeded() {
+        List<FlashNote> currentNotes = notes.getValue();
+        List<Collection> currentCollections = collections.getValue();
+        boolean hasNotes = currentNotes != null && !currentNotes.isEmpty();
+        boolean hasCollections = currentCollections != null && !currentCollections.isEmpty();
+        if (hasNotes || hasCollections) {
+            return;
+        }
+        refresh();
     }
 
     public void searchNotes(String query, FlashNoteRepository.SearchCallback callback) {

@@ -331,6 +331,12 @@ public class FlashNoteTabFragment extends Fragment {
             renderNotes();
         });
 
+        viewModel.getCollections().observe(getViewLifecycleOwner(), collections -> {
+            if (adapter != null) {
+                renderNotes();
+            }
+        });
+
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
             if (error != null && !error.isEmpty()) {
                 Context errorCtx = getContext();
@@ -348,6 +354,8 @@ public class FlashNoteTabFragment extends Fragment {
             }
             viewModel.refresh();
         });
+
+        viewModel.refreshIfNeeded();
     }
 
     private void renderNotes() {
@@ -1129,7 +1137,7 @@ public class FlashNoteTabFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if (viewModel != null) {
-            viewModel.refresh();
+            viewModel.refreshIfNeeded();
         }
     }
 

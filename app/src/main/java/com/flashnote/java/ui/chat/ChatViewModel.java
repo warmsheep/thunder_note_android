@@ -28,6 +28,13 @@ public class ChatViewModel extends AndroidViewModel {
     }
 
     public void bindFlashNote(long id) {
+        Long currentFlashNoteId = flashNoteId.getValue();
+        Long currentPeerUserId = peerUserId.getValue();
+        if (currentFlashNoteId != null && currentFlashNoteId == id
+                && (currentPeerUserId == null || currentPeerUserId == 0L)
+                && messages != null) {
+            return;
+        }
         flashNoteId.setValue(id);
         peerUserId.setValue(0L);
         repository.clearError();
@@ -36,6 +43,13 @@ public class ChatViewModel extends AndroidViewModel {
     }
 
     public void bindContact(long peerId) {
+        Long currentPeerUserId = peerUserId.getValue();
+        Long currentFlashNoteId = flashNoteId.getValue();
+        if (currentPeerUserId != null && currentPeerUserId == peerId
+                && (currentFlashNoteId == null || currentFlashNoteId == 0L)
+                && messages != null) {
+            return;
+        }
         peerUserId.setValue(peerId);
         flashNoteId.setValue(0L);
         repository.clearError();
@@ -99,6 +113,20 @@ public class ChatViewModel extends AndroidViewModel {
         repository.sendMessage(targetFlashNoteId, message, callback);
     }
 
+    public void sendMessageToContact(long targetPeerUserId, Message message, Runnable onSuccess) {
+        if (targetPeerUserId == 0L || message == null) {
+            return;
+        }
+        repository.sendMessageToContact(targetPeerUserId, message, onSuccess);
+    }
+
+    public void sendMessageToContact(long targetPeerUserId, Message message, MessageRepository.SendCallback callback) {
+        if (targetPeerUserId == 0L || message == null) {
+            return;
+        }
+        repository.sendMessageToContact(targetPeerUserId, message, callback);
+    }
+
     public void deleteMessage(long messageId, Runnable onSuccess) {
         if (messageId <= 0) {
             return;
@@ -134,14 +162,14 @@ public class ChatViewModel extends AndroidViewModel {
         if (message == null) {
             return;
         }
-        Long peerId = peerUserId.getValue();
-        if (peerId != null && peerId > 0L) {
-            repository.sendMessageToContact(peerId, message, onSuccess);
+        Long targetPeerId = message.getReceiverId();
+        if (targetPeerId != null && targetPeerId > 0L) {
+            repository.sendMessageToContact(targetPeerId, message, onSuccess);
             return;
         }
-        Long id = flashNoteId.getValue();
-        if (id != null && id != 0L) {
-            repository.sendMessage(id, message, onSuccess);
+        Long targetFlashNoteId = message.getFlashNoteId();
+        if (targetFlashNoteId != null && targetFlashNoteId != 0L) {
+            repository.sendMessage(targetFlashNoteId, message, onSuccess);
         }
     }
 
@@ -149,14 +177,14 @@ public class ChatViewModel extends AndroidViewModel {
         if (message == null) {
             return;
         }
-        Long peerId = peerUserId.getValue();
-        if (peerId != null && peerId > 0L) {
-            repository.sendMessageToContact(peerId, message, callback);
+        Long targetPeerId = message.getReceiverId();
+        if (targetPeerId != null && targetPeerId > 0L) {
+            repository.sendMessageToContact(targetPeerId, message, callback);
             return;
         }
-        Long id = flashNoteId.getValue();
-        if (id != null && id != 0L) {
-            repository.sendMessage(id, message, callback);
+        Long targetFlashNoteId = message.getFlashNoteId();
+        if (targetFlashNoteId != null && targetFlashNoteId != 0L) {
+            repository.sendMessage(targetFlashNoteId, message, callback);
         }
     }
 

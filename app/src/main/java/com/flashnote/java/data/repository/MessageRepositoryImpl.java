@@ -93,11 +93,18 @@ public class MessageRepositoryImpl implements MessageRepository {
         currentConversationKey = keyForFlashNote(flashNoteId);
         MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
         MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
-        liveData.setValue(new ArrayList<>());
-        currentPages.put(currentConversationKey, 1);
-        hasMoreMap.put(currentConversationKey, true);
-        hasMoreLiveData.setValue(true);
-        loadMessages(currentConversationKey, flashNoteId, null, 1, 20);
+        List<Message> current = liveData.getValue();
+        boolean hasCachedMessages = current != null && !current.isEmpty();
+        if (!currentPages.containsKey(currentConversationKey)) {
+            currentPages.put(currentConversationKey, 1);
+        }
+        if (!hasMoreMap.containsKey(currentConversationKey)) {
+            hasMoreMap.put(currentConversationKey, true);
+        }
+        hasMoreLiveData.setValue(hasMoreMap.get(currentConversationKey));
+        if (!hasCachedMessages) {
+            loadMessages(currentConversationKey, flashNoteId, null, 1, 20);
+        }
     }
 
     @Override
@@ -107,11 +114,18 @@ public class MessageRepositoryImpl implements MessageRepository {
         currentConversationKey = keyForContact(peerUserId);
         MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
         MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
-        liveData.setValue(new ArrayList<>());
-        currentPages.put(currentConversationKey, 1);
-        hasMoreMap.put(currentConversationKey, true);
-        hasMoreLiveData.setValue(true);
-        loadMessages(currentConversationKey, null, peerUserId, 1, 20);
+        List<Message> current = liveData.getValue();
+        boolean hasCachedMessages = current != null && !current.isEmpty();
+        if (!currentPages.containsKey(currentConversationKey)) {
+            currentPages.put(currentConversationKey, 1);
+        }
+        if (!hasMoreMap.containsKey(currentConversationKey)) {
+            hasMoreMap.put(currentConversationKey, true);
+        }
+        hasMoreLiveData.setValue(hasMoreMap.get(currentConversationKey));
+        if (!hasCachedMessages) {
+            loadMessages(currentConversationKey, null, peerUserId, 1, 20);
+        }
     }
 
     @Override
