@@ -1232,22 +1232,22 @@ public class ChatFragment extends Fragment {
         fileRepository.upload(file, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String mediaUrl) {
-                if (!isAdded()) return;
-                
                 message.setMediaUrl(mediaUrl);
                 message.setUploading(false);
 
                 chatViewModel.sendMedia(message, () -> {
-                    if (!isAdded()) return;
-                    requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+                    if (isAdded() && binding != null && getActivity() != null) {
+                        requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+                    }
                 });
             }
 
             @Override
             public void onError(String errorMessage, int code) {
-                if (!isAdded()) return;
                 message.setUploading(false);
-                requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                if (isAdded() && getActivity() != null) {
+                    requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                }
             }
         });
     }
@@ -1340,22 +1340,22 @@ public class ChatFragment extends Fragment {
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
                 public void onSuccess(String mediaUrl) {
-                    if (!isAdded()) return;
-                    
                     message.setMediaUrl(mediaUrl);
                     message.setUploading(false);
 
                     chatViewModel.sendMedia(message, () -> {
-                        if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+                        if (isAdded() && binding != null && getActivity() != null) {
+                            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+                        }
                     });
                 }
 
                 @Override
                 public void onError(String errorMessage, int code) {
-                    if (!isAdded()) return;
                     message.setUploading(false);
-                    requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                    if (isAdded() && getActivity() != null) {
+                        requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                    }
                 }
             });
         });
@@ -1391,41 +1391,34 @@ public class ChatFragment extends Fragment {
                     fileRepository.upload(compressedFile, new FileRepository.FileCallback() {
                         @Override
                         public void onSuccess(String mediaUrl) {
-                            if (!isAdded()) {
-                                return;
-                            }
-
                             message.setMediaUrl(mediaUrl);
                             message.setFileName(originalFileName != null ? originalFileName : compressedFile.getName());
                             message.setFileSize(compressedFile.length());
                             message.setUploading(false);
 
                             chatViewModel.sendMedia(message, () -> {
-                                if (!isAdded()) {
-                                    return;
+                                if (isAdded() && binding != null && getActivity() != null) {
+                                    requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                                 }
-                                requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
                             });
                         }
 
                         @Override
                         public void onError(String errorMessage, int code) {
-                            if (!isAdded()) {
-                                return;
-                            }
                             message.setUploading(false);
-                            requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                            if (isAdded() && getActivity() != null) {
+                                requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                            }
                         }
                     });
                 }
 
                 @Override
                 public void onError(String errorMessage) {
-                    if (!isAdded()) {
-                        return;
-                    }
                     message.setUploading(false);
-                    requireActivity().runOnUiThread(() -> showToast("视频压缩失败: " + errorMessage));
+                    if (isAdded() && getActivity() != null) {
+                        requireActivity().runOnUiThread(() -> showToast("视频压缩失败: " + errorMessage));
+                    }
                 }
             });
         });
@@ -1458,22 +1451,22 @@ public class ChatFragment extends Fragment {
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
                 public void onSuccess(String mediaUrl) {
-                    if (!isAdded()) return;
-                    
                     message.setMediaUrl(mediaUrl);
                     message.setUploading(false);
 
                     chatViewModel.sendMedia(message, () -> {
-                        if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+                        if (isAdded() && binding != null && getActivity() != null) {
+                            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+                        }
                     });
                 }
 
                 @Override
                 public void onError(String errorMessage, int code) {
-                    if (!isAdded()) return;
                     message.setUploading(false);
-                    requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                    if (isAdded() && getActivity() != null) {
+                        requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                    }
                 }
             });
         });
@@ -1506,40 +1499,41 @@ public class ChatFragment extends Fragment {
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
                 public void onSuccess(String mediaUrl) {
-                    if (!isAdded()) return;
-                    
                     message.setMediaUrl(mediaUrl);
                     message.setUploading(false);
 
                     chatViewModel.sendMedia(message, () -> {
-                        if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+                        if (isAdded() && binding != null && getActivity() != null) {
+                            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+                        }
                     });
                 }
 
                 @Override
                 public void onError(String errorMessage, int code) {
-                    if (!isAdded()) return;
                     message.setUploading(false);
-                    requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                    if (isAdded() && getActivity() != null) {
+                        requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
+                    }
                 }
             });
         });
     }
 
     private void copyUriToTempFile(Uri uri, String prefix, FileCallback callback) {
+        Context appContext = requireContext().getApplicationContext();
         new Thread(() -> {
             File tempFile = null;
             try {
                 String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
                 String extension = getFileExtension(uri);
-                String storageDir = requireContext().getCacheDir().getAbsolutePath();
+                String storageDir = appContext.getCacheDir().getAbsolutePath();
                 tempFile = new File(storageDir, prefix + "_" + timeStamp + "." + extension);
 
-                try (InputStream inputStream = requireContext().getContentResolver().openInputStream(uri);
+                try (InputStream inputStream = appContext.getContentResolver().openInputStream(uri);
                      FileOutputStream outputStream = new FileOutputStream(tempFile)) {
                     if (inputStream != null) {
-                        byte[] buffer = new byte[4096];
+                        byte[] buffer = new byte[65536];
                         int bytesRead;
                         while ((bytesRead = inputStream.read(buffer)) != -1) {
                             outputStream.write(buffer, 0, bytesRead);
@@ -1548,14 +1542,10 @@ public class ChatFragment extends Fragment {
                 }
 
                 final File finalFile = tempFile;
-                if (isAdded()) {
-                    requireActivity().runOnUiThread(() -> callback.onFileReady(finalFile));
-                }
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> callback.onFileReady(finalFile));
             } catch (IOException e) {
                 e.printStackTrace();
-                if (isAdded()) {
-                    requireActivity().runOnUiThread(() -> callback.onFileReady(null));
-                }
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> callback.onFileReady(null));
             }
         }).start();
     }

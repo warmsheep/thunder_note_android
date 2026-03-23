@@ -46,8 +46,9 @@ public class ApiClient {
                 .authenticator(new TokenAuthenticator(tokenManager))
                 .addInterceptor(loggingInterceptor)
                 .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(120, TimeUnit.SECONDS)
+                .callTimeout(180, TimeUnit.SECONDS)
                 .build();
 
         Gson gson = new GsonBuilder()
