@@ -1017,18 +1017,12 @@ public class FlashNoteTabFragment extends Fragment {
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
                 public void onSuccess(String value) {
-                    if (!isAdded() || getActivity() == null) {
-                        return;
-                    }
                     message.setMediaUrl(value);
                     message.setUploading(false);
                     messageRepository.sendMessage(COLLECTION_BOX_NOTE_ID, message, new MessageRepository.SendCallback() {
                         @Override
                         public void onSuccess() {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> {
+                            runIfUiAlive(() -> {
                                 if (binding != null) {
                                     playCaptureAnimation(binding.fabAdd);
                                 }
@@ -1039,23 +1033,28 @@ public class FlashNoteTabFragment extends Fragment {
 
                         @Override
                         public void onError(String messageText) {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> Toast.makeText(requireContext(), TextUtils.isEmpty(messageText) ? "保存失败" : messageText, Toast.LENGTH_SHORT).show());
+                            message.setUploading(false);
+                            messageRepository.removeLocalMessage(message);
+                            runIfUiAlive(() -> Toast.makeText(requireContext(), TextUtils.isEmpty(messageText) ? "保存失败" : messageText, Toast.LENGTH_SHORT).show());
                         }
                     });
                 }
 
                 @Override
                 public void onError(String messageText, int code) {
-                    if (!isAdded() || getActivity() == null) {
-                        return;
-                    }
-                    getActivity().runOnUiThread(() -> Toast.makeText(requireContext(), "上传失败: " + messageText, Toast.LENGTH_SHORT).show());
+                    message.setUploading(false);
+                    messageRepository.removeLocalMessage(message);
+                    runIfUiAlive(() -> Toast.makeText(requireContext(), "上传失败: " + messageText, Toast.LENGTH_SHORT).show());
                 }
             });
         });
+    }
+
+    private void runIfUiAlive(@NonNull Runnable action) {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        getActivity().runOnUiThread(action);
     }
 
     private interface TempFileCallback {

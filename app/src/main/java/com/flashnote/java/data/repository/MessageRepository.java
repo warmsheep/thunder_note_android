@@ -64,6 +64,8 @@ public interface MessageRepository {
 
     void addLocalMessage(Message message);
 
+    void removeLocalMessage(Message message);
+
     void addLocalContactMessage(long peerUserId, Message message);
 
     void mergeMessages(long flashNoteId, List<Long> messageIds, String title, MergeCallback callback);

@@ -488,6 +488,23 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     @Override
+    public void removeLocalMessage(Message message) {
+        Long flashNoteId = message.getFlashNoteId();
+        if (flashNoteId == null) {
+            return;
+        }
+        MutableLiveData<List<Message>> liveData = ensureLiveData(keyForFlashNote(flashNoteId));
+        List<Message> current = liveData.getValue();
+        if (current == null || current.isEmpty()) {
+            return;
+        }
+        List<Message> updated = new ArrayList<>(current);
+        if (updated.remove(message)) {
+            liveData.setValue(updated);
+        }
+    }
+
+    @Override
     public void addLocalContactMessage(long peerUserId, Message message) {
         MutableLiveData<List<Message>> liveData = ensureLiveData(keyForContact(peerUserId));
         List<Message> current = liveData.getValue();
