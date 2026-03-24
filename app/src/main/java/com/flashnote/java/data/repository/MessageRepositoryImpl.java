@@ -29,6 +29,13 @@ import retrofit2.Response;
 
 public class MessageRepositoryImpl implements MessageRepository {
     private static final String MEDIA_TYPE_TEXT = "TEXT";
+    private static final long MESSAGE_SOURCE_REMOTE = 0L;
+    private static final long MESSAGE_SOURCE_PENDING = 1L;
+    private static final Comparator<Message> MERGED_MESSAGE_COMPARATOR =
+            Comparator.<Message>comparingLong(message -> messageSourceOrder(message))
+                    .thenComparing(message -> message == null ? null : message.getCreatedAt(),
+                            Comparator.nullsLast(LocalDateTime::compareTo))
+                    .thenComparingLong(message -> messageStableTieBreaker(message));
     private final MessageService messageService;
     private final PendingMessageRepository pendingMessageRepository;
     private final PendingMessageDispatcher pendingMessageDispatcher;
@@ -556,8 +563,27 @@ public class MessageRepositoryImpl implements MessageRepository {
                 merged.add(toUiMessage(pendingMessage));
             }
         }
-        merged.sort(Comparator.comparing(Message::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)));
+        merged.sort(MERGED_MESSAGE_COMPARATOR);
         setLiveDataValue(mergedLiveData, merged);
+    }
+
+    private static long messageSourceOrder(Message message) {
+        return isPendingUiMessage(message) ? MESSAGE_SOURCE_PENDING : MESSAGE_SOURCE_REMOTE;
+    }
+
+    private static long messageStableTieBreaker(Message message) {
+        if (message == null || message.getId() == null) {
+            return Long.MAX_VALUE;
+        }
+        long id = message.getId();
+        if (id < 0L) {
+            return -id;
+        }
+        return id;
+    }
+
+    private static boolean isPendingUiMessage(Message message) {
+        return message != null && message.getId() != null && message.getId() < 0L;
     }
 
     private MutableLiveData<List<Message>> ensureMergedLiveDataInternal(long conversationKey) {
