@@ -213,6 +213,13 @@ public class ChatViewModel extends AndroidViewModel {
         repository.addLocalMessage(message);
     }
 
+    public void removeLocalMessage(Message message) {
+        if (message == null) {
+            return;
+        }
+        repository.removeLocalMessage(message);
+    }
+
     public void saveDraft(String text) {
         Long key = getCurrentConversationKey();
         if (key == null) {

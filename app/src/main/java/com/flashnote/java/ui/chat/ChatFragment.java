@@ -1228,7 +1228,7 @@ public class ChatFragment extends Fragment {
         }
         
         chatViewModel.addLocalMessage(message);
-        requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+        runIfUiAlive(() -> scrollToBottomAfterLayout(null));
 
         fileRepository.upload(file, new FileRepository.FileCallback() {
             @Override
@@ -1246,9 +1246,8 @@ public class ChatFragment extends Fragment {
             @Override
             public void onError(String errorMessage, int code) {
                 message.setUploading(false);
-                if (isAdded() && getActivity() != null) {
-                    requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
-                }
+                chatViewModel.removeLocalMessage(message);
+                runIfUiAlive(() -> showToast("上传失败: " + errorMessage));
             }
         });
     }
@@ -1336,7 +1335,7 @@ public class ChatFragment extends Fragment {
             message.setUploading(true);
             
             chatViewModel.addLocalMessage(message);
-            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+            runIfUiAlive(() -> scrollToBottomAfterLayout(null));
             
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
@@ -1354,9 +1353,8 @@ public class ChatFragment extends Fragment {
                 @Override
                 public void onError(String errorMessage, int code) {
                     message.setUploading(false);
-                    if (isAdded() && getActivity() != null) {
-                        requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
-                    }
+                    chatViewModel.removeLocalMessage(message);
+                    runIfUiAlive(() -> showToast("上传失败: " + errorMessage));
                 }
             });
         });
@@ -1384,7 +1382,7 @@ public class ChatFragment extends Fragment {
             message.setUploading(true);
 
             chatViewModel.addLocalMessage(message);
-            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+            runIfUiAlive(() -> scrollToBottomAfterLayout(null));
 
             VideoCompressor.compress(requireContext(), file, new VideoCompressor.CompressCallback() {
                 @Override
@@ -1407,9 +1405,8 @@ public class ChatFragment extends Fragment {
                         @Override
                         public void onError(String errorMessage, int code) {
                             message.setUploading(false);
-                            if (isAdded() && getActivity() != null) {
-                                requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
-                            }
+                            chatViewModel.removeLocalMessage(message);
+                            runIfUiAlive(() -> showToast("上传失败: " + errorMessage));
                         }
                     });
                 }
@@ -1417,9 +1414,8 @@ public class ChatFragment extends Fragment {
                 @Override
                 public void onError(String errorMessage) {
                     message.setUploading(false);
-                    if (isAdded() && getActivity() != null) {
-                        requireActivity().runOnUiThread(() -> showToast("视频压缩失败: " + errorMessage));
-                    }
+                    chatViewModel.removeLocalMessage(message);
+                    runIfUiAlive(() -> showToast("视频压缩失败: " + errorMessage));
                 }
             });
         });
@@ -1447,7 +1443,7 @@ public class ChatFragment extends Fragment {
             message.setUploading(true);
             
             chatViewModel.addLocalMessage(message);
-            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+            runIfUiAlive(() -> scrollToBottomAfterLayout(null));
             
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
@@ -1465,9 +1461,8 @@ public class ChatFragment extends Fragment {
                 @Override
                 public void onError(String errorMessage, int code) {
                     message.setUploading(false);
-                    if (isAdded() && getActivity() != null) {
-                        requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
-                    }
+                    chatViewModel.removeLocalMessage(message);
+                    runIfUiAlive(() -> showToast("上传失败: " + errorMessage));
                 }
             });
         });
@@ -1495,7 +1490,7 @@ public class ChatFragment extends Fragment {
             message.setUploading(true);
             
             chatViewModel.addLocalMessage(message);
-            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
+            runIfUiAlive(() -> scrollToBottomAfterLayout(null));
             
             fileRepository.upload(file, new FileRepository.FileCallback() {
                 @Override
@@ -1513,12 +1508,18 @@ public class ChatFragment extends Fragment {
                 @Override
                 public void onError(String errorMessage, int code) {
                     message.setUploading(false);
-                    if (isAdded() && getActivity() != null) {
-                        requireActivity().runOnUiThread(() -> showToast("上传失败: " + errorMessage));
-                    }
+                    chatViewModel.removeLocalMessage(message);
+                    runIfUiAlive(() -> showToast("上传失败: " + errorMessage));
                 }
             });
         });
+    }
+
+    private void runIfUiAlive(@NonNull Runnable action) {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        requireActivity().runOnUiThread(action);
     }
 
     private void copyUriToTempFile(Uri uri, String prefix, FileCallback callback) {
