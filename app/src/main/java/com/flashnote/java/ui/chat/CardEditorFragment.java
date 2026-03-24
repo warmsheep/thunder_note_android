@@ -313,8 +313,7 @@ public class CardEditorFragment extends Fragment {
         }
 
         saving = true;
-        binding.saveButton.setEnabled(false);
-        binding.saveButton.setText("保存中...");
+        syncActionState();
 
         List<CardItem> items = new ArrayList<>();
         Long currentUserId = FlashNoteApp.getInstance().getTokenManager().getUserId();
@@ -327,6 +326,8 @@ public class CardEditorFragment extends Fragment {
             items.add(textItem);
         }
         uploadAttachmentSequentially(0, items, title, content);
+        showToast("卡片已加入发送队列，可立即返回");
+        navigateBack();
     }
 
     private void uploadAttachmentSequentially(int index, @NonNull List<CardItem> items, @NonNull String title, @NonNull String content) {
@@ -344,14 +345,13 @@ public class CardEditorFragment extends Fragment {
 
             @Override
             public void onError(@NonNull String message) {
-                if (!isAdded()) {
-                    return;
-                }
                 saving = false;
-                if (binding != null) {
-                    syncActionState();
-                }
-                showToast(message);
+                runIfUiAlive(() -> {
+                    if (binding != null) {
+                        syncActionState();
+                    }
+                    showToast(message);
+                });
             }
         });
     }
@@ -378,29 +378,21 @@ public class CardEditorFragment extends Fragment {
         MessageRepository.SendCallback callback = new MessageRepository.SendCallback() {
             @Override
             public void onSuccess() {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
-                    saving = false;
+                saving = false;
+                runIfUiAlive(() -> {
                     if (binding != null) {
                         syncActionState();
                     }
                     if (flashNoteId == COLLECTION_BOX_NOTE_ID && peerUserId == 0L) {
                         getParentFragmentManager().setFragmentResult("quick_capture_saved", Bundle.EMPTY);
                     }
-                    showToast("卡片已发送");
-                    navigateBack();
                 });
             }
 
             @Override
             public void onError(String messageText) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
-                    saving = false;
+                saving = false;
+                runIfUiAlive(() -> {
                     if (binding != null) {
                         syncActionState();
                     }
@@ -589,10 +581,7 @@ public class CardEditorFragment extends Fragment {
     }
 
     private void postTempFile(@NonNull TempFileCallback callback, @Nullable File file) {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().runOnUiThread(() -> callback.onReady(file));
+        runIfUiAlive(() -> callback.onReady(file));
     }
 
     private String getFileExtension(@NonNull Uri uri) {
@@ -664,6 +653,13 @@ public class CardEditorFragment extends Fragment {
             return;
         }
         getActivity().getSupportFragmentManager().popBackStack();
+    }
+
+    private void runIfUiAlive(@NonNull Runnable action) {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        getActivity().runOnUiThread(action);
     }
 
     private void showToast(@NonNull String text) {

@@ -551,26 +551,16 @@ public class ProfileTabFragment extends Fragment {
         if (!isAdded() || getContext() == null || fileRepository == null) {
             return;
         }
-        
-        android.content.Context context = getContext();
-        
+
         fileRepository.upload(avatarFile, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String avatarUrl) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
-                    updateAvatarToServer(avatarUrl);
-                });
+                updateAvatarToServer(avatarUrl);
             }
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     android.content.Context ctx = getContext();
                     if (ctx != null) {
                         Toast.makeText(ctx, "上传头像失败: " + message, Toast.LENGTH_SHORT).show();
@@ -588,10 +578,8 @@ public class ProfileTabFragment extends Fragment {
         userRepository.updateAvatar(avatarUrl, new UserRepository.ProfileCallback() {
             @Override
             public void onSuccess(UserProfile profile) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                currentProfile = profile;
+                runIfUiAlive(() -> {
                     if (binding != null) {
                         loadAvatarImage(avatarUrl);
                         Toast.makeText(getContext(), "头像已更新", Toast.LENGTH_SHORT).show();
@@ -601,10 +589,7 @@ public class ProfileTabFragment extends Fragment {
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     android.content.Context ctx = getContext();
                     if (ctx != null) {
                         Toast.makeText(ctx, "更新头像失败: " + message, Toast.LENGTH_SHORT).show();
@@ -728,15 +713,11 @@ public class ProfileTabFragment extends Fragment {
         userRepository.updateAvatar(emoji, new UserRepository.ProfileCallback() {
             @Override
             public void onSuccess(UserProfile profile) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                currentProfile = profile;
+                runIfUiAlive(() -> {
                     if (binding != null) {
                         clearLocalAvatarCache();
-                        if (currentProfile != null) {
-                            currentProfile.setAvatar(emoji);
-                        }
+                        currentProfile.setAvatar(emoji);
                         binding.avatarImage.setVisibility(View.GONE);
                         binding.avatarText.setVisibility(View.VISIBLE);
                         binding.avatarText.setText(emoji);
@@ -747,10 +728,7 @@ public class ProfileTabFragment extends Fragment {
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     android.content.Context context = getContext();
                     if (isAdded() && context != null) {
                         Toast.makeText(context, "更新头像失败：" + message, Toast.LENGTH_SHORT).show();
@@ -758,6 +736,13 @@ public class ProfileTabFragment extends Fragment {
                 });
             }
         });
+    }
+
+    private void runIfUiAlive(@NonNull Runnable action) {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        getActivity().runOnUiThread(action);
     }
 
     private void clearLocalAvatarCache() {

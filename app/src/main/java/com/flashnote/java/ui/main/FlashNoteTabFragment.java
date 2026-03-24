@@ -89,7 +89,8 @@ public class FlashNoteTabFragment extends Fragment {
                 if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                     Uri uri = result.getData().getData();
                     if (uri != null) {
-                        handleCaptureMedia(uri, "IMAGE");
+                        String mimeType = requireContext().getContentResolver().getType(uri);
+                        handleCaptureMedia(uri, isVideoMimeType(mimeType) ? "VIDEO" : "IMAGE");
                     }
                 }
             }
@@ -959,7 +960,8 @@ public class FlashNoteTabFragment extends Fragment {
 
     private void openImagePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("image/*");
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "video/*"});
         mediaPickerLauncher.launch(intent);
     }
 
@@ -1006,7 +1008,7 @@ public class FlashNoteTabFragment extends Fragment {
             }
             Message message = new Message();
             message.setFlashNoteId(COLLECTION_BOX_NOTE_ID);
-            message.setMediaType(mediaType.equals("FILE") ? "FILE" : "IMAGE");
+            message.setMediaType(resolveCaptureMediaType(mediaType));
             message.setMediaUrl(file.getAbsolutePath());
             String originalName = getOriginalFileName(uri);
             message.setFileName(originalName != null && !originalName.isBlank() ? originalName : file.getName());
@@ -1055,6 +1057,21 @@ public class FlashNoteTabFragment extends Fragment {
             return;
         }
         getActivity().runOnUiThread(action);
+    }
+
+    @NonNull
+    private String resolveCaptureMediaType(@NonNull String mediaType) {
+        if ("FILE".equals(mediaType)) {
+            return "FILE";
+        }
+        if ("VIDEO".equals(mediaType)) {
+            return "VIDEO";
+        }
+        return "IMAGE";
+    }
+
+    private boolean isVideoMimeType(@Nullable String mimeType) {
+        return mimeType != null && mimeType.startsWith("video/");
     }
 
     private interface TempFileCallback {

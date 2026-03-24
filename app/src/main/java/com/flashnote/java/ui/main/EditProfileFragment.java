@@ -196,13 +196,10 @@ public class EditProfileFragment extends Fragment {
         fileRepository.upload(avatarFile, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String value) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
-                    isUploadingAvatar = false;
+                isUploadingAvatar = false;
+                pendingAvatar = value;
+                runIfUiAlive(() -> {
                     showProgress(false);
-                    pendingAvatar = value;
                     renderAvatar(value);
                     showToast("头像已预览，可点击保存提交");
                 });
@@ -210,11 +207,8 @@ public class EditProfileFragment extends Fragment {
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
-                    isUploadingAvatar = false;
+                isUploadingAvatar = false;
+                runIfUiAlive(() -> {
                     showProgress(false);
                     showToast("上传头像失败：" + message);
                 });
@@ -333,13 +327,10 @@ public class EditProfileFragment extends Fragment {
         userRepository.updateProfile(profile, new UserRepository.ProfileCallback() {
             @Override
             public void onSuccess(UserProfile profile) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                currentProfile = profile;
+                pendingAvatar = null;
+                runIfUiAlive(() -> {
                     showProgress(false);
-                    currentProfile = profile;
-                    pendingAvatar = null;
                     userRepository.refresh();
                     showToast("资料已保存");
                     navigateBack();
@@ -348,10 +339,7 @@ public class EditProfileFragment extends Fragment {
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     showProgress(false);
                     showToast("保存失败：" + message);
                 });
@@ -372,6 +360,13 @@ public class EditProfileFragment extends Fragment {
             return;
         }
         getActivity().getSupportFragmentManager().popBackStack();
+    }
+
+    private void runIfUiAlive(@NonNull Runnable action) {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        getActivity().runOnUiThread(action);
     }
 
     private void showToast(@NonNull String message) {
