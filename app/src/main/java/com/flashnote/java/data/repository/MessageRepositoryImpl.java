@@ -33,12 +33,10 @@ import retrofit2.Response;
 
 public class MessageRepositoryImpl implements MessageRepository {
     private static final String MEDIA_TYPE_TEXT = "TEXT";
-    private static final long MESSAGE_SOURCE_REMOTE = 0L;
-    private static final long MESSAGE_SOURCE_PENDING = 1L;
     private static final Comparator<Message> MERGED_MESSAGE_COMPARATOR =
-            Comparator.<Message>comparingLong(message -> messageSourceOrder(message))
-                    .thenComparing(message -> message == null ? null : message.getCreatedAt(),
+            Comparator.<Message, LocalDateTime>comparing(message -> message == null ? null : message.getCreatedAt(),
                             Comparator.nullsLast(LocalDateTime::compareTo))
+                    .thenComparingLong(message -> messageSourceOrder(message))
                     .thenComparingLong(message -> messageStableTieBreaker(message));
     private final MessageService messageService;
     private final PendingMessageRepository pendingMessageRepository;
@@ -602,7 +600,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     private static long messageSourceOrder(Message message) {
-        return isPendingUiMessage(message) ? MESSAGE_SOURCE_PENDING : MESSAGE_SOURCE_REMOTE;
+        return isPendingUiMessage(message) ? 1L : 0L;
     }
 
     private static long messageStableTieBreaker(Message message) {
