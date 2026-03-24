@@ -53,7 +53,6 @@ public class FlashNoteApp extends Application {
         tokenManager = new TokenManager(this);
         apiClient = new ApiClient(tokenManager);
         database = Room.databaseBuilder(getApplicationContext(), FlashNoteDatabase.class, "flashnote.db")
-                .allowMainThreadQueries()
                 .fallbackToDestructiveMigration()
                 .build();
 

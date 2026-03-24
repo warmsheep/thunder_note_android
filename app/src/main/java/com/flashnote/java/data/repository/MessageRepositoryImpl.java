@@ -2,6 +2,7 @@ package com.flashnote.java.data.repository;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 import android.os.Looper;
 
 import com.flashnote.java.DebugLog;
@@ -14,6 +15,7 @@ import com.flashnote.java.util.ConversationKeyUtil;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +24,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -39,8 +43,12 @@ public class MessageRepositoryImpl implements MessageRepository {
     private final MessageService messageService;
     private final PendingMessageRepository pendingMessageRepository;
     private final PendingMessageDispatcher pendingMessageDispatcher;
+    private final ExecutorService pendingStorageExecutor = Executors.newSingleThreadExecutor();
     private final Map<Long, MutableLiveData<List<Message>>> conversations = new HashMap<>();
     private final Map<Long, MutableLiveData<List<Message>>> mergedConversations = new HashMap<>();
+    private final Map<Long, LiveData<List<PendingMessage>>> pendingConversationSources = new HashMap<>();
+    private final Map<Long, Observer<List<PendingMessage>>> pendingConversationObservers = new HashMap<>();
+    private final Map<Long, List<PendingMessage>> pendingConversationCache = new HashMap<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
     private final Map<Long, Integer> currentPages = new HashMap<>();
@@ -164,15 +172,16 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void retryPendingText(long localId) {
-        PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(localId);
-        if (pendingMessage == null) {
-            return;
-        }
-        pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
-        pendingMessage.setErrorMessage(null);
-        pendingMessageRepository.update(pendingMessage);
-        refreshMergedConversation(pendingMessage.getConversationKey());
-        pendingMessageDispatcher.dispatch(localId);
+        pendingStorageExecutor.execute(() -> {
+            PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(localId);
+            if (pendingMessage == null) {
+                return;
+            }
+            pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
+            pendingMessage.setErrorMessage(null);
+            pendingMessageRepository.update(pendingMessage);
+            pendingMessageDispatcher.dispatch(localId);
+        });
     }
 
     private void sendTextInternal(long conversationKey,
@@ -189,13 +198,14 @@ public class MessageRepositoryImpl implements MessageRepository {
         pendingMessage.setContent(content);
         pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
         pendingMessage.setCreatedAt(System.currentTimeMillis());
-        long localId = pendingMessageRepository.insert(pendingMessage);
-        pendingMessage.setLocalId(localId);
-        refreshMergedConversation(conversationKey);
         if (onSuccess != null) {
             onSuccess.run();
         }
-        pendingMessageDispatcher.dispatch(localId);
+        pendingStorageExecutor.execute(() -> {
+            long localId = pendingMessageRepository.insert(pendingMessage);
+            pendingMessage.setLocalId(localId);
+            pendingMessageDispatcher.dispatch(localId);
+        });
     }
 
     private void loadMessages(long conversationKey, Long flashNoteId, Long peerUserId, int page, int limit) {
@@ -541,18 +551,25 @@ public class MessageRepositoryImpl implements MessageRepository {
         }
         MutableLiveData<List<Message>> created = new MutableLiveData<>(new ArrayList<>());
         mergedConversations.put(conversationKey, created);
+        observePendingConversation(conversationKey);
         refreshMergedConversation(conversationKey);
         return created;
     }
 
     private void refreshMergedConversation(long conversationKey) {
-        refreshMergedConversation(conversationKey, ensureLiveData(conversationKey).getValue());
+        refreshMergedConversation(conversationKey, ensureLiveData(conversationKey).getValue(), pendingConversationCache.get(conversationKey));
     }
 
     private void refreshMergedConversation(long conversationKey, List<Message> remoteOverride) {
+        refreshMergedConversation(conversationKey, remoteOverride, pendingConversationCache.get(conversationKey));
+    }
+
+    private void refreshMergedConversation(long conversationKey,
+                                           List<Message> remoteOverride,
+                                           List<PendingMessage> pendingOverride) {
         MutableLiveData<List<Message>> mergedLiveData = ensureMergedLiveDataInternal(conversationKey);
         List<Message> remote = remoteOverride;
-        List<PendingMessage> pendingMessages = pendingMessageRepository.getByConversationKey(conversationKey);
+        List<PendingMessage> pendingMessages = pendingOverride;
 
         List<Message> merged = remote == null ? new ArrayList<>() : new ArrayList<>(remote);
         if (pendingMessages != null) {
@@ -565,6 +582,23 @@ public class MessageRepositoryImpl implements MessageRepository {
         }
         merged.sort(MERGED_MESSAGE_COMPARATOR);
         setLiveDataValue(mergedLiveData, merged);
+    }
+
+    private void observePendingConversation(long conversationKey) {
+        if (pendingConversationObservers.containsKey(conversationKey)) {
+            return;
+        }
+        LiveData<List<PendingMessage>> source = pendingMessageRepository.observeByConversationKey(conversationKey);
+        Observer<List<PendingMessage>> observer = pendingMessages -> {
+            List<PendingMessage> snapshot = pendingMessages == null
+                    ? Collections.emptyList()
+                    : new ArrayList<>(pendingMessages);
+            pendingConversationCache.put(conversationKey, snapshot);
+            refreshMergedConversation(conversationKey, ensureLiveData(conversationKey).getValue(), snapshot);
+        };
+        pendingConversationSources.put(conversationKey, source);
+        pendingConversationObservers.put(conversationKey, observer);
+        source.observeForever(observer);
     }
 
     private static long messageSourceOrder(Message message) {

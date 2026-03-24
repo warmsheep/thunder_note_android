@@ -1,6 +1,7 @@
 package com.flashnote.java.data.repository;
 
 import androidx.annotation.Nullable;
+import androidx.lifecycle.LiveData;
 
 import com.flashnote.java.data.local.PendingMessageDao;
 import com.flashnote.java.data.model.PendingMessage;
@@ -39,6 +40,11 @@ public class PendingMessageRepositoryImpl implements PendingMessageRepository {
     @Override
     public List<PendingMessage> getByConversationKey(long conversationKey) {
         return pendingMessageDao.getByConversationKey(conversationKey);
+    }
+
+    @Override
+    public LiveData<List<PendingMessage>> observeByConversationKey(long conversationKey) {
+        return pendingMessageDao.observeByConversationKey(conversationKey);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.flashnote.java.data.repository;
 
 import androidx.annotation.Nullable;
+import androidx.lifecycle.LiveData;
 
 import com.flashnote.java.data.model.PendingMessage;
 
@@ -17,6 +18,8 @@ public interface PendingMessageRepository {
     PendingMessage findByLocalId(long localId);
 
     List<PendingMessage> getByConversationKey(long conversationKey);
+
+    LiveData<List<PendingMessage>> observeByConversationKey(long conversationKey);
 
     List<PendingMessage> getByStatus(String status);
 }

@@ -1,5 +1,8 @@
 package com.flashnote.java.data.repository;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.PendingMessage;
@@ -27,6 +30,7 @@ public class PendingMessageDispatcher {
     private final MessageService messageService;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Listener listener;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public PendingMessageDispatcher(PendingMessageRepository pendingMessageRepository,
                                     MessageService messageService,
@@ -49,9 +53,7 @@ public class PendingMessageDispatcher {
             pendingMessage.setStatus(STATUS_SENDING);
             pendingMessage.setErrorMessage(null);
             pendingMessageRepository.update(pendingMessage);
-            if (listener != null) {
-                listener.onPendingUpdated(pendingMessage, null);
-            }
+            notifyListener(pendingMessage, null);
 
             Message message = new Message();
             message.setFlashNoteId(pendingMessage.getFlashNoteId());
@@ -62,30 +64,30 @@ public class PendingMessageDispatcher {
             messageService.send(message).enqueue(new Callback<ApiResponse<Message>>() {
                 @Override
                 public void onResponse(Call<ApiResponse<Message>> call, Response<ApiResponse<Message>> response) {
-                    if (response.isSuccessful() && response.body() != null && response.body().isSuccess() && response.body().getData() != null) {
-                        PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
-                        if (latest == null) {
-                            return;
+                    executor.execute(() -> {
+                        if (response.isSuccessful() && response.body() != null && response.body().isSuccess() && response.body().getData() != null) {
+                            PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
+                            if (latest == null) {
+                                return;
+                            }
+                            latest.setStatus(STATUS_SENT);
+                            latest.setErrorMessage(null);
+                            Message serverMessage = response.body().getData();
+                            if (serverMessage.getId() != null) {
+                                latest.setServerMessageId(serverMessage.getId());
+                            }
+                            pendingMessageRepository.update(latest);
+                            notifyListener(latest, serverMessage);
+                            pendingMessageRepository.delete(latest);
+                        } else {
+                            fail(localId, response.body() != null ? response.body().getMessage() : "发送失败");
                         }
-                        latest.setStatus(STATUS_SENT);
-                        latest.setErrorMessage(null);
-                        Message serverMessage = response.body().getData();
-                        if (serverMessage.getId() != null) {
-                            latest.setServerMessageId(serverMessage.getId());
-                        }
-                        pendingMessageRepository.update(latest);
-                        if (listener != null) {
-                            listener.onPendingUpdated(latest, serverMessage);
-                        }
-                        pendingMessageRepository.delete(latest);
-                    } else {
-                        fail(localId, response.body() != null ? response.body().getMessage() : "发送失败");
-                    }
+                    });
                 }
 
                 @Override
                 public void onFailure(Call<ApiResponse<Message>> call, Throwable t) {
-                    fail(localId, t == null ? "网络错误" : "网络错误: " + t.getMessage());
+                    executor.execute(() -> fail(localId, t == null ? "网络错误" : "网络错误: " + t.getMessage()));
                 }
             });
         });
@@ -100,8 +102,13 @@ public class PendingMessageDispatcher {
         latest.setErrorMessage(errorMessage);
         latest.setAttemptCount(latest.getAttemptCount() + 1);
         pendingMessageRepository.update(latest);
-        if (listener != null) {
-            listener.onPendingUpdated(latest, null);
+        notifyListener(latest, null);
+    }
+
+    private void notifyListener(PendingMessage pendingMessage, Message serverMessage) {
+        if (listener == null) {
+            return;
         }
+        mainHandler.post(() -> listener.onPendingUpdated(pendingMessage, serverMessage));
     }
 }

@@ -1,5 +1,6 @@
 package com.flashnote.java.data.local;
 
+import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Delete;
 import androidx.room.Insert;
@@ -24,6 +25,9 @@ public interface PendingMessageDao {
 
     @Query("SELECT * FROM pending_messages WHERE conversation_key = :conversationKey ORDER BY created_at ASC")
     List<PendingMessage> getByConversationKey(long conversationKey);
+
+    @Query("SELECT * FROM pending_messages WHERE conversation_key = :conversationKey ORDER BY created_at ASC")
+    LiveData<List<PendingMessage>> observeByConversationKey(long conversationKey);
 
     @Query("SELECT * FROM pending_messages WHERE status = :status ORDER BY created_at ASC")
     List<PendingMessage> getByStatus(String status);
