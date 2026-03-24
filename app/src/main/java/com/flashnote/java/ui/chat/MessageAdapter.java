@@ -51,6 +51,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         void onLongClick(Message message, View clickedView);
     }
 
+    public interface OnRetryPendingMessageListener {
+        void onRetry(long localId);
+    }
+
     public interface OnSelectionChangedListener {
         void onSelectionChanged(int selectedCount);
     }
@@ -60,6 +64,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
     private final List<Message> items = new ArrayList<>();
     private final OnMessageLongClickListener listener;
+    @Nullable
+    private final OnRetryPendingMessageListener retryListener;
     private final TokenManager tokenManager;
     private final FileRepository fileRepository;
 
@@ -77,8 +83,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     @Nullable
     private OnSelectionChangedListener selectionChangedListener;
 
-    public MessageAdapter(OnMessageLongClickListener listener) {
+    public MessageAdapter(OnMessageLongClickListener listener,
+                          @Nullable OnRetryPendingMessageListener retryListener) {
         this.listener = listener;
+        this.retryListener = retryListener;
         FlashNoteApp app = FlashNoteApp.getInstance();
         this.tokenManager = app.getTokenManager();
         this.fileRepository = app.getFileRepository();
@@ -262,6 +270,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         holder.binding.rightFileContainer.setOnClickListener(null);
         holder.binding.compositeContainer.setOnClickListener(null);
         holder.binding.rightCompositeContainer.setOnClickListener(null);
+        holder.binding.rightRetryIcon.setOnClickListener(null);
         holder.binding.checkbox.setOnClickListener(null);
         holder.binding.rightCheckbox.setOnClickListener(null);
         stopVoiceWaveAnimation(holder.binding.voiceWaveform);
@@ -284,6 +293,22 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         TextView messageText = mine ? holder.binding.rightMessageText : holder.binding.messageText;
         messageText.setVisibility(View.VISIBLE);
         MarkdownRenderer.renderIfMarkdown(messageText, safeText(message.getContent()));
+        bindRetryState(holder, message, mine);
+    }
+
+    private void bindRetryState(MessageViewHolder holder, Message message, boolean mine) {
+        holder.binding.rightRetryIcon.setVisibility(View.GONE);
+        holder.binding.rightRetryIcon.setOnClickListener(null);
+        if (!mine || retryListener == null) {
+            return;
+        }
+        Long messageId = message.getId();
+        if (messageId == null || messageId >= 0L || message.isUploading()) {
+            return;
+        }
+        long localId = Math.abs(messageId);
+        holder.binding.rightRetryIcon.setVisibility(View.VISIBLE);
+        holder.binding.rightRetryIcon.setOnClickListener(v -> retryListener.onRetry(localId));
     }
 
     private void showImageMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -969,6 +994,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
             binding.leftContainer.setVisibility(mine ? View.GONE : View.VISIBLE);
             binding.rightContainer.setVisibility(mine ? View.VISIBLE : View.GONE);
+            binding.rightRetryIcon.setVisibility(View.GONE);
             
             if (!mine) {
                 if (peerAvatarUrl != null) {
@@ -1082,6 +1108,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 binding.rightCompositeContainer.setOnClickListener(selectClickListener);
                 binding.checkbox.setOnClickListener(selectClickListener);
                 binding.rightCheckbox.setOnClickListener(selectClickListener);
+                binding.rightRetryIcon.setOnClickListener(null);
+                binding.rightRetryIcon.setVisibility(View.GONE);
                 
                 binding.bubbleCard.setOnLongClickListener(null);
                 binding.rightContainer.setOnLongClickListener(null);

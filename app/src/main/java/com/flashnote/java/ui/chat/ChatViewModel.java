@@ -10,6 +10,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.repository.MessageRepository;
+import com.flashnote.java.util.ConversationKeyUtil;
 
 import java.util.HashMap;
 import java.util.List;
@@ -90,6 +91,13 @@ public class ChatViewModel extends AndroidViewModel {
         if (noteId != null && noteId != 0L) {
             repository.sendText(noteId, text.trim(), onSuccess);
         }
+    }
+
+    public void retryPendingText(long localId) {
+        if (localId <= 0L) {
+            return;
+        }
+        repository.retryPendingText(localId);
     }
 
     public void sendTextToFlashNote(long targetFlashNoteId, String text, Runnable onSuccess) {
@@ -254,14 +262,6 @@ public class ChatViewModel extends AndroidViewModel {
     }
 
     private Long getCurrentConversationKey() {
-        Long peerId = peerUserId.getValue();
-        if (peerId != null && peerId > 0L) {
-            return -1_000_000_000L - Math.abs(peerId);
-        }
-        Long noteId = flashNoteId.getValue();
-        if (noteId != null && noteId != 0L) {
-            return noteId;
-        }
-        return null;
+        return ConversationKeyUtil.resolve(flashNoteId.getValue(), peerUserId.getValue());
     }
 }

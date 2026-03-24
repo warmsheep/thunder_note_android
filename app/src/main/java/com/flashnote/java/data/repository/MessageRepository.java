@@ -42,6 +42,8 @@ public interface MessageRepository {
 
     void sendTextToContact(long peerUserId, String content, Runnable onSuccess);
 
+    void retryPendingText(long localId);
+
     void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess);
 
     void deleteContactMessage(long peerUserId, long messageId, Runnable onSuccess);

@@ -202,7 +202,10 @@ public class ChatFragment extends Fragment {
         fileRepository = FlashNoteApp.getInstance().getFileRepository();
         chatViewModel = new ViewModelProvider(this).get(ChatViewModel.class);
         FlashNoteViewModel flashNoteViewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
-        adapter = new MessageAdapter((message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView));
+        adapter = new MessageAdapter(
+                (message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView),
+                localId -> chatViewModel.retryPendingText(localId)
+        );
         adapter.setOnSelectionChangedListener(this::updateMergeSelectionCount);
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.recyclerView.setAdapter(adapter);
@@ -306,7 +309,6 @@ public class ChatFragment extends Fragment {
         chatViewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
             android.content.Context context = getContext();
             if (binding != null && context != null && error != null && !error.trim().isEmpty() && isAdded()) {
-                Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
                 chatViewModel.clearError();
             }
         });
@@ -355,10 +357,7 @@ public class ChatFragment extends Fragment {
         }
         String text = binding.messageInput.getText() == null ? "" : binding.messageInput.getText().toString();
         viewModel.sendTextToCurrentConversation(text, () -> {
-            if (!isAdded() || getActivity() == null || binding == null) {
-                return;
-            }
-            getActivity().runOnUiThread(() -> {
+            runIfUiAlive(() -> {
                 if (binding != null) {
                     binding.messageInput.setText(null);
                     viewModel.clearDraft();

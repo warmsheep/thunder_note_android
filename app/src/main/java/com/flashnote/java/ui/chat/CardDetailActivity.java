@@ -64,7 +64,7 @@ public class CardDetailActivity extends AppCompatActivity {
 
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        adapter = new MessageAdapter(null);
+        adapter = new MessageAdapter(null, null);
         adapter.setUserAvatar(getIntent().getStringExtra(EXTRA_USER_AVATAR));
         adapter.setUserAvatarUrl(getIntent().getStringExtra(EXTRA_USER_AVATAR_URL), this);
         adapter.setPeerAvatar(getIntent().getStringExtra(EXTRA_PEER_AVATAR));

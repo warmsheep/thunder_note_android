@@ -2,26 +2,38 @@ package com.flashnote.java.data.repository;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import android.os.Looper;
 
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.MessageListRequest;
+import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.remote.MessageService;
+import com.flashnote.java.util.ConversationKeyUtil;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.UUID;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class MessageRepositoryImpl implements MessageRepository {
+    private static final String MEDIA_TYPE_TEXT = "TEXT";
     private final MessageService messageService;
+    private final PendingMessageRepository pendingMessageRepository;
+    private final PendingMessageDispatcher pendingMessageDispatcher;
     private final Map<Long, MutableLiveData<List<Message>>> conversations = new HashMap<>();
+    private final Map<Long, MutableLiveData<List<Message>>> mergedConversations = new HashMap<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
     private final Map<Long, Integer> currentPages = new HashMap<>();
@@ -31,18 +43,23 @@ public class MessageRepositoryImpl implements MessageRepository {
     private long currentPeerUserId = 0L;
     private long currentConversationKey = 0L;
 
-    public MessageRepositoryImpl(MessageService messageService) {
+    public MessageRepositoryImpl(MessageService messageService,
+                                 PendingMessageRepository pendingMessageRepository) {
         this.messageService = messageService;
+        this.pendingMessageRepository = pendingMessageRepository;
+        this.pendingMessageDispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, this::onPendingUpdated);
     }
 
     @Override
     public LiveData<List<Message>> getMessages(long flashNoteId) {
-        return ensureLiveData(keyForFlashNote(flashNoteId));
+        long conversationKey = ConversationKeyUtil.forFlashNote(flashNoteId);
+        return ensureMergedLiveData(conversationKey);
     }
 
     @Override
     public LiveData<List<Message>> getContactMessages(long peerUserId) {
-        return ensureLiveData(keyForContact(peerUserId));
+        long conversationKey = ConversationKeyUtil.forContact(peerUserId);
+        return ensureMergedLiveData(conversationKey);
     }
 
     @Override
@@ -90,7 +107,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     public void bindFlashNote(long flashNoteId) {
         currentFlashNoteId = flashNoteId;
         currentPeerUserId = 0L;
-        currentConversationKey = keyForFlashNote(flashNoteId);
+        currentConversationKey = ConversationKeyUtil.forFlashNote(flashNoteId);
         MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
         MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
         List<Message> current = liveData.getValue();
@@ -111,7 +128,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     public void bindContact(long peerUserId) {
         currentPeerUserId = peerUserId;
         currentFlashNoteId = 0L;
-        currentConversationKey = keyForContact(peerUserId);
+        currentConversationKey = ConversationKeyUtil.forContact(peerUserId);
         MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
         MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
         List<Message> current = liveData.getValue();
@@ -130,12 +147,25 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void sendText(long flashNoteId, String content, Runnable onSuccess) {
-        sendTextInternal(keyForFlashNote(flashNoteId), flashNoteId, null, content, onSuccess);
+        sendTextInternal(ConversationKeyUtil.forFlashNote(flashNoteId), flashNoteId, null, content, onSuccess);
     }
 
     @Override
     public void sendTextToContact(long peerUserId, String content, Runnable onSuccess) {
-        sendTextInternal(keyForContact(peerUserId), null, peerUserId, content, onSuccess);
+        sendTextInternal(ConversationKeyUtil.forContact(peerUserId), null, peerUserId, content, onSuccess);
+    }
+
+    @Override
+    public void retryPendingText(long localId) {
+        PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(localId);
+        if (pendingMessage == null) {
+            return;
+        }
+        pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
+        pendingMessage.setErrorMessage(null);
+        pendingMessageRepository.update(pendingMessage);
+        refreshMergedConversation(pendingMessage.getConversationKey());
+        pendingMessageDispatcher.dispatch(localId);
     }
 
     private void sendTextInternal(long conversationKey,
@@ -143,44 +173,22 @@ public class MessageRepositoryImpl implements MessageRepository {
                                   Long peerUserId,
                                   String content,
                                   Runnable onSuccess) {
-        isLoading.setValue(true);
-        Message message = new Message();
-        message.setFlashNoteId(flashNoteId);
-        message.setReceiverId(peerUserId);
-        message.setContent(content);
-        message.setRole("user");
-        
-        messageService.send(message).enqueue(new Callback<ApiResponse<Message>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<Message>> call, 
-                                 Response<ApiResponse<Message>> response) {
-                isLoading.setValue(false);
-                if (response.isSuccessful() && response.body() != null) {
-                    ApiResponse<Message> apiResponse = response.body();
-                    if (apiResponse.isSuccess() && apiResponse.getData() != null) {
-                        clearError();
-                        MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
-                        List<Message> current = liveData.getValue();
-                        List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
-                        updated.add(apiResponse.getData());
-                        liveData.setValue(updated);
-                        if (onSuccess != null) {
-                            onSuccess.run();
-                        }
-                    } else {
-                        errorMessage.setValue(apiResponse.getMessage());
-                    }
-                } else {
-                    errorMessage.setValue("Failed to send message: " + response.code());
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<Message>> call, Throwable t) {
-                isLoading.setValue(false);
-                errorMessage.setValue("Network error: " + t.getMessage());
-            }
-        });
+        PendingMessage pendingMessage = new PendingMessage();
+        pendingMessage.setConversationKey(conversationKey);
+        pendingMessage.setFlashNoteId(flashNoteId);
+        pendingMessage.setPeerUserId(peerUserId);
+        pendingMessage.setClientRequestId(UUID.randomUUID().toString());
+        pendingMessage.setMediaType(MEDIA_TYPE_TEXT);
+        pendingMessage.setContent(content);
+        pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
+        pendingMessage.setCreatedAt(System.currentTimeMillis());
+        long localId = pendingMessageRepository.insert(pendingMessage);
+        pendingMessage.setLocalId(localId);
+        refreshMergedConversation(conversationKey);
+        if (onSuccess != null) {
+            onSuccess.run();
+        }
+        pendingMessageDispatcher.dispatch(localId);
     }
 
     private void loadMessages(long conversationKey, Long flashNoteId, Long peerUserId, int page, int limit) {
@@ -208,6 +216,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                             }
                             liveData.setValue(updated);
                         }
+                        refreshMergedConversation(conversationKey);
                         
                         boolean hasMore = newMessages.size() >= limit;
                         hasMoreMap.put(conversationKey, hasMore);
@@ -237,7 +246,7 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void loadMoreMessages(long flashNoteId) {
-        long conversationKey = keyForFlashNote(flashNoteId);
+        long conversationKey = ConversationKeyUtil.forFlashNote(flashNoteId);
         Boolean hasMore = hasMoreMap.get(conversationKey);
         if (hasMore == null || !hasMore) {
             return;
@@ -256,7 +265,7 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void loadMoreContactMessages(long peerUserId) {
-        long conversationKey = keyForContact(peerUserId);
+        long conversationKey = ConversationKeyUtil.forContact(peerUserId);
         Boolean hasMore = hasMoreMap.get(conversationKey);
         if (hasMore == null || !hasMore) {
             return;
@@ -304,12 +313,12 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess) {
-        deleteMessageInternal(keyForFlashNote(flashNoteId), messageId, onSuccess);
+        deleteMessageInternal(ConversationKeyUtil.forFlashNote(flashNoteId), messageId, onSuccess);
     }
 
     @Override
     public void deleteContactMessage(long peerUserId, long messageId, Runnable onSuccess) {
-        deleteMessageInternal(keyForContact(peerUserId), messageId, onSuccess);
+        deleteMessageInternal(ConversationKeyUtil.forContact(peerUserId), messageId, onSuccess);
     }
 
     private void deleteMessageInternal(long conversationKey, long messageId, Runnable onSuccess) {
@@ -333,6 +342,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                                 }
                             }
                             liveData.setValue(updated);
+                            refreshMergedConversation(conversationKey);
                         }
                         if (onSuccess != null) {
                             onSuccess.run();
@@ -366,7 +376,7 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void sendMessage(long flashNoteId, Message message, SendCallback callback) {
-        sendMessageInternal(keyForFlashNote(flashNoteId), flashNoteId, null, message, callback);
+        sendMessageInternal(ConversationKeyUtil.forFlashNote(flashNoteId), flashNoteId, null, message, callback);
     }
 
     @Override
@@ -376,7 +386,7 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void sendMessageToContact(long peerUserId, Message message, SendCallback callback) {
-        sendMessageInternal(keyForContact(peerUserId), null, peerUserId, message, callback);
+        sendMessageInternal(ConversationKeyUtil.forContact(peerUserId), null, peerUserId, message, callback);
     }
 
     private void sendMessageInternal(long conversationKey,
@@ -404,6 +414,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                         updated.remove(message);
                         updated.add(apiResponse.getData());
                         liveData.setValue(updated);
+                        refreshMergedConversation(conversationKey);
                         if (callback != null) {
                             callback.onSuccess();
                         }
@@ -480,11 +491,12 @@ public class MessageRepositoryImpl implements MessageRepository {
         if (flashNoteId == null) {
             return;
         }
-        MutableLiveData<List<Message>> liveData = ensureLiveData(keyForFlashNote(flashNoteId));
+        MutableLiveData<List<Message>> liveData = ensureLiveData(ConversationKeyUtil.forFlashNote(flashNoteId));
         List<Message> current = liveData.getValue();
         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
         updated.add(message);
         liveData.setValue(updated);
+        refreshMergedConversation(ConversationKeyUtil.forFlashNote(flashNoteId));
     }
 
     @Override
@@ -493,7 +505,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         if (flashNoteId == null) {
             return;
         }
-        MutableLiveData<List<Message>> liveData = ensureLiveData(keyForFlashNote(flashNoteId));
+        MutableLiveData<List<Message>> liveData = ensureLiveData(ConversationKeyUtil.forFlashNote(flashNoteId));
         List<Message> current = liveData.getValue();
         if (current == null || current.isEmpty()) {
             return;
@@ -501,16 +513,99 @@ public class MessageRepositoryImpl implements MessageRepository {
         List<Message> updated = new ArrayList<>(current);
         if (updated.remove(message)) {
             liveData.setValue(updated);
+            refreshMergedConversation(ConversationKeyUtil.forFlashNote(flashNoteId));
         }
     }
 
     @Override
     public void addLocalContactMessage(long peerUserId, Message message) {
-        MutableLiveData<List<Message>> liveData = ensureLiveData(keyForContact(peerUserId));
+        MutableLiveData<List<Message>> liveData = ensureLiveData(ConversationKeyUtil.forContact(peerUserId));
         List<Message> current = liveData.getValue();
         List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
         updated.add(message);
         liveData.setValue(updated);
+        refreshMergedConversation(ConversationKeyUtil.forContact(peerUserId));
+    }
+
+    private MutableLiveData<List<Message>> ensureMergedLiveData(long conversationKey) {
+        MutableLiveData<List<Message>> existing = mergedConversations.get(conversationKey);
+        if (existing != null) {
+            return existing;
+        }
+        MutableLiveData<List<Message>> created = new MutableLiveData<>(new ArrayList<>());
+        mergedConversations.put(conversationKey, created);
+        refreshMergedConversation(conversationKey);
+        return created;
+    }
+
+    private void refreshMergedConversation(long conversationKey) {
+        refreshMergedConversation(conversationKey, ensureLiveData(conversationKey).getValue());
+    }
+
+    private void refreshMergedConversation(long conversationKey, List<Message> remoteOverride) {
+        MutableLiveData<List<Message>> mergedLiveData = ensureMergedLiveDataInternal(conversationKey);
+        List<Message> remote = remoteOverride;
+        List<PendingMessage> pendingMessages = pendingMessageRepository.getByConversationKey(conversationKey);
+
+        List<Message> merged = remote == null ? new ArrayList<>() : new ArrayList<>(remote);
+        if (pendingMessages != null) {
+            for (PendingMessage pendingMessage : pendingMessages) {
+                if (PendingMessageDispatcher.STATUS_SENT.equals(pendingMessage.getStatus())) {
+                    continue;
+                }
+                merged.add(toUiMessage(pendingMessage));
+            }
+        }
+        merged.sort(Comparator.comparing(Message::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)));
+        setLiveDataValue(mergedLiveData, merged);
+    }
+
+    private MutableLiveData<List<Message>> ensureMergedLiveDataInternal(long conversationKey) {
+        MutableLiveData<List<Message>> existing = mergedConversations.get(conversationKey);
+        if (existing != null) {
+            return existing;
+        }
+        MutableLiveData<List<Message>> created = new MutableLiveData<>(new ArrayList<>());
+        mergedConversations.put(conversationKey, created);
+        return created;
+    }
+
+    private Message toUiMessage(PendingMessage pendingMessage) {
+        Message message = new Message();
+        message.setId(-pendingMessage.getLocalId());
+        message.setFlashNoteId(pendingMessage.getFlashNoteId());
+        message.setReceiverId(pendingMessage.getPeerUserId());
+        message.setContent(pendingMessage.getContent());
+        message.setMediaType(pendingMessage.getMediaType());
+        message.setRole("user");
+        message.setCreatedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(pendingMessage.getCreatedAt()), ZoneId.systemDefault()));
+        message.setUploading(!PendingMessageDispatcher.STATUS_FAILED.equals(pendingMessage.getStatus()));
+        return message;
+    }
+
+    private void onPendingUpdated(PendingMessage pendingMessage, Message serverMessage) {
+        long conversationKey = pendingMessage.getConversationKey();
+        if (serverMessage != null) {
+            MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
+            List<Message> current = liveData.getValue();
+            List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
+            updated.add(serverMessage);
+            setLiveDataValue(liveData, updated);
+            setLiveDataValue(errorMessage, null);
+            refreshMergedConversation(conversationKey, updated);
+        } else if (PendingMessageDispatcher.STATUS_FAILED.equals(pendingMessage.getStatus())) {
+            setLiveDataValue(errorMessage, pendingMessage.getErrorMessage());
+            refreshMergedConversation(conversationKey);
+        }
+        setLiveDataValue(isLoading, PendingMessageDispatcher.STATUS_SENDING.equals(pendingMessage.getStatus()));
+    }
+
+    private <T> void setLiveDataValue(MutableLiveData<T> liveData, T value) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            liveData.setValue(value);
+        } else {
+            liveData.postValue(value);
+        }
     }
 
     @Override
@@ -573,11 +668,4 @@ public class MessageRepositoryImpl implements MessageRepository {
         });
     }
 
-    private long keyForFlashNote(long flashNoteId) {
-        return flashNoteId;
-    }
-
-    private long keyForContact(long peerUserId) {
-        return -1_000_000_000L - Math.abs(peerUserId);
-    }
 }

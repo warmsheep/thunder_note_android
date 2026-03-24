@@ -2,6 +2,9 @@ package com.flashnote.java;
 
 import android.app.Application;
 
+import androidx.room.Room;
+
+import com.flashnote.java.data.local.FlashNoteDatabase;
 import com.flashnote.java.data.remote.ApiClient;
 import com.flashnote.java.data.repository.AuthRepository;
 import com.flashnote.java.data.repository.AuthRepositoryImpl;
@@ -15,6 +18,8 @@ import com.flashnote.java.data.repository.FlashNoteRepository;
 import com.flashnote.java.data.repository.FlashNoteRepositoryImpl;
 import com.flashnote.java.data.repository.MessageRepository;
 import com.flashnote.java.data.repository.MessageRepositoryImpl;
+import com.flashnote.java.data.repository.PendingMessageRepository;
+import com.flashnote.java.data.repository.PendingMessageRepositoryImpl;
 import com.flashnote.java.data.repository.SyncRepository;
 import com.flashnote.java.data.repository.SyncRepositoryImpl;
 import com.flashnote.java.data.repository.UserRepository;
@@ -33,6 +38,8 @@ public class FlashNoteApp extends Application {
     private FileRepository fileRepository;
     private FavoriteRepository favoriteRepository;
     private UserRepository userRepository;
+    private FlashNoteDatabase database;
+    private PendingMessageRepository pendingMessageRepository;
 
     @Override
     public void onCreate() {
@@ -45,10 +52,15 @@ public class FlashNoteApp extends Application {
     private void initializeDependencies() {
         tokenManager = new TokenManager(this);
         apiClient = new ApiClient(tokenManager);
+        database = Room.databaseBuilder(getApplicationContext(), FlashNoteDatabase.class, "flashnote.db")
+                .allowMainThreadQueries()
+                .fallbackToDestructiveMigration()
+                .build();
 
         authRepository = new AuthRepositoryImpl(apiClient.getAuthService(), tokenManager);
         flashNoteRepository = new FlashNoteRepositoryImpl(apiClient.getFlashNoteService());
-        messageRepository = new MessageRepositoryImpl(apiClient.getMessageService());
+        pendingMessageRepository = new PendingMessageRepositoryImpl(database.pendingMessageDao());
+        messageRepository = new MessageRepositoryImpl(apiClient.getMessageService(), pendingMessageRepository);
         collectionRepository = new CollectionRepositoryImpl(apiClient.getCollectionService());
         syncRepository = new SyncRepositoryImpl(apiClient.getSyncService());
         fileRepository = new FileRepositoryImpl(apiClient.getFileService(), this);
@@ -98,5 +110,13 @@ public class FlashNoteApp extends Application {
 
     public UserRepository getUserRepository() {
         return userRepository;
+    }
+
+    public FlashNoteDatabase getDatabase() {
+        return database;
+    }
+
+    public PendingMessageRepository getPendingMessageRepository() {
+        return pendingMessageRepository;
     }
 }
