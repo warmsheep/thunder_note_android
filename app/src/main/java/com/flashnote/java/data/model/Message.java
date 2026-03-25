@@ -51,6 +51,7 @@ public class Message {
     private CardPayload payload;
     
     private transient boolean uploading = false;
+    private transient Long localSortTimestamp;
 
     public Message() {}
 
@@ -187,5 +188,13 @@ public class Message {
     
     public void setUploading(boolean uploading) {
         this.uploading = uploading;
+    }
+
+    public Long getLocalSortTimestamp() {
+        return localSortTimestamp;
+    }
+
+    public void setLocalSortTimestamp(Long localSortTimestamp) {
+        this.localSortTimestamp = localSortTimestamp;
     }
 }

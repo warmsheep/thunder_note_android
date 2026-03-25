@@ -34,8 +34,7 @@ import retrofit2.Response;
 public class MessageRepositoryImpl implements MessageRepository {
     private static final String MEDIA_TYPE_TEXT = "TEXT";
     private static final Comparator<Message> MERGED_MESSAGE_COMPARATOR =
-            Comparator.<Message, LocalDateTime>comparing(message -> message == null ? null : message.getCreatedAt(),
-                            Comparator.nullsLast(LocalDateTime::compareTo))
+            Comparator.<Message>comparingLong(message -> messageSortTimestamp(message))
                     .thenComparingLong(message -> messageSourceOrder(message))
                     .thenComparingLong(message -> messageStableTieBreaker(message));
     private final MessageService messageService;
@@ -603,6 +602,21 @@ public class MessageRepositoryImpl implements MessageRepository {
         return isPendingUiMessage(message) ? 1L : 0L;
     }
 
+    private static long messageSortTimestamp(Message message) {
+        if (message == null) {
+            return Long.MAX_VALUE;
+        }
+        Long localSortTimestamp = message.getLocalSortTimestamp();
+        if (localSortTimestamp != null) {
+            return localSortTimestamp;
+        }
+        LocalDateTime createdAt = message.getCreatedAt();
+        if (createdAt == null) {
+            return Long.MAX_VALUE;
+        }
+        return createdAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
     private static long messageStableTieBreaker(Message message) {
         if (message == null || message.getId() == null) {
             return Long.MAX_VALUE;
@@ -637,6 +651,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         message.setMediaType(pendingMessage.getMediaType());
         message.setRole("user");
         message.setCreatedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(pendingMessage.getCreatedAt()), ZoneId.systemDefault()));
+        message.setLocalSortTimestamp(pendingMessage.getCreatedAt());
         message.setUploading(!PendingMessageDispatcher.STATUS_FAILED.equals(pendingMessage.getStatus()));
         return message;
     }
@@ -644,6 +659,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     private void onPendingUpdated(PendingMessage pendingMessage, Message serverMessage) {
         long conversationKey = pendingMessage.getConversationKey();
         if (serverMessage != null) {
+            serverMessage.setLocalSortTimestamp(pendingMessage.getCreatedAt());
             MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
             List<Message> current = liveData.getValue();
             List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
