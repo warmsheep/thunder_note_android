@@ -50,6 +50,18 @@ public class PendingMessage {
     @Nullable
     private Long fileSize;
 
+    @ColumnInfo(name = "media_duration")
+    @Nullable
+    private Integer mediaDuration;
+
+    @ColumnInfo(name = "processed_file_path")
+    @Nullable
+    private String processedFilePath;
+
+    @ColumnInfo(name = "thumbnail_url")
+    @Nullable
+    private String thumbnailUrl;
+
     @ColumnInfo(name = "status")
     @Nullable
     private String status;
@@ -163,6 +175,33 @@ public class PendingMessage {
 
     public void setFileSize(@Nullable Long fileSize) {
         this.fileSize = fileSize;
+    }
+
+    @Nullable
+    public Integer getMediaDuration() {
+        return mediaDuration;
+    }
+
+    public void setMediaDuration(@Nullable Integer mediaDuration) {
+        this.mediaDuration = mediaDuration;
+    }
+
+    @Nullable
+    public String getProcessedFilePath() {
+        return processedFilePath;
+    }
+
+    public void setProcessedFilePath(@Nullable String processedFilePath) {
+        this.processedFilePath = processedFilePath;
+    }
+
+    @Nullable
+    public String getThumbnailUrl() {
+        return thumbnailUrl;
+    }
+
+    public void setThumbnailUrl(@Nullable String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
     }
 
     @Nullable

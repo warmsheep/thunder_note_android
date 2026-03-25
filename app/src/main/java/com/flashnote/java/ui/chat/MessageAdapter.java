@@ -359,6 +359,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         bindTextForMediaMessage(refs.messageText, message.getContent());
 
         String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
+        refs.imageContainer.setOnClickListener(null);
+        if (!message.isUploading() && isLocalOnlyMediaPath(message.getMediaUrl())) {
+            refs.imageContainer.setOnClickListener(v -> Toast.makeText(context, "视频发送失败，请重试", Toast.LENGTH_SHORT).show());
+        }
         if (!message.isUploading() && !isLocalOnlyMediaPath(preview)) {
             Glide.with(context)
                     .load(resolveMediaUrl(preview))
@@ -390,10 +394,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         Integer duration = message.getMediaDuration();
         refs.voiceDuration.setText((duration == null || duration <= 0 ? 0 : duration) + "s");
 
+        refs.voiceContainer.setOnClickListener(null);
         if (!message.isUploading()) {
             refs.voicePlayBtn.setVisibility(View.GONE);
-            
-            refs.voiceContainer.setOnClickListener(v -> toggleVoicePlayback(v.getContext(), message, refs.voiceContainer, refs.voiceWaveform));
+            if (isLocalOnlyMediaPath(message.getMediaUrl())) {
+                refs.voiceContainer.setOnClickListener(v -> Toast.makeText(v.getContext(), "语音发送失败，请重试", Toast.LENGTH_SHORT).show());
+            } else {
+                refs.voiceContainer.setOnClickListener(v -> toggleVoicePlayback(v.getContext(), message, refs.voiceContainer, refs.voiceWaveform));
+            }
             
             boolean isPlayingThis = message.getId() != null
                     && currentPlayingMessageId != null

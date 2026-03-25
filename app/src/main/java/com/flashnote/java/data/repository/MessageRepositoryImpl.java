@@ -42,6 +42,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     private final MessageService messageService;
     private final PendingMessageRepository pendingMessageRepository;
     private final FileRepository fileRepository;
+    private final VideoPreparationService videoPreparationService;
     private final PendingMessageDispatcher pendingMessageDispatcher;
     private final ExecutorService pendingStorageExecutor = Executors.newSingleThreadExecutor();
     private final Map<Long, MutableLiveData<List<Message>>> conversations = new HashMap<>();
@@ -60,11 +61,13 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     public MessageRepositoryImpl(MessageService messageService,
                                  PendingMessageRepository pendingMessageRepository,
-                                 FileRepository fileRepository) {
+                                 FileRepository fileRepository,
+                                 VideoPreparationService videoPreparationService) {
         this.messageService = messageService;
         this.pendingMessageRepository = pendingMessageRepository;
         this.fileRepository = fileRepository;
-        this.pendingMessageDispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, fileRepository, this::onPendingUpdated);
+        this.videoPreparationService = videoPreparationService;
+        this.pendingMessageDispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, fileRepository, videoPreparationService, this::onPendingUpdated);
     }
 
     @Override
@@ -190,8 +193,13 @@ public class MessageRepositoryImpl implements MessageRepository {
         pendingMessage.setClientRequestId(UUID.randomUUID().toString());
         pendingMessage.setMediaType(mediaType);
         pendingMessage.setLocalFilePath(localFile.getAbsolutePath());
+        pendingMessage.setProcessedFilePath(localFile.getAbsolutePath());
         pendingMessage.setFileName(fileName);
         pendingMessage.setFileSize(fileSize);
+        pendingMessage.setMediaDuration(mediaDuration);
+        if ("VIDEO".equalsIgnoreCase(mediaType)) {
+            pendingMessage.setProcessedFilePath(null);
+        }
         pendingMessage.setContent(defaultMediaContent(mediaType));
         pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
         pendingMessage.setCreatedAt(System.currentTimeMillis());
@@ -779,8 +787,10 @@ public class MessageRepositoryImpl implements MessageRepository {
         message.setContent(pendingMessage.getContent());
         message.setMediaType(pendingMessage.getMediaType());
         message.setMediaUrl(pendingMessage.getRemoteUrl() != null ? pendingMessage.getRemoteUrl() : pendingMessage.getLocalFilePath());
+        message.setThumbnailUrl(pendingMessage.getThumbnailUrl() != null ? pendingMessage.getThumbnailUrl() : pendingMessage.getRemoteUrl());
         message.setFileName(pendingMessage.getFileName());
         message.setFileSize(pendingMessage.getFileSize());
+        message.setMediaDuration(pendingMessage.getMediaDuration());
         message.setRole("user");
         message.setCreatedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(pendingMessage.getCreatedAt()), ZoneId.systemDefault()));
         message.setLocalSortTimestamp(pendingMessage.getCreatedAt());
@@ -807,7 +817,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     private void onPendingUpdated(PendingMessage pendingMessage, Message serverMessage) {
         long conversationKey = pendingMessage.getConversationKey();
         if (serverMessage != null) {
-            serverMessage.setLocalSortTimestamp(pendingMessage.getCreatedAt());
+            applyPendingMetadataToServerMessage(serverMessage, pendingMessage);
             MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
             List<Message> current = liveData.getValue();
             List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
@@ -820,6 +830,31 @@ public class MessageRepositoryImpl implements MessageRepository {
             refreshMergedConversation(conversationKey);
         }
         setLiveDataValue(isLoading, PendingMessageDispatcher.STATUS_SENDING.equals(pendingMessage.getStatus()));
+    }
+
+    static void applyPendingMetadataToServerMessage(Message serverMessage, PendingMessage pendingMessage) {
+        if (serverMessage == null || pendingMessage == null) {
+            return;
+        }
+        serverMessage.setLocalSortTimestamp(pendingMessage.getCreatedAt());
+        if (serverMessage.getMediaType() == null) {
+            serverMessage.setMediaType(pendingMessage.getMediaType());
+        }
+        if (serverMessage.getMediaUrl() == null) {
+            serverMessage.setMediaUrl(pendingMessage.getRemoteUrl());
+        }
+        if (serverMessage.getThumbnailUrl() == null) {
+            serverMessage.setThumbnailUrl(pendingMessage.getThumbnailUrl() != null ? pendingMessage.getThumbnailUrl() : pendingMessage.getRemoteUrl());
+        }
+        if (serverMessage.getMediaDuration() == null) {
+            serverMessage.setMediaDuration(pendingMessage.getMediaDuration());
+        }
+        if (serverMessage.getFileName() == null) {
+            serverMessage.setFileName(pendingMessage.getFileName());
+        }
+        if (serverMessage.getFileSize() == null) {
+            serverMessage.setFileSize(pendingMessage.getFileSize());
+        }
     }
 
     private <T> void setLiveDataValue(MutableLiveData<T> liveData, T value) {

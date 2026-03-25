@@ -24,6 +24,7 @@ public class PendingMessageDispatcher {
     }
 
     public static final String STATUS_QUEUED = "QUEUED";
+    public static final String STATUS_PROCESSING = "PROCESSING";
     public static final String STATUS_UPLOADING = "UPLOADING";
     public static final String STATUS_UPLOADED = "UPLOADED";
     public static final String STATUS_SENDING = "SENDING";
@@ -33,6 +34,7 @@ public class PendingMessageDispatcher {
     private final PendingMessageRepository pendingMessageRepository;
     private final MessageService messageService;
     private final FileRepository fileRepository;
+    private final VideoPreparationService videoPreparationService;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Listener listener;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -40,10 +42,12 @@ public class PendingMessageDispatcher {
     public PendingMessageDispatcher(PendingMessageRepository pendingMessageRepository,
                                     MessageService messageService,
                                     FileRepository fileRepository,
+                                    VideoPreparationService videoPreparationService,
                                     Listener listener) {
         this.pendingMessageRepository = pendingMessageRepository;
         this.messageService = messageService;
         this.fileRepository = fileRepository;
+        this.videoPreparationService = videoPreparationService;
         this.listener = listener;
     }
 
@@ -104,11 +108,66 @@ public class PendingMessageDispatcher {
             return;
         }
 
+        if (requiresVideoUpload(pendingMessage)) {
+            uploadThenSend(localId, pendingMessage);
+            return;
+        }
+
+        if (requiresVideoPreparation(pendingMessage)) {
+            prepareVideoThenUpload(localId, pendingMessage);
+            return;
+        }
+
         sendPendingMessage(localId, pendingMessage);
     }
 
-    private void uploadThenSend(long localId, PendingMessage pendingMessage) {
+    private void prepareVideoThenUpload(long localId, PendingMessage pendingMessage) {
         File localFile = pendingMessage.getLocalFilePath() == null ? null : new File(pendingMessage.getLocalFilePath());
+        if (localFile == null || !localFile.exists()) {
+            fail(localId, "本地文件不存在");
+            return;
+        }
+
+        pendingMessage.setStatus(STATUS_PROCESSING);
+        pendingMessage.setErrorMessage(null);
+        pendingMessageRepository.update(pendingMessage);
+        notifyListener(pendingMessage, null);
+
+        videoPreparationService.prepareVideo(localFile, new VideoPreparationService.Callback() {
+            @Override
+            public void onSuccess(File processedFile) {
+                executor.execute(() -> handleVideoPreparedNow(localId, processedFile));
+            }
+
+            @Override
+            public void onError(String message) {
+                executor.execute(() -> handleVideoPrepareFailureNow(localId, message == null ? "视频处理失败" : message));
+            }
+        });
+    }
+
+    void handleVideoPreparedNow(long localId, File processedFile) {
+        PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
+        if (latest == null) {
+            return;
+        }
+        latest.setProcessedFilePath(processedFile == null ? null : processedFile.getAbsolutePath());
+        if (processedFile != null) {
+            latest.setFileSize(processedFile.length());
+        }
+        pendingMessageRepository.update(latest);
+        uploadThenSend(localId, latest);
+    }
+
+    void handleVideoPrepareFailureNow(long localId, String errorMessage) {
+        fail(localId, errorMessage == null ? "视频处理失败" : errorMessage);
+    }
+
+    private void uploadThenSend(long localId, PendingMessage pendingMessage) {
+        String uploadPath = pendingMessage.getProcessedFilePath() != null && !pendingMessage.getProcessedFilePath().trim().isEmpty()
+                ? pendingMessage.getProcessedFilePath()
+                : pendingMessage.getLocalFilePath();
+        File localFile = uploadPath == null ? null : new File(uploadPath);
         if (localFile == null || !localFile.exists()) {
             fail(localId, "本地文件不存在");
             return;
@@ -211,11 +270,41 @@ public class PendingMessageDispatcher {
             return false;
         }
         String mediaType = pendingMessage.getMediaType();
-        if (!("IMAGE".equalsIgnoreCase(mediaType) || "FILE".equalsIgnoreCase(mediaType))) {
+        if (!("IMAGE".equalsIgnoreCase(mediaType) || "FILE".equalsIgnoreCase(mediaType) || "VOICE".equalsIgnoreCase(mediaType))) {
             return false;
         }
         String remoteUrl = pendingMessage.getRemoteUrl();
         return remoteUrl == null || remoteUrl.trim().isEmpty();
+    }
+
+    private boolean requiresVideoPreparation(PendingMessage pendingMessage) {
+        if (pendingMessage == null) {
+            return false;
+        }
+        if (!"VIDEO".equalsIgnoreCase(pendingMessage.getMediaType())) {
+            return false;
+        }
+        String remoteUrl = pendingMessage.getRemoteUrl();
+        if (remoteUrl != null && !remoteUrl.trim().isEmpty()) {
+            return false;
+        }
+        String processedFilePath = pendingMessage.getProcessedFilePath();
+        return processedFilePath == null || processedFilePath.trim().isEmpty();
+    }
+
+    private boolean requiresVideoUpload(PendingMessage pendingMessage) {
+        if (pendingMessage == null) {
+            return false;
+        }
+        if (!"VIDEO".equalsIgnoreCase(pendingMessage.getMediaType())) {
+            return false;
+        }
+        String remoteUrl = pendingMessage.getRemoteUrl();
+        if (remoteUrl != null && !remoteUrl.trim().isEmpty()) {
+            return false;
+        }
+        String processedFilePath = pendingMessage.getProcessedFilePath();
+        return processedFilePath != null && !processedFilePath.trim().isEmpty();
     }
 
     private void fail(long localId, String errorMessage) {

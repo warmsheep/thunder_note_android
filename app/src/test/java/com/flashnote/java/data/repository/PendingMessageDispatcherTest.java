@@ -42,6 +42,9 @@ public class PendingMessageDispatcherTest {
     private FileRepository fileRepository;
 
     @Mock
+    private VideoPreparationService videoPreparationService;
+
+    @Mock
     private Call mockSendCall;
 
     @Mock
@@ -53,7 +56,7 @@ public class PendingMessageDispatcherTest {
     public void setUp() {
         MockitoAnnotations.initMocks(this);
         when(messageService.send(any())).thenReturn(mockSendCall);
-        dispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, fileRepository, listener);
+        dispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, fileRepository, videoPreparationService, listener);
     }
 
     @Test
@@ -158,6 +161,67 @@ public class PendingMessageDispatcherTest {
 
         org.junit.Assert.assertEquals("obj/51.bin", filePending.getRemoteUrl());
         verify(messageService).send(any());
+    }
+
+    @Test
+    public void dispatchConversationNow_uploadsVoiceBeforeSending() throws Exception {
+        File tempFile = File.createTempFile("pending-voice", ".m4a");
+        tempFile.deleteOnExit();
+
+        PendingMessage voicePending = buildPending(61L, 55L, PendingMessageDispatcher.STATUS_QUEUED);
+        voicePending.setMediaType("VOICE");
+        voicePending.setLocalFilePath(tempFile.getAbsolutePath());
+        voicePending.setProcessedFilePath(tempFile.getAbsolutePath());
+        voicePending.setMediaDuration(8);
+
+        when(pendingMessageRepository.getByConversationKey(55L)).thenReturn(List.of(voicePending));
+        when(pendingMessageRepository.findByLocalId(eq(61L))).thenReturn(voicePending);
+
+        dispatcher.dispatchConversationNow(55L);
+
+        verify(fileRepository).upload(eq(tempFile), any(FileRepository.FileCallback.class));
+    }
+
+    @Test
+    public void dispatchConversationNow_marksVideoFailedWhenCompressionFails() throws Exception {
+        File tempFile = File.createTempFile("pending-video", ".mp4");
+        tempFile.deleteOnExit();
+
+        PendingMessage videoPending = buildPending(71L, 44L, PendingMessageDispatcher.STATUS_QUEUED);
+        videoPending.setMediaType("VIDEO");
+        videoPending.setLocalFilePath(tempFile.getAbsolutePath());
+
+        when(pendingMessageRepository.getByConversationKey(44L)).thenReturn(List.of(videoPending));
+        when(pendingMessageRepository.findByLocalId(eq(71L))).thenReturn(videoPending);
+
+        dispatcher.dispatchConversationNow(44L);
+
+        ArgumentCaptor<VideoPreparationService.Callback> callbackCaptor = ArgumentCaptor.forClass(VideoPreparationService.Callback.class);
+        verify(videoPreparationService).prepareVideo(eq(tempFile), callbackCaptor.capture());
+        dispatcher.handleVideoPrepareFailureNow(71L, "compress failed");
+
+        org.junit.Assert.assertEquals(PendingMessageDispatcher.STATUS_FAILED, videoPending.getStatus());
+        org.junit.Assert.assertEquals("compress failed", videoPending.getErrorMessage());
+    }
+
+    @Test
+    public void dispatchConversationNow_reuploadsProcessedVideoWhenRemoteUrlMissing() throws Exception {
+        File processedFile = File.createTempFile("processed-video", ".mp4");
+        processedFile.deleteOnExit();
+
+        PendingMessage videoPending = buildPending(81L, 33L, PendingMessageDispatcher.STATUS_FAILED);
+        videoPending.setMediaType("VIDEO");
+        videoPending.setLocalFilePath("/tmp/original-video.mp4");
+        videoPending.setProcessedFilePath(processedFile.getAbsolutePath());
+        videoPending.setRemoteUrl(null);
+
+        when(pendingMessageRepository.getByConversationKey(33L)).thenReturn(List.of(videoPending));
+        when(pendingMessageRepository.findByLocalId(eq(81L))).thenReturn(videoPending);
+
+        dispatcher.dispatchConversationNow(33L);
+
+        verify(fileRepository).upload(eq(processedFile), any(FileRepository.FileCallback.class));
+        verify(messageService, never()).send(any());
     }
 
     private PendingMessage buildPending(long localId, long conversationKey, String status) {

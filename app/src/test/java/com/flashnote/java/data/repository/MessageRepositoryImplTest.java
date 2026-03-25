@@ -129,4 +129,27 @@ public class MessageRepositoryImplTest {
         assertEquals(1, merged.size());
         assertEquals(Long.valueOf(301L), merged.get(0).getId());
     }
+
+    @Test
+    public void applyPendingMetadataToServerMessage_copiesVoiceDurationAndFileInfo() {
+        PendingMessage pending = new PendingMessage();
+        pending.setCreatedAt(33_000L);
+        pending.setMediaType("VOICE");
+        pending.setMediaDuration(8);
+        pending.setFileName("voice.m4a");
+        pending.setFileSize(1234L);
+        pending.setRemoteUrl("voice/object.m4a");
+
+        Message server = new Message();
+        server.setId(99L);
+
+        MessageRepositoryImpl.applyPendingMetadataToServerMessage(server, pending);
+
+        assertEquals(Long.valueOf(33_000L), server.getLocalSortTimestamp());
+        assertEquals("VOICE", server.getMediaType());
+        assertEquals(Integer.valueOf(8), server.getMediaDuration());
+        assertEquals("voice.m4a", server.getFileName());
+        assertEquals(Long.valueOf(1234L), server.getFileSize());
+        assertEquals("voice/object.m4a", server.getMediaUrl());
+    }
 }

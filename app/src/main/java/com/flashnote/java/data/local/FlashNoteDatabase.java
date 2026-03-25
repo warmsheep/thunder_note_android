@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase;
 
 import com.flashnote.java.data.model.PendingMessage;
 
-@Database(entities = {PendingMessage.class}, version = 2, exportSchema = false)
+@Database(entities = {PendingMessage.class}, version = 4, exportSchema = false)
 public abstract class FlashNoteDatabase extends RoomDatabase {
     public abstract PendingMessageDao pendingMessageDao();
 }

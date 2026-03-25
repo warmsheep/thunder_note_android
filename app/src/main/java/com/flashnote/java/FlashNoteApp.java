@@ -26,6 +26,8 @@ import com.flashnote.java.data.repository.SyncRepository;
 import com.flashnote.java.data.repository.SyncRepositoryImpl;
 import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.data.repository.UserRepositoryImpl;
+import com.flashnote.java.data.repository.VideoPreparationService;
+import com.flashnote.java.data.repository.VideoPreparationServiceImpl;
 
 public class FlashNoteApp extends Application {
 
@@ -42,6 +44,7 @@ public class FlashNoteApp extends Application {
     private UserRepository userRepository;
     private FlashNoteDatabase database;
     private PendingMessageRepository pendingMessageRepository;
+    private VideoPreparationService videoPreparationService;
 
     @Override
     public void onCreate() {
@@ -78,7 +81,8 @@ public class FlashNoteApp extends Application {
         flashNoteRepository = new FlashNoteRepositoryImpl(apiClient.getFlashNoteService());
         pendingMessageRepository = new PendingMessageRepositoryImpl(database.pendingMessageDao());
         fileRepository = new FileRepositoryImpl(apiClient.getFileService(), this);
-        messageRepository = new MessageRepositoryImpl(apiClient.getMessageService(), pendingMessageRepository, fileRepository);
+        videoPreparationService = new VideoPreparationServiceImpl(this);
+        messageRepository = new MessageRepositoryImpl(apiClient.getMessageService(), pendingMessageRepository, fileRepository, videoPreparationService);
         collectionRepository = new CollectionRepositoryImpl(apiClient.getCollectionService());
         syncRepository = new SyncRepositoryImpl(apiClient.getSyncService());
         favoriteRepository = new FavoriteRepositoryImpl(apiClient.getFavoriteService());
