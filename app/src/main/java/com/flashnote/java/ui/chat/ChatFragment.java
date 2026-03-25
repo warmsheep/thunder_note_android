@@ -1314,48 +1314,20 @@ public class ChatFragment extends Fragment {
 
     private void handleImagePicked(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
-        long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
-        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID);
-        
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
             }
-            
-            Message message = new Message();
-            message.setMediaType("IMAGE");
-            message.setMediaUrl(file.getAbsolutePath());
-            message.setFileName(originalFileName != null ? originalFileName : file.getName());
-            message.setFileSize(file.length());
-            message.setFlashNoteId(flashNoteId);
-            message.setReceiverId(peerUserId > 0L ? peerUserId : null);
-            message.setRole("user");
-            message.setUploading(true);
-            
-            chatViewModel.addLocalMessage(message);
-            runIfUiAlive(() -> scrollToBottomAfterLayout(null));
-            
-            fileRepository.upload(file, new FileRepository.FileCallback() {
-                @Override
-                public void onSuccess(String mediaUrl) {
-                    message.setMediaUrl(mediaUrl);
-                    message.setUploading(false);
 
-                    sendMediaToCapturedConversation(message, flashNoteId, peerUserId, () -> {
-                        if (isAdded() && binding != null && getActivity() != null) {
-                            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
-                        }
-                    });
-                }
-
-                @Override
-                public void onError(String errorMessage, int code) {
-                    message.setUploading(false);
-                    chatViewModel.removeLocalMessage(message);
-                    runIfUiAlive(() -> showToast("上传失败: " + errorMessage));
-                }
-            });
+            chatViewModel.enqueueMedia(
+                    "IMAGE",
+                    file,
+                    originalFileName != null ? originalFileName : file.getName(),
+                    file.length(),
+                    null,
+                    () -> runIfUiAlive(() -> scrollToBottomAfterLayout(null))
+            );
         });
     }
 
@@ -1422,95 +1394,39 @@ public class ChatFragment extends Fragment {
 
     private void handleFilePicked(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
-        long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
-        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID);
-        
         copyUriToTempFile(uri, "file", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
             }
-            
-            Message message = new Message();
-            message.setMediaType("FILE");
-            message.setMediaUrl(file.getAbsolutePath());
-            message.setFileName(originalFileName != null ? originalFileName : file.getName());
-            message.setFileSize(file.length());
-            message.setFlashNoteId(flashNoteId);
-            message.setReceiverId(peerUserId > 0L ? peerUserId : null);
-            message.setRole("user");
-            message.setUploading(true);
-            
-            chatViewModel.addLocalMessage(message);
-            runIfUiAlive(() -> scrollToBottomAfterLayout(null));
-            
-            fileRepository.upload(file, new FileRepository.FileCallback() {
-                @Override
-                public void onSuccess(String mediaUrl) {
-                    message.setMediaUrl(mediaUrl);
-                    message.setUploading(false);
 
-                    sendMediaToCapturedConversation(message, flashNoteId, peerUserId, () -> {
-                        if (isAdded() && binding != null && getActivity() != null) {
-                            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
-                        }
-                    });
-                }
-
-                @Override
-                public void onError(String errorMessage, int code) {
-                    message.setUploading(false);
-                    chatViewModel.removeLocalMessage(message);
-                    runIfUiAlive(() -> showToast("上传失败: " + errorMessage));
-                }
-            });
+            chatViewModel.enqueueMedia(
+                    "FILE",
+                    file,
+                    originalFileName != null ? originalFileName : file.getName(),
+                    file.length(),
+                    null,
+                    () -> runIfUiAlive(() -> scrollToBottomAfterLayout(null))
+            );
         });
     }
 
     private void handleCameraPhoto(Uri uri) {
         String originalFileName = getOriginalFileName(uri);
-        long flashNoteId = getArguments() == null ? 0L : getArguments().getLong(ARG_FLASH_NOTE_ID);
-        long peerUserId = getArguments() == null ? 0L : getArguments().getLong(ARG_PEER_USER_ID);
-        
         copyUriToTempFile(uri, "image", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
             }
-            
-            Message message = new Message();
-            message.setMediaType("IMAGE");
-            message.setMediaUrl(file.getAbsolutePath());
-            message.setFileName(originalFileName != null ? originalFileName : file.getName());
-            message.setFileSize(file.length());
-            message.setFlashNoteId(flashNoteId);
-            message.setReceiverId(peerUserId > 0L ? peerUserId : null);
-            message.setRole("user");
-            message.setUploading(true);
-            
-            chatViewModel.addLocalMessage(message);
-            runIfUiAlive(() -> scrollToBottomAfterLayout(null));
-            
-            fileRepository.upload(file, new FileRepository.FileCallback() {
-                @Override
-                public void onSuccess(String mediaUrl) {
-                    message.setMediaUrl(mediaUrl);
-                    message.setUploading(false);
 
-                    sendMediaToCapturedConversation(message, flashNoteId, peerUserId, () -> {
-                        if (isAdded() && binding != null && getActivity() != null) {
-                            requireActivity().runOnUiThread(() -> scrollToBottomAfterLayout(null));
-                        }
-                    });
-                }
-
-                @Override
-                public void onError(String errorMessage, int code) {
-                    message.setUploading(false);
-                    chatViewModel.removeLocalMessage(message);
-                    runIfUiAlive(() -> showToast("上传失败: " + errorMessage));
-                }
-            });
+            chatViewModel.enqueueMedia(
+                    "IMAGE",
+                    file,
+                    originalFileName != null ? originalFileName : file.getName(),
+                    file.length(),
+                    null,
+                    () -> runIfUiAlive(() -> scrollToBottomAfterLayout(null))
+            );
         });
     }
 

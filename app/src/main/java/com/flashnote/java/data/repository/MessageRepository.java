@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData;
 
 import com.flashnote.java.data.model.Message;
 
+import java.io.File;
 import java.util.List;
 
 public interface MessageRepository {
@@ -41,6 +42,8 @@ public interface MessageRepository {
     void sendText(long flashNoteId, String content, Runnable onSuccess);
 
     void sendTextToContact(long peerUserId, String content, Runnable onSuccess);
+
+    void enqueueMedia(long flashNoteId, long peerUserId, String mediaType, File localFile, String fileName, Long fileSize, Integer mediaDuration, Runnable onSuccess);
 
     void retryPendingText(long localId);
 

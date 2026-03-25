@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
 
 import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.remote.MessageService;
@@ -15,13 +16,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.ArgumentCaptor;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.LooperMode;
 
 import java.util.List;
+import java.io.File;
 
 import retrofit2.Call;
+import retrofit2.Callback;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
@@ -35,6 +39,9 @@ public class PendingMessageDispatcherTest {
     private MessageService messageService;
 
     @Mock
+    private FileRepository fileRepository;
+
+    @Mock
     private Call mockSendCall;
 
     @Mock
@@ -46,7 +53,7 @@ public class PendingMessageDispatcherTest {
     public void setUp() {
         MockitoAnnotations.initMocks(this);
         when(messageService.send(any())).thenReturn(mockSendCall);
-        dispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, listener);
+        dispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, fileRepository, listener);
     }
 
     @Test
@@ -87,6 +94,70 @@ public class PendingMessageDispatcherTest {
         verify(pendingMessageRepository).getByStatus(PendingMessageDispatcher.STATUS_FAILED);
         verify(pendingMessageRepository).findByLocalId(21L);
         verify(pendingMessageRepository).findByLocalId(22L);
+    }
+
+    @Test
+    public void dispatchConversationNow_uploadsImageBeforeSending() throws Exception {
+        File tempFile = File.createTempFile("pending-image", ".jpg");
+        tempFile.deleteOnExit();
+
+        PendingMessage imagePending = buildPending(31L, 88L, PendingMessageDispatcher.STATUS_QUEUED);
+        imagePending.setMediaType("IMAGE");
+        imagePending.setLocalFilePath(tempFile.getAbsolutePath());
+
+        when(pendingMessageRepository.getByConversationKey(88L)).thenReturn(List.of(imagePending));
+        when(pendingMessageRepository.findByLocalId(eq(31L))).thenReturn(imagePending);
+
+        dispatcher.dispatchConversationNow(88L);
+
+        verify(fileRepository).upload(eq(tempFile), any(FileRepository.FileCallback.class));
+    }
+
+    @Test
+    public void dispatchConversationNow_marksImageFailedWhenUploadFails() throws Exception {
+        File tempFile = File.createTempFile("pending-image", ".jpg");
+        tempFile.deleteOnExit();
+
+        PendingMessage imagePending = buildPending(41L, 77L, PendingMessageDispatcher.STATUS_QUEUED);
+        imagePending.setMediaType("IMAGE");
+        imagePending.setLocalFilePath(tempFile.getAbsolutePath());
+
+        when(pendingMessageRepository.getByConversationKey(77L)).thenReturn(List.of(imagePending));
+        when(pendingMessageRepository.findByLocalId(eq(41L))).thenReturn(imagePending);
+
+        dispatcher.dispatchConversationNow(77L);
+
+        ArgumentCaptor<FileRepository.FileCallback> callbackCaptor = ArgumentCaptor.forClass(FileRepository.FileCallback.class);
+        verify(fileRepository).upload(eq(tempFile), callbackCaptor.capture());
+        dispatcher.handleUploadFailureNow(41L, "upload failed");
+
+        verify(pendingMessageRepository, times(2)).update(eq(imagePending));
+        org.junit.Assert.assertEquals(PendingMessageDispatcher.STATUS_FAILED, imagePending.getStatus());
+        org.junit.Assert.assertEquals("upload failed", imagePending.getErrorMessage());
+    }
+
+    @Test
+    public void dispatchConversationNow_setsRemoteUrlAndSendsAfterUploadSuccess() throws Exception {
+        File tempFile = File.createTempFile("pending-file", ".bin");
+        tempFile.deleteOnExit();
+
+        PendingMessage filePending = buildPending(51L, 66L, PendingMessageDispatcher.STATUS_QUEUED);
+        filePending.setMediaType("FILE");
+        filePending.setLocalFilePath(tempFile.getAbsolutePath());
+        filePending.setFileName("demo.bin");
+        filePending.setFileSize(123L);
+
+        when(pendingMessageRepository.getByConversationKey(66L)).thenReturn(List.of(filePending));
+        when(pendingMessageRepository.findByLocalId(eq(51L))).thenReturn(filePending);
+
+        dispatcher.dispatchConversationNow(66L);
+
+        ArgumentCaptor<FileRepository.FileCallback> callbackCaptor = ArgumentCaptor.forClass(FileRepository.FileCallback.class);
+        verify(fileRepository).upload(eq(tempFile), callbackCaptor.capture());
+        dispatcher.handleUploadSuccessNow(51L, "obj/51.bin");
+
+        org.junit.Assert.assertEquals("obj/51.bin", filePending.getRemoteUrl());
+        verify(messageService).send(any());
     }
 
     private PendingMessage buildPending(long localId, long conversationKey, String status) {

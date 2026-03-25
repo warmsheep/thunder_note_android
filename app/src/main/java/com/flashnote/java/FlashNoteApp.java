@@ -77,10 +77,10 @@ public class FlashNoteApp extends Application {
         authRepository = new AuthRepositoryImpl(apiClient.getAuthService(), tokenManager);
         flashNoteRepository = new FlashNoteRepositoryImpl(apiClient.getFlashNoteService());
         pendingMessageRepository = new PendingMessageRepositoryImpl(database.pendingMessageDao());
-        messageRepository = new MessageRepositoryImpl(apiClient.getMessageService(), pendingMessageRepository);
+        fileRepository = new FileRepositoryImpl(apiClient.getFileService(), this);
+        messageRepository = new MessageRepositoryImpl(apiClient.getMessageService(), pendingMessageRepository, fileRepository);
         collectionRepository = new CollectionRepositoryImpl(apiClient.getCollectionService());
         syncRepository = new SyncRepositoryImpl(apiClient.getSyncService());
-        fileRepository = new FileRepositoryImpl(apiClient.getFileService(), this);
         favoriteRepository = new FavoriteRepositoryImpl(apiClient.getFavoriteService());
         userRepository = new UserRepositoryImpl(apiClient.getUserService());
     }

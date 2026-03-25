@@ -8,6 +8,7 @@ import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.remote.MessageService;
 
+import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.List;
@@ -23,21 +24,26 @@ public class PendingMessageDispatcher {
     }
 
     public static final String STATUS_QUEUED = "QUEUED";
+    public static final String STATUS_UPLOADING = "UPLOADING";
+    public static final String STATUS_UPLOADED = "UPLOADED";
     public static final String STATUS_SENDING = "SENDING";
     public static final String STATUS_FAILED = "FAILED";
     public static final String STATUS_SENT = "SENT";
 
     private final PendingMessageRepository pendingMessageRepository;
     private final MessageService messageService;
+    private final FileRepository fileRepository;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Listener listener;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public PendingMessageDispatcher(PendingMessageRepository pendingMessageRepository,
                                     MessageService messageService,
+                                    FileRepository fileRepository,
                                     Listener listener) {
         this.pendingMessageRepository = pendingMessageRepository;
         this.messageService = messageService;
+        this.fileRepository = fileRepository;
         this.listener = listener;
     }
 
@@ -93,6 +99,58 @@ public class PendingMessageDispatcher {
             return;
         }
 
+        if (requiresUploadFirst(pendingMessage)) {
+            uploadThenSend(localId, pendingMessage);
+            return;
+        }
+
+        sendPendingMessage(localId, pendingMessage);
+    }
+
+    private void uploadThenSend(long localId, PendingMessage pendingMessage) {
+        File localFile = pendingMessage.getLocalFilePath() == null ? null : new File(pendingMessage.getLocalFilePath());
+        if (localFile == null || !localFile.exists()) {
+            fail(localId, "本地文件不存在");
+            return;
+        }
+
+        pendingMessage.setStatus(STATUS_UPLOADING);
+        pendingMessage.setErrorMessage(null);
+        pendingMessageRepository.update(pendingMessage);
+        notifyListener(pendingMessage, null);
+
+        fileRepository.upload(localFile, new FileRepository.FileCallback() {
+            @Override
+            public void onSuccess(String value) {
+                executor.execute(() -> handleUploadSuccessNow(localId, value));
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                executor.execute(() -> handleUploadFailureNow(localId, message == null ? "上传失败" : message));
+            }
+        });
+    }
+
+    void handleUploadSuccessNow(long localId, String remoteUrl) {
+        PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
+        if (latest == null) {
+            return;
+        }
+        latest.setRemoteUrl(remoteUrl);
+        latest.setStatus(STATUS_UPLOADED);
+        latest.setErrorMessage(null);
+        pendingMessageRepository.update(latest);
+        notifyListener(latest, null);
+        sendPendingMessage(localId, latest);
+    }
+
+    void handleUploadFailureNow(long localId, String errorMessage) {
+        fail(localId, errorMessage == null ? "上传失败" : errorMessage);
+    }
+
+    private void sendPendingMessage(long localId, PendingMessage pendingMessage) {
+
         pendingMessage.setStatus(STATUS_SENDING);
         pendingMessage.setErrorMessage(null);
         pendingMessageRepository.update(pendingMessage);
@@ -103,6 +161,10 @@ public class PendingMessageDispatcher {
         message.setReceiverId(pendingMessage.getPeerUserId());
         message.setContent(pendingMessage.getContent());
         message.setClientRequestId(pendingMessage.getClientRequestId());
+        message.setMediaType(pendingMessage.getMediaType());
+        message.setMediaUrl(pendingMessage.getRemoteUrl());
+        message.setFileName(pendingMessage.getFileName());
+        message.setFileSize(pendingMessage.getFileSize());
         message.setRole("user");
 
         messageService.send(message).enqueue(new Callback<ApiResponse<Message>>() {
@@ -142,6 +204,18 @@ public class PendingMessageDispatcher {
         }
         String status = pendingMessage.getStatus();
         return STATUS_QUEUED.equals(status) || STATUS_FAILED.equals(status);
+    }
+
+    private boolean requiresUploadFirst(PendingMessage pendingMessage) {
+        if (pendingMessage == null) {
+            return false;
+        }
+        String mediaType = pendingMessage.getMediaType();
+        if (!("IMAGE".equalsIgnoreCase(mediaType) || "FILE".equalsIgnoreCase(mediaType))) {
+            return false;
+        }
+        String remoteUrl = pendingMessage.getRemoteUrl();
+        return remoteUrl == null || remoteUrl.trim().isEmpty();
     }
 
     private void fail(long localId, String errorMessage) {

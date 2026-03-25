@@ -12,6 +12,7 @@ import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.repository.MessageRepository;
 import com.flashnote.java.util.ConversationKeyUtil;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -201,6 +202,21 @@ public class ChatViewModel extends AndroidViewModel {
         Long targetFlashNoteId = message.getFlashNoteId();
         if (targetFlashNoteId != null && targetFlashNoteId != 0L) {
             repository.sendMessage(targetFlashNoteId, message, callback);
+        }
+    }
+
+    public void enqueueMedia(String mediaType, File localFile, String fileName, Long fileSize, Integer mediaDuration, Runnable onSuccess) {
+        if (localFile == null || mediaType == null || mediaType.trim().isEmpty()) {
+            return;
+        }
+        Long targetPeerId = peerUserId.getValue();
+        if (targetPeerId != null && targetPeerId > 0L) {
+            repository.enqueueMedia(0L, targetPeerId, mediaType, localFile, fileName, fileSize, mediaDuration, onSuccess);
+            return;
+        }
+        Long targetFlashNoteId = flashNoteId.getValue();
+        if (targetFlashNoteId != null) {
+            repository.enqueueMedia(targetFlashNoteId, 0L, mediaType, localFile, fileName, fileSize, mediaDuration, onSuccess);
         }
     }
 

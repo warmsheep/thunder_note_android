@@ -42,6 +42,14 @@ public class PendingMessage {
     @Nullable
     private String remoteUrl;
 
+    @ColumnInfo(name = "file_name")
+    @Nullable
+    private String fileName;
+
+    @ColumnInfo(name = "file_size")
+    @Nullable
+    private Long fileSize;
+
     @ColumnInfo(name = "status")
     @Nullable
     private String status;
@@ -137,6 +145,24 @@ public class PendingMessage {
 
     public void setRemoteUrl(@Nullable String remoteUrl) {
         this.remoteUrl = remoteUrl;
+    }
+
+    @Nullable
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(@Nullable String fileName) {
+        this.fileName = fileName;
+    }
+
+    @Nullable
+    public Long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(@Nullable Long fileSize) {
+        this.fileSize = fileSize;
     }
 
     @Nullable

@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.HashMap;
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.time.Instant;
@@ -40,6 +41,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                     .thenComparingLong(message -> messageStableTieBreaker(message));
     private final MessageService messageService;
     private final PendingMessageRepository pendingMessageRepository;
+    private final FileRepository fileRepository;
     private final PendingMessageDispatcher pendingMessageDispatcher;
     private final ExecutorService pendingStorageExecutor = Executors.newSingleThreadExecutor();
     private final Map<Long, MutableLiveData<List<Message>>> conversations = new HashMap<>();
@@ -57,10 +59,12 @@ public class MessageRepositoryImpl implements MessageRepository {
     private long currentConversationKey = 0L;
 
     public MessageRepositoryImpl(MessageService messageService,
-                                 PendingMessageRepository pendingMessageRepository) {
+                                 PendingMessageRepository pendingMessageRepository,
+                                 FileRepository fileRepository) {
         this.messageService = messageService;
         this.pendingMessageRepository = pendingMessageRepository;
-        this.pendingMessageDispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, this::onPendingUpdated);
+        this.fileRepository = fileRepository;
+        this.pendingMessageDispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, fileRepository, this::onPendingUpdated);
     }
 
     @Override
@@ -168,6 +172,37 @@ public class MessageRepositoryImpl implements MessageRepository {
     @Override
     public void sendTextToContact(long peerUserId, String content, Runnable onSuccess) {
         sendTextInternal(ConversationKeyUtil.forContact(peerUserId), null, peerUserId, content, onSuccess);
+    }
+
+    @Override
+    public void enqueueMedia(long flashNoteId, long peerUserId, String mediaType, File localFile, String fileName, Long fileSize, Integer mediaDuration, Runnable onSuccess) {
+        if (localFile == null || !localFile.exists() || mediaType == null || mediaType.trim().isEmpty()) {
+            setLiveDataValue(errorMessage, "本地文件不存在");
+            return;
+        }
+        long conversationKey = peerUserId > 0L
+                ? ConversationKeyUtil.forContact(peerUserId)
+                : ConversationKeyUtil.forFlashNote(flashNoteId);
+        PendingMessage pendingMessage = new PendingMessage();
+        pendingMessage.setConversationKey(conversationKey);
+        pendingMessage.setFlashNoteId(peerUserId > 0L ? null : flashNoteId);
+        pendingMessage.setPeerUserId(peerUserId > 0L ? peerUserId : null);
+        pendingMessage.setClientRequestId(UUID.randomUUID().toString());
+        pendingMessage.setMediaType(mediaType);
+        pendingMessage.setLocalFilePath(localFile.getAbsolutePath());
+        pendingMessage.setFileName(fileName);
+        pendingMessage.setFileSize(fileSize);
+        pendingMessage.setContent(defaultMediaContent(mediaType));
+        pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
+        pendingMessage.setCreatedAt(System.currentTimeMillis());
+        if (onSuccess != null) {
+            onSuccess.run();
+        }
+        pendingStorageExecutor.execute(() -> {
+            long localId = pendingMessageRepository.insert(pendingMessage);
+            pendingMessage.setLocalId(localId);
+            pendingMessageDispatcher.dispatch(localId);
+        });
     }
 
     @Override
@@ -743,11 +778,30 @@ public class MessageRepositoryImpl implements MessageRepository {
         message.setClientRequestId(pendingMessage.getClientRequestId());
         message.setContent(pendingMessage.getContent());
         message.setMediaType(pendingMessage.getMediaType());
+        message.setMediaUrl(pendingMessage.getRemoteUrl() != null ? pendingMessage.getRemoteUrl() : pendingMessage.getLocalFilePath());
+        message.setFileName(pendingMessage.getFileName());
+        message.setFileSize(pendingMessage.getFileSize());
         message.setRole("user");
         message.setCreatedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(pendingMessage.getCreatedAt()), ZoneId.systemDefault()));
         message.setLocalSortTimestamp(pendingMessage.getCreatedAt());
         message.setUploading(!PendingMessageDispatcher.STATUS_FAILED.equals(pendingMessage.getStatus()));
         return message;
+    }
+
+    private String defaultMediaContent(String mediaType) {
+        if ("IMAGE".equalsIgnoreCase(mediaType)) {
+            return "[图片]";
+        }
+        if ("FILE".equalsIgnoreCase(mediaType)) {
+            return "[文件]";
+        }
+        if ("VIDEO".equalsIgnoreCase(mediaType)) {
+            return "[视频]";
+        }
+        if ("VOICE".equalsIgnoreCase(mediaType)) {
+            return "[语音]";
+        }
+        return "[附件]";
     }
 
     private void onPendingUpdated(PendingMessage pendingMessage, Message serverMessage) {
