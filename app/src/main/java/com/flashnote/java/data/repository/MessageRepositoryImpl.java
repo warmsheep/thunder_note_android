@@ -6,6 +6,8 @@ import androidx.lifecycle.Observer;
 import android.os.Looper;
 
 import com.flashnote.java.DebugLog;
+import com.flashnote.java.data.local.MessageLocalDao;
+import com.flashnote.java.data.local.MessageLocalEntity;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.MessageListRequest;
@@ -43,6 +45,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     private final PendingMessageRepository pendingMessageRepository;
     private final FileRepository fileRepository;
     private final VideoPreparationService videoPreparationService;
+    private final MessageLocalDao messageLocalDao;
     private final PendingMessageDispatcher pendingMessageDispatcher;
     private final boolean enableTextPendingPipeline;
     private final ExecutorService pendingStorageExecutor = Executors.newSingleThreadExecutor();
@@ -63,8 +66,9 @@ public class MessageRepositoryImpl implements MessageRepository {
     public MessageRepositoryImpl(MessageService messageService,
                                  PendingMessageRepository pendingMessageRepository,
                                  FileRepository fileRepository,
-                                 VideoPreparationService videoPreparationService) {
-        this(messageService, pendingMessageRepository, fileRepository, videoPreparationService,
+                                 VideoPreparationService videoPreparationService,
+                                 MessageLocalDao messageLocalDao) {
+        this(messageService, pendingMessageRepository, fileRepository, videoPreparationService, messageLocalDao,
                 MessageFeatureFlags.ENABLE_TEXT_PENDING_PIPELINE);
     }
 
@@ -72,11 +76,13 @@ public class MessageRepositoryImpl implements MessageRepository {
                          PendingMessageRepository pendingMessageRepository,
                          FileRepository fileRepository,
                          VideoPreparationService videoPreparationService,
+                         MessageLocalDao messageLocalDao,
                          boolean enableTextPendingPipeline) {
         this.messageService = messageService;
         this.pendingMessageRepository = pendingMessageRepository;
         this.fileRepository = fileRepository;
         this.videoPreparationService = videoPreparationService;
+        this.messageLocalDao = messageLocalDao;
         this.enableTextPendingPipeline = enableTextPendingPipeline;
         this.pendingMessageDispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, fileRepository, videoPreparationService, this::onPendingUpdated);
     }
@@ -84,12 +90,14 @@ public class MessageRepositoryImpl implements MessageRepository {
     @Override
     public LiveData<List<Message>> getMessages(long flashNoteId) {
         long conversationKey = ConversationKeyUtil.forFlashNote(flashNoteId);
+        observeConfirmedConversation(conversationKey);
         return ensureMergedLiveData(conversationKey);
     }
 
     @Override
     public LiveData<List<Message>> getContactMessages(long peerUserId) {
         long conversationKey = ConversationKeyUtil.forContact(peerUserId);
+        observeConfirmedConversation(conversationKey);
         return ensureMergedLiveData(conversationKey);
     }
 
@@ -139,6 +147,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         currentFlashNoteId = flashNoteId;
         currentPeerUserId = 0L;
         currentConversationKey = ConversationKeyUtil.forFlashNote(flashNoteId);
+        observeConfirmedConversation(currentConversationKey);
         MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
         MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
         List<Message> current = liveData.getValue();
@@ -161,6 +170,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         currentPeerUserId = peerUserId;
         currentFlashNoteId = 0L;
         currentConversationKey = ConversationKeyUtil.forContact(peerUserId);
+        observeConfirmedConversation(currentConversationKey);
         MutableLiveData<List<Message>> liveData = ensureLiveData(currentConversationKey);
         MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(currentConversationKey);
         List<Message> current = liveData.getValue();
@@ -296,20 +306,8 @@ public class MessageRepositoryImpl implements MessageRepository {
                     ApiResponse<List<Message>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         clearError();
-                        MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
                         List<Message> newMessages = apiResponse.getData();
-                        
-                        if (page == 1) {
-                            liveData.setValue(newMessages);
-                        } else {
-                            List<Message> current = liveData.getValue();
-                            List<Message> updated = new ArrayList<>(newMessages);
-                            if (current != null) {
-                                updated.addAll(current);
-                            }
-                            liveData.setValue(updated);
-                        }
-                        refreshMergedConversation(conversationKey);
+                        persistRemoteMessages(conversationKey, newMessages, page == 1);
                         
                         boolean hasMore = newMessages.size() >= limit;
                         hasMoreMap.put(conversationKey, hasMore);
@@ -425,18 +423,7 @@ public class MessageRepositoryImpl implements MessageRepository {
                     ApiResponse<Void> apiResponse = response.body();
                     if (apiResponse.isSuccess()) {
                         clearError();
-                        MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
-                        List<Message> current = liveData.getValue();
-                        if (current != null) {
-                            List<Message> updated = new ArrayList<>();
-                            for (Message msg : current) {
-                                if (msg.getId() == null || msg.getId() != messageId) {
-                                    updated.add(msg);
-                                }
-                            }
-                            liveData.setValue(updated);
-                            refreshMergedConversation(conversationKey);
-                        }
+                        pendingStorageExecutor.execute(() -> messageLocalDao.deleteById(messageId));
                         if (onSuccess != null) {
                             onSuccess.run();
                         }
@@ -501,13 +488,8 @@ public class MessageRepositoryImpl implements MessageRepository {
                     ApiResponse<Message> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         clearError();
-                        MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
-                        List<Message> current = liveData.getValue();
-                        List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
-                        updated.remove(message);
-                        updated.add(apiResponse.getData());
-                        liveData.setValue(updated);
-                        refreshMergedConversation(conversationKey);
+                        Message confirmed = apiResponse.getData();
+                        persistSingleMessage(conversationKey, confirmed);
                         if (callback != null) {
                             callback.onSuccess();
                         }
@@ -584,40 +566,20 @@ public class MessageRepositoryImpl implements MessageRepository {
         if (flashNoteId == null) {
             return;
         }
-        MutableLiveData<List<Message>> liveData = ensureLiveData(ConversationKeyUtil.forFlashNote(flashNoteId));
-        List<Message> current = liveData.getValue();
-        List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
-        updated.add(message);
-        liveData.setValue(updated);
-        refreshMergedConversation(ConversationKeyUtil.forFlashNote(flashNoteId));
+        persistSingleMessage(ConversationKeyUtil.forFlashNote(flashNoteId), message);
     }
 
     @Override
     public void removeLocalMessage(Message message) {
-        Long flashNoteId = message.getFlashNoteId();
-        if (flashNoteId == null) {
+        if (message == null || message.getId() == null) {
             return;
         }
-        MutableLiveData<List<Message>> liveData = ensureLiveData(ConversationKeyUtil.forFlashNote(flashNoteId));
-        List<Message> current = liveData.getValue();
-        if (current == null || current.isEmpty()) {
-            return;
-        }
-        List<Message> updated = new ArrayList<>(current);
-        if (updated.remove(message)) {
-            liveData.setValue(updated);
-            refreshMergedConversation(ConversationKeyUtil.forFlashNote(flashNoteId));
-        }
+        pendingStorageExecutor.execute(() -> messageLocalDao.deleteById(message.getId()));
     }
 
     @Override
     public void addLocalContactMessage(long peerUserId, Message message) {
-        MutableLiveData<List<Message>> liveData = ensureLiveData(ConversationKeyUtil.forContact(peerUserId));
-        List<Message> current = liveData.getValue();
-        List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
-        updated.add(message);
-        liveData.setValue(updated);
-        refreshMergedConversation(ConversationKeyUtil.forContact(peerUserId));
+        persistSingleMessage(ConversationKeyUtil.forContact(peerUserId), message);
     }
 
     private MutableLiveData<List<Message>> ensureMergedLiveData(long conversationKey) {
@@ -753,6 +715,20 @@ public class MessageRepositoryImpl implements MessageRepository {
         source.observeForever(observer);
     }
 
+    private void observeConfirmedConversation(long conversationKey) {
+        if (conversations.containsKey(conversationKey)) {
+            return;
+        }
+        MutableLiveData<List<Message>> liveData = new MutableLiveData<>(new ArrayList<>());
+        conversations.put(conversationKey, liveData);
+        LiveData<List<MessageLocalEntity>> source = messageLocalDao.observeByConversationKey(conversationKey);
+        source.observeForever(entities -> {
+            List<Message> confirmed = toMessageList(entities);
+            setLiveDataValue(liveData, confirmed);
+            refreshMergedConversation(conversationKey, confirmed, pendingConversationCache.get(conversationKey));
+        });
+    }
+
     private static long messageSourceOrder(Message message) {
         return isPendingUiMessage(message) ? 1L : 0L;
     }
@@ -837,13 +813,8 @@ public class MessageRepositoryImpl implements MessageRepository {
         long conversationKey = pendingMessage.getConversationKey();
         if (serverMessage != null) {
             applyPendingMetadataToServerMessage(serverMessage, pendingMessage);
-            MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
-            List<Message> current = liveData.getValue();
-            List<Message> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
-            updated.add(serverMessage);
-            setLiveDataValue(liveData, updated);
+            persistSingleMessage(conversationKey, serverMessage);
             setLiveDataValue(errorMessage, null);
-            refreshMergedConversation(conversationKey, updated);
         } else if (PendingMessageDispatcher.STATUS_FAILED.equals(pendingMessage.getStatus())) {
             setLiveDataValue(errorMessage, pendingMessage.getErrorMessage());
             refreshMergedConversation(conversationKey);
@@ -882,6 +853,93 @@ public class MessageRepositoryImpl implements MessageRepository {
         } else {
             liveData.postValue(value);
         }
+    }
+
+    private void persistRemoteMessages(long conversationKey, List<Message> messages, boolean replaceConversation) {
+        List<MessageLocalEntity> entities = toLocalMessageList(conversationKey, messages);
+        pendingStorageExecutor.execute(() -> {
+            if (replaceConversation) {
+                messageLocalDao.clearConversation(conversationKey);
+            }
+            if (!entities.isEmpty()) {
+                messageLocalDao.upsertAll(entities);
+            }
+        });
+    }
+
+    private void persistSingleMessage(long conversationKey, Message message) {
+        MessageLocalEntity entity = toLocalMessage(conversationKey, message);
+        if (entity == null) {
+            return;
+        }
+        pendingStorageExecutor.execute(() -> messageLocalDao.upsert(entity));
+    }
+
+    private List<MessageLocalEntity> toLocalMessageList(long conversationKey, List<Message> messages) {
+        List<MessageLocalEntity> entities = new ArrayList<>();
+        if (messages == null) {
+            return entities;
+        }
+        for (Message message : messages) {
+            MessageLocalEntity entity = toLocalMessage(conversationKey, message);
+            if (entity != null) {
+                entities.add(entity);
+            }
+        }
+        return entities;
+    }
+
+    private MessageLocalEntity toLocalMessage(long conversationKey, Message message) {
+        if (message == null || message.getId() == null) {
+            return null;
+        }
+        MessageLocalEntity entity = new MessageLocalEntity();
+        entity.setId(message.getId());
+        entity.setConversationKey(conversationKey);
+        entity.setSenderId(message.getSenderId());
+        entity.setReceiverId(message.getReceiverId());
+        entity.setFlashNoteId(message.getFlashNoteId());
+        entity.setClientRequestId(message.getClientRequestId());
+        entity.setContent(message.getContent());
+        entity.setReadStatus(message.getReadStatus());
+        entity.setRole(message.getRole());
+        entity.setCreatedAt(message.getCreatedAt() == null ? null : message.getCreatedAt().toString());
+        entity.setMediaType(message.getMediaType());
+        entity.setMediaUrl(message.getMediaUrl());
+        entity.setMediaDuration(message.getMediaDuration());
+        entity.setThumbnailUrl(message.getThumbnailUrl());
+        entity.setFileName(message.getFileName());
+        entity.setFileSize(message.getFileSize());
+        return entity;
+    }
+
+    private List<Message> toMessageList(List<MessageLocalEntity> entities) {
+        List<Message> result = new ArrayList<>();
+        if (entities == null) {
+            return result;
+        }
+        for (MessageLocalEntity entity : entities) {
+            Message message = new Message();
+            message.setId(entity.getId());
+            message.setSenderId(entity.getSenderId());
+            message.setReceiverId(entity.getReceiverId());
+            message.setFlashNoteId(entity.getFlashNoteId());
+            message.setClientRequestId(entity.getClientRequestId());
+            message.setContent(entity.getContent());
+            message.setReadStatus(entity.getReadStatus());
+            message.setRole(entity.getRole());
+            if (entity.getCreatedAt() != null && !entity.getCreatedAt().trim().isEmpty()) {
+                message.setCreatedAt(LocalDateTime.parse(entity.getCreatedAt()));
+            }
+            message.setMediaType(entity.getMediaType());
+            message.setMediaUrl(entity.getMediaUrl());
+            message.setMediaDuration(entity.getMediaDuration());
+            message.setThumbnailUrl(entity.getThumbnailUrl());
+            message.setFileName(entity.getFileName());
+            message.setFileSize(entity.getFileSize());
+            result.add(message);
+        }
+        return result;
     }
 
     @Override

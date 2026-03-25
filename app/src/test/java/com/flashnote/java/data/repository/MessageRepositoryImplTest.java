@@ -10,7 +10,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.same;
+import static org.mockito.Mockito.times;
 
+import com.flashnote.java.data.local.MessageLocalDao;
+import com.flashnote.java.data.local.MessageLocalEntity;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.PendingMessage;
@@ -56,10 +59,15 @@ public class MessageRepositoryImplTest {
     @Mock
     VideoPreparationService videoPreparationService;
 
+    @Mock
+    MessageLocalDao messageLocalDao;
+
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         when(messageService.list(any())).thenReturn(mockListCall);
+        when(messageLocalDao.observeByConversationKey(anyLong())).thenReturn(new androidx.lifecycle.MutableLiveData<>(new java.util.ArrayList<>()));
+        when(pendingMessageRepository.observeByConversationKey(anyLong())).thenReturn(new androidx.lifecycle.MutableLiveData<>(new java.util.ArrayList<>()));
     }
 
     @Test
@@ -212,7 +220,8 @@ public class MessageRepositoryImplTest {
                 messageService,
                 pendingMessageRepository,
                 fileRepository,
-                videoPreparationService
+                videoPreparationService,
+                messageLocalDao
         );
 
         when(pendingMessageRepository.findByLocalId(9L)).thenReturn(failed);
@@ -247,7 +256,8 @@ public class MessageRepositoryImplTest {
                 messageService,
                 pendingMessageRepository,
                 fileRepository,
-                videoPreparationService
+                videoPreparationService,
+                messageLocalDao
         );
 
         when(pendingMessageRepository.findByLocalId(10L)).thenReturn(queued);
@@ -271,6 +281,7 @@ public class MessageRepositoryImplTest {
                 pendingMessageRepository,
                 fileRepository,
                 videoPreparationService,
+                messageLocalDao,
                 false
         );
         when(messageService.send(any())).thenReturn(mockSendCall);
@@ -288,6 +299,7 @@ public class MessageRepositoryImplTest {
                 pendingMessageRepository,
                 fileRepository,
                 videoPreparationService,
+                messageLocalDao,
                 true
         );
         when(pendingMessageRepository.insert(any(PendingMessage.class))).thenReturn(15L);
@@ -325,6 +337,7 @@ public class MessageRepositoryImplTest {
                 pendingMessageRepository,
                 fileRepository,
                 videoPreparationService,
+                messageLocalDao,
                 false
         );
         when(pendingMessageRepository.insert(any(PendingMessage.class))).thenReturn(21L);
@@ -349,5 +362,126 @@ public class MessageRepositoryImplTest {
 
         verify(pendingMessageRepository, atLeastOnce()).insert(any(PendingMessage.class));
         verify(fileRepository).upload(eq(tempFile), any(FileRepository.FileCallback.class));
+    }
+
+    @Test
+    public void getMessages_observesConfirmedMessagesFromLocalDao() {
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                messageLocalDao,
+                true
+        );
+
+        repository.getMessages(7L);
+
+        verify(messageLocalDao).observeByConversationKey(7L);
+    }
+
+    @Test
+    public void addLocalMessage_persistsConfirmedMessageIntoLocalDao() {
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                messageLocalDao,
+                true
+        );
+        Message message = new Message();
+        message.setId(44L);
+        message.setFlashNoteId(9L);
+        message.setContent("local confirmed");
+
+        repository.addLocalMessage(message);
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(messageLocalDao, atLeastOnce()).upsert(any(MessageLocalEntity.class));
+    }
+
+    @Test
+    public void loadMessages_pageOne_persistsRemoteMessagesToLocalDao() {
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Callback<ApiResponse<java.util.List<Message>>>> callbackCaptor = org.mockito.ArgumentCaptor.forClass(Callback.class);
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                messageLocalDao,
+                true
+        );
+
+        Message remote = new Message();
+        remote.setId(88L);
+        remote.setFlashNoteId(12L);
+        remote.setContent("server message");
+        remote.setCreatedAt(java.time.LocalDateTime.parse("2026-03-25T13:00:00"));
+
+        repository.bindFlashNote(12L);
+
+        verify(mockListCall).enqueue(callbackCaptor.capture());
+        callbackCaptor.getValue().onResponse(
+                mockListCall,
+                retrofit2.Response.success(new ApiResponse<>(0, "ok", java.util.List.of(remote)))
+        );
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(messageLocalDao, times(1)).clearConversation(12L);
+        verify(messageLocalDao, times(1)).upsertAll(any());
+    }
+
+    @Test
+    public void sendMessage_success_persistsConfirmedMessageToLocalDao() {
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Callback<ApiResponse<Message>>> callbackCaptor = org.mockito.ArgumentCaptor.forClass(Callback.class);
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                messageLocalDao,
+                true
+        );
+
+        Message outbound = new Message();
+        outbound.setContent("direct send");
+        outbound.setMediaType("TEXT");
+
+        Message confirmed = new Message();
+        confirmed.setId(501L);
+        confirmed.setFlashNoteId(66L);
+        confirmed.setContent("direct send");
+        confirmed.setCreatedAt(java.time.LocalDateTime.parse("2026-03-25T14:00:00"));
+
+        when(messageService.send(any())).thenReturn(mockSendCall);
+
+        repository.sendMessage(66L, outbound, (Runnable) null);
+
+        verify(mockSendCall).enqueue(callbackCaptor.capture());
+        callbackCaptor.getValue().onResponse(
+                mockSendCall,
+                retrofit2.Response.success(new ApiResponse<>(0, "ok", confirmed))
+        );
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(messageLocalDao, atLeastOnce()).upsert(any(MessageLocalEntity.class));
     }
 }

@@ -1,9 +1,12 @@
 package com.flashnote.java.data.repository;
 
 import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Transformations;
 
+import com.flashnote.java.TokenManager;
 import com.flashnote.java.DebugLog;
+import com.flashnote.java.data.local.FlashNoteLocalDao;
+import com.flashnote.java.data.local.FlashNoteLocalEntity;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.FlashNoteSearchRequest;
@@ -14,6 +17,9 @@ import com.flashnote.java.data.remote.FlashNoteService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.time.LocalDateTime;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -21,20 +27,26 @@ import retrofit2.Response;
 
 public class FlashNoteRepositoryImpl implements FlashNoteRepository {
     private final FlashNoteService flashNoteService;
-    private final MutableLiveData<List<FlashNote>> notesLiveData = new MutableLiveData<>(new ArrayList<>());
-    private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
-    private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+    private final FlashNoteLocalDao flashNoteLocalDao;
+    private final TokenManager tokenManager;
+    private final LiveData<List<FlashNote>> notesLiveData;
+    private final androidx.lifecycle.MutableLiveData<Boolean> isLoading = new androidx.lifecycle.MutableLiveData<>(false);
+    private final androidx.lifecycle.MutableLiveData<String> errorMessage = new androidx.lifecycle.MutableLiveData<>();
+    private final ExecutorService localExecutor = Executors.newSingleThreadExecutor();
 
-    public FlashNoteRepositoryImpl(FlashNoteService flashNoteService) {
+    public FlashNoteRepositoryImpl(FlashNoteService flashNoteService, FlashNoteLocalDao flashNoteLocalDao, TokenManager tokenManager) {
         this.flashNoteService = flashNoteService;
+        this.flashNoteLocalDao = flashNoteLocalDao;
+        this.tokenManager = tokenManager;
+        long currentUserId = requireCurrentUserId();
+        this.notesLiveData = Transformations.map(
+                flashNoteLocalDao.observeAllByUserId(currentUserId),
+                this::toModelList
+        );
     }
 
     @Override
     public LiveData<List<FlashNote>> getNotes() {
-        return notesLiveData;
-    }
-
-    public MutableLiveData<List<FlashNote>> getNotesMutable() {
         return notesLiveData;
     }
 
@@ -65,7 +77,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                     ApiResponse<List<FlashNote>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         clearError();
-                        notesLiveData.postValue(sortNotes(apiResponse.getData()));
+                        persistRemoteNotes(apiResponse.getData());
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("FlashNoteRepo", errMsg);
@@ -143,10 +155,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                     ApiResponse<FlashNote> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         clearError();
-                        List<FlashNote> current = notesLiveData.getValue();
-                        List<FlashNote> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
-                        updated.add(0, apiResponse.getData());
-                        notesLiveData.postValue(sortNotes(updated));
+                        persistSingleNote(apiResponse.getData());
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("FlashNoteRepo", errMsg);
@@ -186,18 +195,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                     ApiResponse<FlashNote> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
                         clearError();
-                        List<FlashNote> current = notesLiveData.getValue();
-                        if (current != null) {
-                            List<FlashNote> updated = new ArrayList<>();
-                            for (FlashNote n : current) {
-                                if (n.getId().equals(id)) {
-                                    updated.add(apiResponse.getData());
-                                } else {
-                                    updated.add(n);
-                                }
-                            }
-                            notesLiveData.postValue(sortNotes(updated));
-                        }
+                        persistSingleNote(apiResponse.getData());
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("FlashNoteRepo", errMsg);
@@ -281,16 +279,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                     ApiResponse<Void> apiResponse = response.body();
                     if (apiResponse.isSuccess()) {
                         clearError();
-                        List<FlashNote> current = notesLiveData.getValue();
-                        if (current != null) {
-                            List<FlashNote> updated = new ArrayList<>();
-                            for (FlashNote n : current) {
-                                if (!n.getId().equals(id)) {
-                                    updated.add(n);
-                                }
-                            }
-                            notesLiveData.postValue(updated);
-                        }
+                        localExecutor.execute(() -> flashNoteLocalDao.deleteById(id));
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("FlashNoteRepo", errMsg);
@@ -314,32 +303,101 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
 
     private void applyUpdatedNote(FlashNote updatedNote) {
         clearError();
-        List<FlashNote> current = notesLiveData.getValue();
-        if (current == null) {
-            return;
-        }
-        List<FlashNote> updated = new ArrayList<>();
-        boolean replaced = false;
-        for (FlashNote item : current) {
-            if (item.getId() != null && item.getId().equals(updatedNote.getId())) {
-                updated.add(updatedNote);
-                replaced = true;
-            } else {
-                updated.add(item);
-            }
-        }
-        if (!replaced) {
-            updated.add(0, updatedNote);
-        }
-        notesLiveData.postValue(sortNotes(updated));
+        persistSingleNote(updatedNote);
     }
 
-    private List<FlashNote> sortNotes(List<FlashNote> source) {
-        List<FlashNote> sorted = source == null ? new ArrayList<>() : new ArrayList<>(source);
-        sorted.sort(Comparator
-                .comparing((FlashNote note) -> Boolean.TRUE.equals(note.getPinned()))
+    private void persistRemoteNotes(List<FlashNote> notes) {
+        List<FlashNoteLocalEntity> localNotes = toLocalList(notes);
+        long currentUserId = requireCurrentUserId();
+        localExecutor.execute(() -> {
+            flashNoteLocalDao.clearAllByUserId(currentUserId);
+            if (!localNotes.isEmpty()) {
+                flashNoteLocalDao.upsertAll(localNotes);
+            }
+        });
+    }
+
+    private void persistSingleNote(FlashNote note) {
+        FlashNoteLocalEntity entity = toLocal(note);
+        if (entity == null) {
+            return;
+        }
+        localExecutor.execute(() -> flashNoteLocalDao.upsert(entity));
+    }
+
+    private List<FlashNoteLocalEntity> toLocalList(List<FlashNote> notes) {
+        List<FlashNoteLocalEntity> result = new ArrayList<>();
+        if (notes == null) {
+            return result;
+        }
+        for (FlashNote note : notes) {
+            FlashNoteLocalEntity entity = toLocal(note);
+            if (entity != null) {
+                result.add(entity);
+            }
+        }
+        result.sort(Comparator
+                .comparing((FlashNoteLocalEntity note) -> Boolean.TRUE.equals(note.getPinned()))
                 .reversed()
-                .thenComparing(FlashNote::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
-        return sorted;
+                .thenComparing(FlashNoteLocalEntity::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        return result;
+    }
+
+    private FlashNoteLocalEntity toLocal(FlashNote note) {
+        if (note == null || note.getId() == null) {
+            return null;
+        }
+        FlashNoteLocalEntity entity = new FlashNoteLocalEntity();
+        entity.setId(note.getId());
+        entity.setUserId(note.getUserId());
+        entity.setTitle(note.getTitle());
+        entity.setIcon(note.getIcon());
+        entity.setContent(note.getContent());
+        entity.setLatestMessage(note.getLatestMessage());
+        entity.setTags(note.getTags());
+        entity.setDeleted(note.getDeleted());
+        entity.setPinned(note.getPinned());
+        entity.setHidden(note.getHidden());
+        entity.setInbox(note.getInbox());
+        entity.setCreatedAt(note.getCreatedAt() == null ? null : note.getCreatedAt().toString());
+        entity.setUpdatedAt(note.getUpdatedAt() == null ? null : note.getUpdatedAt().toString());
+        return entity;
+    }
+
+    private List<FlashNote> toModelList(List<FlashNoteLocalEntity> entities) {
+        List<FlashNote> result = new ArrayList<>();
+        if (entities == null) {
+            return result;
+        }
+        for (FlashNoteLocalEntity entity : entities) {
+            FlashNote note = new FlashNote();
+            note.setId(entity.getId());
+            note.setUserId(entity.getUserId());
+            note.setTitle(entity.getTitle());
+            note.setIcon(entity.getIcon());
+            note.setContent(entity.getContent());
+            note.setLatestMessage(entity.getLatestMessage());
+            note.setTags(entity.getTags());
+            note.setDeleted(entity.getDeleted());
+            note.setPinned(entity.getPinned());
+            note.setHidden(entity.getHidden());
+            note.setInbox(entity.getInbox());
+            note.setCreatedAt(parseDateTime(entity.getCreatedAt()));
+            note.setUpdatedAt(parseDateTime(entity.getUpdatedAt()));
+            result.add(note);
+        }
+        return result;
+    }
+
+    private LocalDateTime parseDateTime(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return LocalDateTime.parse(value);
+    }
+
+    private long requireCurrentUserId() {
+        Long userId = tokenManager.getUserId();
+        return userId == null ? -1L : userId;
     }
 }

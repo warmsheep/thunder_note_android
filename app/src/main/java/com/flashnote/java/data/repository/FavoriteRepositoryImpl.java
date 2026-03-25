@@ -2,8 +2,12 @@ package com.flashnote.java.data.repository;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Transformations;
 
 import com.flashnote.java.DebugLog;
+import com.flashnote.java.TokenManager;
+import com.flashnote.java.data.local.FavoriteLocalDao;
+import com.flashnote.java.data.local.FavoriteLocalEntity;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.FavoriteItem;
 import com.flashnote.java.data.remote.FavoriteService;
@@ -11,6 +15,8 @@ import com.flashnote.java.data.remote.FavoriteService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -18,12 +24,19 @@ import retrofit2.Response;
 
 public class FavoriteRepositoryImpl implements FavoriteRepository {
     private final FavoriteService favoriteService;
-    private final MutableLiveData<List<FavoriteItem>> favoritesLiveData = new MutableLiveData<>(new ArrayList<>());
+    private final FavoriteLocalDao favoriteLocalDao;
+    private final TokenManager tokenManager;
+    private final LiveData<List<FavoriteItem>> favoritesLiveData;
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+    private final ExecutorService localExecutor = Executors.newSingleThreadExecutor();
 
-    public FavoriteRepositoryImpl(FavoriteService favoriteService) {
+    public FavoriteRepositoryImpl(FavoriteService favoriteService, FavoriteLocalDao favoriteLocalDao, TokenManager tokenManager) {
         this.favoriteService = favoriteService;
+        this.favoriteLocalDao = favoriteLocalDao;
+        this.tokenManager = tokenManager;
+        long currentUserId = requireCurrentUserId();
+        this.favoritesLiveData = Transformations.map(favoriteLocalDao.observeAllByUserId(currentUserId), this::toModelList);
     }
 
     @Override
@@ -57,7 +70,7 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
                     clearError();
                     List<FavoriteItem> data = response.body().getData() == null ? new ArrayList<>() : new ArrayList<>(response.body().getData());
                     sortFavorites(data);
-                    favoritesLiveData.setValue(data);
+                    persistRemoteFavorites(data);
                     return;
                 }
                 String message = response.body() == null ? "加载收藏失败" : response.body().getMessage();
@@ -83,20 +96,7 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     FavoriteItem item = response.body().getData();
                     if (item != null) {
-                        List<FavoriteItem> current = favoritesLiveData.getValue();
-                        List<FavoriteItem> updated = current == null ? new ArrayList<>() : new ArrayList<>(current);
-                        boolean exists = false;
-                        for (FavoriteItem favorite : updated) {
-                            if (favorite.getMessageId().equals(item.getMessageId())) {
-                                exists = true;
-                                break;
-                            }
-                        }
-                        if (!exists) {
-                            updated.add(0, item);
-                            sortFavorites(updated);
-                            favoritesLiveData.setValue(updated);
-                        }
+                        persistSingleFavorite(item);
                     }
                     callback.onSuccess("已加入收藏");
                     return;
@@ -122,16 +122,7 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
             @Override
             public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    List<FavoriteItem> current = favoritesLiveData.getValue();
-                    List<FavoriteItem> updated = new ArrayList<>();
-                    if (current != null) {
-                        for (FavoriteItem item : current) {
-                            if (!item.getMessageId().equals(messageId)) {
-                                updated.add(item);
-                            }
-                        }
-                    }
-                    favoritesLiveData.setValue(updated);
+                    localExecutor.execute(() -> favoriteLocalDao.deleteByMessageId(messageId));
                     callback.onSuccess("已取消收藏");
                     return;
                 }
@@ -198,5 +189,97 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
             return item.getFavoritedAt();
         }
         return item.getMessageCreatedAt();
+    }
+
+    private void persistRemoteFavorites(List<FavoriteItem> items) {
+        List<FavoriteLocalEntity> entities = toLocalList(items);
+        long currentUserId = requireCurrentUserId();
+        localExecutor.execute(() -> {
+            favoriteLocalDao.clearAllByUserId(currentUserId);
+            if (!entities.isEmpty()) {
+                favoriteLocalDao.upsertAll(entities);
+            }
+        });
+    }
+
+    private void persistSingleFavorite(FavoriteItem item) {
+        FavoriteLocalEntity entity = toLocal(item);
+        if (entity == null) {
+            return;
+        }
+        localExecutor.execute(() -> favoriteLocalDao.upsert(entity));
+    }
+
+    private List<FavoriteLocalEntity> toLocalList(List<FavoriteItem> items) {
+        List<FavoriteLocalEntity> result = new ArrayList<>();
+        if (items == null) {
+            return result;
+        }
+        for (FavoriteItem item : items) {
+            FavoriteLocalEntity entity = toLocal(item);
+            if (entity != null) {
+                result.add(entity);
+            }
+        }
+        return result;
+    }
+
+    private FavoriteLocalEntity toLocal(FavoriteItem item) {
+        if (item == null || item.getId() == null) {
+            return null;
+        }
+        FavoriteLocalEntity entity = new FavoriteLocalEntity();
+        entity.setId(item.getId());
+        entity.setMessageId(item.getMessageId());
+        entity.setUserId(requireCurrentUserId());
+        entity.setFlashNoteId(item.getFlashNoteId());
+        entity.setFlashNoteTitle(item.getFlashNoteTitle());
+        entity.setRole(item.getRole());
+        entity.setContent(item.getContent());
+        entity.setFlashNoteIcon(item.getFlashNoteIcon());
+        entity.setMediaType(item.getMediaType());
+        entity.setMediaUrl(item.getMediaUrl());
+        entity.setFileName(item.getFileName());
+        entity.setFileSize(item.getFileSize());
+        entity.setMediaDuration(item.getMediaDuration());
+        entity.setFavoritedAt(item.getFavoritedAt() == null ? null : item.getFavoritedAt().toString());
+        entity.setMessageCreatedAt(item.getMessageCreatedAt() == null ? null : item.getMessageCreatedAt().toString());
+        return entity;
+    }
+
+    private List<FavoriteItem> toModelList(List<FavoriteLocalEntity> entities) {
+        List<FavoriteItem> result = new ArrayList<>();
+        if (entities == null) {
+            return result;
+        }
+        for (FavoriteLocalEntity entity : entities) {
+            FavoriteItem item = new FavoriteItem();
+            item.setId(entity.getId());
+            item.setMessageId(entity.getMessageId());
+            item.setFlashNoteId(entity.getFlashNoteId());
+            item.setFlashNoteTitle(entity.getFlashNoteTitle());
+            item.setRole(entity.getRole());
+            item.setContent(entity.getContent());
+            item.setFlashNoteIcon(entity.getFlashNoteIcon());
+            item.setMediaType(entity.getMediaType());
+            item.setMediaUrl(entity.getMediaUrl());
+            item.setFileName(entity.getFileName());
+            item.setFileSize(entity.getFileSize());
+            item.setMediaDuration(entity.getMediaDuration());
+            if (entity.getFavoritedAt() != null && !entity.getFavoritedAt().trim().isEmpty()) {
+                item.setFavoritedAt(LocalDateTime.parse(entity.getFavoritedAt()));
+            }
+            if (entity.getMessageCreatedAt() != null && !entity.getMessageCreatedAt().trim().isEmpty()) {
+                item.setMessageCreatedAt(LocalDateTime.parse(entity.getMessageCreatedAt()));
+            }
+            result.add(item);
+        }
+        sortFavorites(result);
+        return result;
+    }
+
+    private long requireCurrentUserId() {
+        Long userId = tokenManager.getUserId();
+        return userId == null ? -1L : userId;
     }
 }
