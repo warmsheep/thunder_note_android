@@ -44,6 +44,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     private final FileRepository fileRepository;
     private final VideoPreparationService videoPreparationService;
     private final PendingMessageDispatcher pendingMessageDispatcher;
+    private final boolean enableTextPendingPipeline;
     private final ExecutorService pendingStorageExecutor = Executors.newSingleThreadExecutor();
     private final Map<Long, MutableLiveData<List<Message>>> conversations = new HashMap<>();
     private final Map<Long, MutableLiveData<List<Message>>> mergedConversations = new HashMap<>();
@@ -63,10 +64,20 @@ public class MessageRepositoryImpl implements MessageRepository {
                                  PendingMessageRepository pendingMessageRepository,
                                  FileRepository fileRepository,
                                  VideoPreparationService videoPreparationService) {
+        this(messageService, pendingMessageRepository, fileRepository, videoPreparationService,
+                MessageFeatureFlags.ENABLE_TEXT_PENDING_PIPELINE);
+    }
+
+    MessageRepositoryImpl(MessageService messageService,
+                         PendingMessageRepository pendingMessageRepository,
+                         FileRepository fileRepository,
+                         VideoPreparationService videoPreparationService,
+                         boolean enableTextPendingPipeline) {
         this.messageService = messageService;
         this.pendingMessageRepository = pendingMessageRepository;
         this.fileRepository = fileRepository;
         this.videoPreparationService = videoPreparationService;
+        this.enableTextPendingPipeline = enableTextPendingPipeline;
         this.pendingMessageDispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, fileRepository, videoPreparationService, this::onPendingUpdated);
     }
 
@@ -247,6 +258,13 @@ public class MessageRepositoryImpl implements MessageRepository {
                                   Long peerUserId,
                                   String content,
                                   Runnable onSuccess) {
+        if (!enableTextPendingPipeline) {
+            Message message = new Message();
+            message.setContent(content);
+            message.setMediaType(MEDIA_TYPE_TEXT);
+            sendMessageInternal(conversationKey, flashNoteId, peerUserId, message, runnableToCallback(onSuccess));
+            return;
+        }
         PendingMessage pendingMessage = new PendingMessage();
         pendingMessage.setConversationKey(conversationKey);
         pendingMessage.setFlashNoteId(flashNoteId);

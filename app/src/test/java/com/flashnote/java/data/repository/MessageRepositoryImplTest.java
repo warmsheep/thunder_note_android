@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -27,8 +28,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.io.File;
 
 import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
@@ -39,6 +43,9 @@ public class MessageRepositoryImplTest {
 
     @Mock
     Call<ApiResponse<Message>> mockSendCall;
+
+    @Mock
+    Call<ApiResponse<java.util.List<Message>>> mockListCall;
 
     @Mock
     PendingMessageRepository pendingMessageRepository;
@@ -52,6 +59,7 @@ public class MessageRepositoryImplTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
+        when(messageService.list(any())).thenReturn(mockListCall);
     }
 
     @Test
@@ -254,5 +262,92 @@ public class MessageRepositoryImplTest {
 
         verify(pendingMessageRepository).findByLocalId(10L);
         verify(pendingMessageRepository, never()).update(eq(queued));
+    }
+
+    @Test
+    public void sendText_usesDirectSendWhenPendingFeatureDisabled() {
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                false
+        );
+        when(messageService.send(any())).thenReturn(mockSendCall);
+
+        repository.sendText(7L, "hello", null);
+
+        verify(messageService).send(any());
+        verify(pendingMessageRepository, never()).insert(any(PendingMessage.class));
+    }
+
+    @Test
+    public void sendText_usesPendingPipelineWhenPendingFeatureEnabled() {
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                true
+        );
+        when(pendingMessageRepository.insert(any(PendingMessage.class))).thenReturn(15L);
+        when(pendingMessageRepository.findByLocalId(15L)).thenAnswer(invocation -> {
+            PendingMessage pending = new PendingMessage();
+            pending.setLocalId(15L);
+            pending.setConversationKey(7L);
+            pending.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
+            pending.setContent("hello");
+            pending.setMediaType("TEXT");
+            pending.setClientRequestId("req-15");
+            pending.setCreatedAt(1000L);
+            return pending;
+        });
+        when(messageService.send(any())).thenReturn(mockSendCall);
+
+        repository.sendText(7L, "hello", null);
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(pendingMessageRepository, atLeastOnce()).insert(any(PendingMessage.class));
+    }
+
+    @Test
+    public void enqueueMedia_staysOnPendingPipelineEvenWhenTextPendingFeatureDisabled() throws Exception {
+        File tempFile = File.createTempFile("pending-media", ".jpg");
+        tempFile.deleteOnExit();
+
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                false
+        );
+        when(pendingMessageRepository.insert(any(PendingMessage.class))).thenReturn(21L);
+        when(pendingMessageRepository.findByLocalId(21L)).thenAnswer(invocation -> {
+            PendingMessage pending = new PendingMessage();
+            pending.setLocalId(21L);
+            pending.setConversationKey(9L);
+            pending.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
+            pending.setMediaType("IMAGE");
+            pending.setLocalFilePath(tempFile.getAbsolutePath());
+            pending.setCreatedAt(2000L);
+            return pending;
+        });
+
+        repository.enqueueMedia(9L, 0L, "IMAGE", tempFile, "demo.jpg", tempFile.length(), null, null);
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(pendingMessageRepository, atLeastOnce()).insert(any(PendingMessage.class));
+        verify(fileRepository).upload(eq(tempFile), any(FileRepository.FileCallback.class));
     }
 }
