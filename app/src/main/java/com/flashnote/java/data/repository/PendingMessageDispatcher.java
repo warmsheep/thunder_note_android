@@ -49,6 +49,7 @@ public class PendingMessageDispatcher {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Listener listener;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private boolean dispatchInProgress;
 
     public PendingMessageDispatcher(PendingMessageRepository pendingMessageRepository,
                                     MessageService messageService,
@@ -79,6 +80,9 @@ public class PendingMessageDispatcher {
     }
 
     void dispatchConversationNow(long conversationKey) {
+        if (dispatchInProgress) {
+            return;
+        }
         List<PendingMessage> pendingMessages = pendingMessageRepository.getByConversationKey(conversationKey);
         if (pendingMessages == null || pendingMessages.isEmpty()) {
             return;
@@ -88,12 +92,18 @@ public class PendingMessageDispatcher {
                 continue;
             }
             dispatchNow(pendingMessage.getLocalId());
+            break;
         }
     }
 
     void dispatchAllPendingNow() {
+        if (dispatchInProgress) {
+            return;
+        }
         dispatchPendingList(pendingMessageRepository.getByStatus(STATUS_QUEUED));
-        dispatchPendingList(pendingMessageRepository.getByStatus(STATUS_FAILED));
+        if (!dispatchInProgress) {
+            dispatchPendingList(pendingMessageRepository.getByStatus(STATUS_FAILED));
+        }
     }
 
     private void dispatchPendingList(List<PendingMessage> pendingMessages) {
@@ -105,14 +115,16 @@ public class PendingMessageDispatcher {
                 continue;
             }
             dispatchNow(pendingMessage.getLocalId());
+            break;
         }
     }
 
     void dispatchNow(long localId) {
         PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(localId);
-        if (!canDispatch(pendingMessage)) {
+        if (!canDispatch(pendingMessage) || dispatchInProgress) {
             return;
         }
+        dispatchInProgress = true;
 
         if (requiresUploadFirst(pendingMessage)) {
             uploadThenSend(localId, pendingMessage);
@@ -393,6 +405,8 @@ public class PendingMessageDispatcher {
                         pendingMessageRepository.update(latest);
                         notifyListener(latest, serverMessage);
                         pendingMessageRepository.delete(latest);
+                        dispatchInProgress = false;
+                        dispatchAllPendingNow();
                     } else {
                         String bodyMessage = response.body() != null ? response.body().getMessage() : null;
                         fail(localId, buildFailureMessage(ERROR_SERVER_REJECTED, bodyMessage == null ? String.valueOf(response.code()) : bodyMessage));
@@ -528,6 +542,8 @@ public class PendingMessageDispatcher {
     private void fail(long localId, String errorMessage) {
         PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
         if (latest == null) {
+            dispatchInProgress = false;
+            dispatchAllPendingNow();
             return;
         }
         latest.setStatus(STATUS_FAILED);
@@ -535,6 +551,8 @@ public class PendingMessageDispatcher {
         latest.setAttemptCount(latest.getAttemptCount() + 1);
         pendingMessageRepository.update(latest);
         notifyListener(latest, null);
+        dispatchInProgress = false;
+        dispatchAllPendingNow();
     }
 
     private String classifyThrowable(Throwable throwable) {

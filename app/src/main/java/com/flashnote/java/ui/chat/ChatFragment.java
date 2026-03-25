@@ -92,6 +92,10 @@ public class ChatFragment extends Fragment {
     private int messageCountBeforeLoadMore = 0;
     private boolean isMultiSelectMode = false;
     private boolean skipNextScroll = false;
+    private boolean autoScrollEnabled = true;
+    private int lastRenderedMessageCount = 0;
+    private String lastRenderedTailKey = "";
+    private boolean lastRenderedTailUploading = false;
 
     public static ChatFragment newInstance(long flashNoteId, String title) {
         ChatFragment fragment = new ChatFragment();
@@ -242,6 +246,11 @@ public class ChatFragment extends Fragment {
         binding.recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                if (dy < 0) {
+                    autoScrollEnabled = false;
+                } else if (dy > 0) {
+                    autoScrollEnabled = isNearBottom();
+                }
                 if (!isInitialScrollCompleted || dy >= 0 || isLoadingMore || !hasMoreMessages) {
                     return;
                 }
@@ -270,6 +279,7 @@ public class ChatFragment extends Fragment {
             chatViewModel.getMessages().observe(getViewLifecycleOwner(), messages -> {
                 boolean wasLoadingMore = isLoadingMore;
                 isLoadingMore = false;
+                boolean shouldAutoScroll = shouldAutoScrollOnMessageUpdate(messages, wasLoadingMore, scrollToMessageId);
                 adapter.submitList(messages);
                 if (isAdded()) {
                     adapter.preloadRecentMedia(messages, requireContext());
@@ -278,8 +288,11 @@ public class ChatFragment extends Fragment {
                 if (scrollToMessageId <= 0 && messages != null && !messages.isEmpty() && !wasLoadingMore) {
                     if (skipNextScroll) {
                         skipNextScroll = false;
-                    } else {
+                    } else if (shouldAutoScroll) {
                         scrollToBottomAfterLayout(messages);
+                        autoScrollEnabled = true;
+                    } else {
+                        autoScrollEnabled = false;
                     }
                     isInitialScrollCompleted = true;
                 }
@@ -303,6 +316,7 @@ public class ChatFragment extends Fragment {
                 } else if (!isInitialScrollCompleted) {
                     isInitialScrollCompleted = true;
                 }
+                rememberRenderedTailState(messages);
             });
         }
         chatViewModel.getHasMore().observe(getViewLifecycleOwner(), hasMore -> {
@@ -368,6 +382,7 @@ public class ChatFragment extends Fragment {
                     binding.messageInput.setText(null);
                     viewModel.clearDraft();
                 }
+                autoScrollEnabled = true;
                 scrollToBottomAfterLayout(null);
             });
         });
@@ -381,6 +396,7 @@ public class ChatFragment extends Fragment {
         if (count <= 0) {
             return;
         }
+        autoScrollEnabled = true;
         int last = count - 1;
         binding.recyclerView.post(() -> {
             if (binding == null) {
@@ -452,6 +468,63 @@ public class ChatFragment extends Fragment {
             });
             animator.start();
         }
+    }
+
+    private boolean shouldAutoScrollOnMessageUpdate(@Nullable List<Message> messages, boolean wasLoadingMore, long scrollToMessageId) {
+        if (scrollToMessageId > 0 || wasLoadingMore || messages == null || messages.isEmpty()) {
+            return false;
+        }
+        boolean nearBottom = isNearBottom();
+        boolean tailAppended = messages.size() > lastRenderedMessageCount;
+        String newTailKey = buildTailKey(messages.get(messages.size() - 1));
+        boolean tailResolvedSuccess = !newTailKey.isEmpty()
+                && newTailKey.equals(lastRenderedTailKey)
+                && lastRenderedTailUploading
+                && !messages.get(messages.size() - 1).isUploading();
+        return (autoScrollEnabled || nearBottom) && (tailAppended || tailResolvedSuccess || !isInitialScrollCompleted);
+    }
+
+    private void rememberRenderedTailState(@Nullable List<Message> messages) {
+        lastRenderedMessageCount = messages == null ? 0 : messages.size();
+        if (messages == null || messages.isEmpty()) {
+            lastRenderedTailKey = "";
+            lastRenderedTailUploading = false;
+            return;
+        }
+        Message tail = messages.get(messages.size() - 1);
+        lastRenderedTailKey = buildTailKey(tail);
+        lastRenderedTailUploading = tail != null && tail.isUploading();
+    }
+
+    @NonNull
+    private String buildTailKey(@Nullable Message message) {
+        if (message == null) {
+            return "";
+        }
+        if (message.getClientRequestId() != null && !message.getClientRequestId().isBlank()) {
+            return "crid:" + message.getClientRequestId().trim();
+        }
+        if (message.getId() != null) {
+            return "id:" + message.getId();
+        }
+        Long localSortTimestamp = message.getLocalSortTimestamp();
+        return localSortTimestamp == null ? "" : "ts:" + localSortTimestamp;
+    }
+
+    private boolean isNearBottom() {
+        if (binding == null || binding.recyclerView == null || adapter == null) {
+            return true;
+        }
+        RecyclerView.LayoutManager manager = binding.recyclerView.getLayoutManager();
+        if (!(manager instanceof LinearLayoutManager layoutManager)) {
+            return true;
+        }
+        int itemCount = adapter.getItemCount();
+        if (itemCount <= 0) {
+            return true;
+        }
+        int lastVisible = layoutManager.findLastVisibleItemPosition();
+        return lastVisible >= itemCount - 2;
     }
 
     private void showMessageActions(Message message,

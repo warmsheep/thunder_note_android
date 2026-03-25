@@ -988,6 +988,9 @@ public class MessageRepositoryImpl implements MessageRepository {
             return;
         }
         serverMessage.setLocalSortTimestamp(pendingMessage.getCreatedAt());
+        if (pendingMessage.getCreatedAt() > 0L) {
+            serverMessage.setCreatedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(pendingMessage.getCreatedAt()), ZoneId.systemDefault()));
+        }
         if (serverMessage.getMediaType() == null) {
             serverMessage.setMediaType(pendingMessage.getMediaType());
         }
@@ -1026,6 +1029,37 @@ public class MessageRepositoryImpl implements MessageRepository {
     private void persistRemoteMessages(long conversationKey, List<Message> messages, boolean replaceConversation) {
         List<MessageLocalEntity> entities = toLocalMessageList(conversationKey, messages);
         pendingStorageExecutor.execute(() -> {
+            Map<String, String> createdAtByClientRequestId = new HashMap<>();
+            Map<Long, String> createdAtByMessageId = new HashMap<>();
+            if (replaceConversation) {
+                List<MessageLocalEntity> existingEntities = messageLocalDao.getByConversationKeyNow(conversationKey);
+                for (MessageLocalEntity existing : existingEntities) {
+                    if (existing == null) {
+                        continue;
+                    }
+                    if (existing.getClientRequestId() != null && !existing.getClientRequestId().trim().isEmpty() && existing.getCreatedAt() != null) {
+                        createdAtByClientRequestId.put(existing.getClientRequestId(), existing.getCreatedAt());
+                    }
+                    if (existing.getId() != null && existing.getCreatedAt() != null) {
+                        createdAtByMessageId.put(existing.getId(), existing.getCreatedAt());
+                    }
+                }
+            }
+            for (MessageLocalEntity entity : entities) {
+                if (entity == null) {
+                    continue;
+                }
+                String preservedCreatedAt = null;
+                if (entity.getClientRequestId() != null && !entity.getClientRequestId().trim().isEmpty()) {
+                    preservedCreatedAt = createdAtByClientRequestId.get(entity.getClientRequestId());
+                }
+                if (preservedCreatedAt == null && entity.getId() != null) {
+                    preservedCreatedAt = createdAtByMessageId.get(entity.getId());
+                }
+                if (preservedCreatedAt != null && !preservedCreatedAt.trim().isEmpty()) {
+                    entity.setCreatedAt(preservedCreatedAt);
+                }
+            }
             if (replaceConversation) {
                 messageLocalDao.clearConversation(conversationKey);
             }

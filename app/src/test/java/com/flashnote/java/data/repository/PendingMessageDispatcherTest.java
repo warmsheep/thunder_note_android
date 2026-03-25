@@ -76,7 +76,7 @@ public class PendingMessageDispatcherTest {
 
         verify(pendingMessageRepository).getByConversationKey(99L);
         verify(pendingMessageRepository).findByLocalId(11L);
-        verify(pendingMessageRepository).findByLocalId(12L);
+        verify(pendingMessageRepository, never()).findByLocalId(12L);
         verify(pendingMessageRepository, never()).findByLocalId(13L);
     }
 
@@ -95,9 +95,8 @@ public class PendingMessageDispatcherTest {
         dispatcher.dispatchAllPendingNow();
 
         verify(pendingMessageRepository).getByStatus(PendingMessageDispatcher.STATUS_QUEUED);
-        verify(pendingMessageRepository).getByStatus(PendingMessageDispatcher.STATUS_FAILED);
         verify(pendingMessageRepository).findByLocalId(21L);
-        verify(pendingMessageRepository).findByLocalId(22L);
+        verify(pendingMessageRepository, never()).findByLocalId(22L);
     }
 
     @Test

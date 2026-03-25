@@ -315,12 +315,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             return;
         }
         Long messageId = message.getId();
-        if (messageId == null || messageId >= 0L || message.isUploading()) {
+        if (messageId == null || messageId >= 0L) {
             return;
         }
         long localId = Math.abs(messageId);
         holder.binding.rightRetryIcon.setVisibility(View.VISIBLE);
-        holder.binding.rightRetryIcon.setOnClickListener(v -> retryListener.onRetry(localId));
+        holder.binding.rightRetryIcon.setAlpha(message.isUploading() ? 0.45f : 1f);
+        holder.binding.rightRetryIcon.setEnabled(!message.isUploading());
+        if (!message.isUploading()) {
+            holder.binding.rightRetryIcon.setOnClickListener(v -> retryListener.onRetry(localId));
+        }
     }
 
     private void showImageMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -380,7 +384,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         if (!message.isUploading() && isLocalOnlyMediaPath(message.getMediaUrl())) {
             refs.imageContainer.setOnClickListener(v -> Toast.makeText(context, "视频发送失败，请重试", Toast.LENGTH_SHORT).show());
         }
-        if (!message.isUploading() && !isLocalOnlyMediaPath(preview)) {
+        if (!TextUtils.isEmpty(preview)) {
             Glide.with(context)
                     .load(resolveMediaModel(preview))
                     .placeholder(R.drawable.bg_placeholder_card)

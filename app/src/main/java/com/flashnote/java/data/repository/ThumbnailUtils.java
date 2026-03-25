@@ -11,8 +11,8 @@ import java.io.FileOutputStream;
 import java.util.UUID;
 
 public final class ThumbnailUtils {
-    private static final int THUMBNAIL_SIZE = 200;
-    private static final int JPEG_QUALITY = 70;
+    private static final int THUMBNAIL_SIZE = 240;
+    private static final int JPEG_QUALITY = 82;
 
     private ThumbnailUtils() {
     }
