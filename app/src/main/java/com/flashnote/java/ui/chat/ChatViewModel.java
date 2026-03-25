@@ -100,6 +100,14 @@ public class ChatViewModel extends AndroidViewModel {
         repository.retryPendingText(localId);
     }
 
+    public void retryPendingForCurrentConversation() {
+        repository.retryPendingForCurrentConversation();
+    }
+
+    public void retryAllPendingText() {
+        repository.retryAllPendingText();
+    }
+
     public void sendTextToFlashNote(long targetFlashNoteId, String text, Runnable onSuccess) {
         if (text == null || text.trim().isEmpty()) {
             return;

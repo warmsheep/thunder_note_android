@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -134,6 +135,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         if (!hasCachedMessages) {
             loadMessages(currentConversationKey, flashNoteId, null, 1, 20);
         }
+        pendingMessageDispatcher.dispatchConversation(currentConversationKey);
     }
 
     @Override
@@ -155,6 +157,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         if (!hasCachedMessages) {
             loadMessages(currentConversationKey, null, peerUserId, 1, 20);
         }
+        pendingMessageDispatcher.dispatchConversation(currentConversationKey);
     }
 
     @Override
@@ -179,6 +182,20 @@ public class MessageRepositoryImpl implements MessageRepository {
             pendingMessageRepository.update(pendingMessage);
             pendingMessageDispatcher.dispatch(localId);
         });
+    }
+
+    @Override
+    public void retryPendingForCurrentConversation() {
+        long conversationKey = currentConversationKey;
+        if (conversationKey == 0L) {
+            return;
+        }
+        pendingMessageDispatcher.dispatchConversation(conversationKey);
+    }
+
+    @Override
+    public void retryAllPendingText() {
+        pendingMessageDispatcher.dispatchAllPending();
     }
 
     private void sendTextInternal(long conversationKey,
@@ -565,20 +582,96 @@ public class MessageRepositoryImpl implements MessageRepository {
                                            List<Message> remoteOverride,
                                            List<PendingMessage> pendingOverride) {
         MutableLiveData<List<Message>> mergedLiveData = ensureMergedLiveDataInternal(conversationKey);
-        List<Message> remote = remoteOverride;
-        List<PendingMessage> pendingMessages = pendingOverride;
+        List<Message> merged = buildMergedMessages(remoteOverride, pendingOverride);
+        setLiveDataValue(mergedLiveData, merged);
+    }
 
-        List<Message> merged = remote == null ? new ArrayList<>() : new ArrayList<>(remote);
+    static List<Message> buildMergedMessages(List<Message> remoteMessages,
+                                             List<PendingMessage> pendingMessages) {
+        List<Message> merged = new ArrayList<>();
+        HashSet<Long> remoteIds = new HashSet<>();
+        HashSet<String> remoteClientRequestIds = new HashSet<>();
+        List<Message> normalizedRemote = remoteMessages == null ? Collections.emptyList() : remoteMessages;
+        for (Message remoteMessage : normalizedRemote) {
+            if (remoteMessage == null) {
+                continue;
+            }
+            if (remoteMessage.getId() != null) {
+                if (!remoteIds.add(remoteMessage.getId())) {
+                    continue;
+                }
+            }
+            String clientRequestId = normalizeClientRequestId(remoteMessage.getClientRequestId());
+            if (!clientRequestId.isEmpty()) {
+                remoteClientRequestIds.add(clientRequestId);
+            }
+            merged.add(remoteMessage);
+        }
         if (pendingMessages != null) {
             for (PendingMessage pendingMessage : pendingMessages) {
-                if (PendingMessageDispatcher.STATUS_SENT.equals(pendingMessage.getStatus())) {
+                if (pendingMessage == null || PendingMessageDispatcher.STATUS_SENT.equals(pendingMessage.getStatus())) {
+                    continue;
+                }
+                Long serverMessageId = pendingMessage.getServerMessageId();
+                if (serverMessageId != null && remoteIds.contains(serverMessageId)) {
+                    continue;
+                }
+                String pendingClientRequestId = normalizeClientRequestId(pendingMessage.getClientRequestId());
+                if (!pendingClientRequestId.isEmpty() && remoteClientRequestIds.contains(pendingClientRequestId)) {
+                    continue;
+                }
+                if (matchesRemoteFingerprint(merged, pendingMessage)) {
                     continue;
                 }
                 merged.add(toUiMessage(pendingMessage));
             }
         }
         merged.sort(MERGED_MESSAGE_COMPARATOR);
-        setLiveDataValue(mergedLiveData, merged);
+        return merged;
+    }
+
+    private static boolean matchesRemoteFingerprint(List<Message> remoteMessages, PendingMessage pendingMessage) {
+        if (remoteMessages == null || remoteMessages.isEmpty() || pendingMessage == null) {
+            return false;
+        }
+        if (!MEDIA_TYPE_TEXT.equalsIgnoreCase(nullToEmpty(pendingMessage.getMediaType()))) {
+            return false;
+        }
+        String pendingContent = nullToEmpty(pendingMessage.getContent()).trim();
+        if (pendingContent.isEmpty()) {
+            return false;
+        }
+        long pendingCreatedAt = pendingMessage.getCreatedAt();
+        for (Message remoteMessage : remoteMessages) {
+            if (remoteMessage == null) {
+                continue;
+            }
+            if (!"user".equalsIgnoreCase(nullToEmpty(remoteMessage.getRole()))) {
+                continue;
+            }
+            if (!MEDIA_TYPE_TEXT.equalsIgnoreCase(nullToEmpty(remoteMessage.getMediaType()))) {
+                continue;
+            }
+            if (!pendingContent.equals(nullToEmpty(remoteMessage.getContent()).trim())) {
+                continue;
+            }
+            long remoteTimestamp = messageSortTimestamp(remoteMessage);
+            if (remoteTimestamp == Long.MAX_VALUE) {
+                continue;
+            }
+            if (Math.abs(remoteTimestamp - pendingCreatedAt) <= 2_000L) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String normalizeClientRequestId(String value) {
+        return nullToEmpty(value).trim();
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private void observePendingConversation(long conversationKey) {
@@ -642,11 +735,12 @@ public class MessageRepositoryImpl implements MessageRepository {
         return created;
     }
 
-    private Message toUiMessage(PendingMessage pendingMessage) {
+    private static Message toUiMessage(PendingMessage pendingMessage) {
         Message message = new Message();
         message.setId(-pendingMessage.getLocalId());
         message.setFlashNoteId(pendingMessage.getFlashNoteId());
         message.setReceiverId(pendingMessage.getPeerUserId());
+        message.setClientRequestId(pendingMessage.getClientRequestId());
         message.setContent(pendingMessage.getContent());
         message.setMediaType(pendingMessage.getMediaType());
         message.setRole("user");

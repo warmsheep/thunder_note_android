@@ -44,6 +44,10 @@ public interface MessageRepository {
 
     void retryPendingText(long localId);
 
+    void retryPendingForCurrentConversation();
+
+    void retryAllPendingText();
+
     void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess);
 
     void deleteContactMessage(long peerUserId, long messageId, Runnable onSuccess);
