@@ -56,7 +56,7 @@ public class DebugFragment extends Fragment {
 
         binding.backButton.setOnClickListener(v -> goBack());
         binding.bootstrapButton.setOnClickListener(v -> syncRepository.bootstrap(syncCallback("bootstrap")));
-        binding.pullButton.setOnClickListener(v -> syncRepository.pull(syncCallback("pull")));
+        binding.pullButton.setOnClickListener(v -> syncRepository.pullAndRefreshLocal(syncCallback("pull")));
         binding.pushButton.setOnClickListener(v -> pushCurrentData());
         binding.uploadButton.setOnClickListener(v -> filePickerLauncher.launch("*/*"));
         binding.clearLogButton.setOnClickListener(v -> DebugLog.clear());
@@ -82,11 +82,6 @@ public class DebugFragment extends Fragment {
                 if (!isAdded() || getActivity() == null) {
                     return;
                 }
-                FlashNoteApp app = FlashNoteApp.getInstance();
-                app.getFlashNoteRepository().refresh();
-                app.getCollectionRepository().refresh();
-                app.getFavoriteRepository().refresh();
-        app.getMessageRepository().retryAllPendingMessages();
                 getActivity().runOnUiThread(() -> {
                     if (binding != null) {
                         binding.statusText.setText(action + " 成功：" + data);
@@ -109,18 +104,7 @@ public class DebugFragment extends Fragment {
     }
 
     private void pushCurrentData() {
-        FlashNoteApp app = FlashNoteApp.getInstance();
-        List<FlashNote> notes = app.getFlashNoteRepository().getNotes().getValue();
-        List<Collection> collections = app.getCollectionRepository().getCollections().getValue();
-        List<FavoriteItem> favorites = app.getFavoriteRepository().getFavorites().getValue();
-        List<Message> messages = app.getMessageRepository().getCachedMessages();
-
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("notes", notes == null ? List.of() : notes);
-        payload.put("collections", collections == null ? List.of() : collections);
-        payload.put("messages", messages == null ? List.of() : messages);
-        payload.put("favorites", favorites == null ? List.of() : favorites);
-        syncRepository.push(payload, syncCallback("push"));
+        syncRepository.pushLocalState(syncCallback("push"));
     }
 
     private void handleFilePicked(@Nullable Uri uri) {

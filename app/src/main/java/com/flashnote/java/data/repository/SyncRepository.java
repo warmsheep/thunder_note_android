@@ -13,6 +13,10 @@ public interface SyncRepository {
     void bootstrap(SyncCallback callback);
     
     void pull(SyncCallback callback);
+
+    void pullAndRefreshLocal(SyncCallback callback);
+
+    void pushLocalState(SyncCallback callback);
     
     void push(Map<String, Object> payload, SyncCallback callback);
 }

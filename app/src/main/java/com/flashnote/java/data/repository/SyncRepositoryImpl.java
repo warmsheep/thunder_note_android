@@ -1,9 +1,16 @@
 package com.flashnote.java.data.repository;
 
 import com.flashnote.java.DebugLog;
+import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.Collection;
+import com.flashnote.java.data.model.FavoriteItem;
+import com.flashnote.java.data.model.FlashNote;
+import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.remote.SyncService;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -77,6 +84,46 @@ public class SyncRepositoryImpl implements SyncRepository {
                 callback.onError(errMsg, -1);
             }
         });
+    }
+
+    @Override
+    public void pullAndRefreshLocal(SyncCallback callback) {
+        pull(new SyncCallback() {
+            @Override
+            public void onSuccess(Map<String, Object> data) {
+                FlashNoteApp app = FlashNoteApp.getInstance();
+                app.getFlashNoteRepository().refresh();
+                app.getCollectionRepository().refresh();
+                app.getFavoriteRepository().refresh();
+                app.getMessageRepository().retryAllPendingMessages();
+                if (callback != null) {
+                    callback.onSuccess(data);
+                }
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                if (callback != null) {
+                    callback.onError(message, code);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void pushLocalState(SyncCallback callback) {
+        FlashNoteApp app = FlashNoteApp.getInstance();
+        List<FlashNote> notes = app.getFlashNoteRepository().getNotes().getValue();
+        List<Collection> collections = app.getCollectionRepository().getCollections().getValue();
+        List<FavoriteItem> favorites = app.getFavoriteRepository().getFavorites().getValue();
+        List<Message> messages = app.getMessageRepository().getCachedMessages();
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("notes", notes == null ? List.of() : notes);
+        payload.put("collections", collections == null ? List.of() : collections);
+        payload.put("messages", messages == null ? List.of() : messages);
+        payload.put("favorites", favorites == null ? List.of() : favorites);
+        push(payload, callback);
     }
 
     @Override

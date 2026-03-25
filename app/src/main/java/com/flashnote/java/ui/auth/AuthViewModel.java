@@ -8,6 +8,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.flashnote.java.FlashNoteApp;
+import com.flashnote.java.data.sync.PendingRecoveryWorker;
 import com.flashnote.java.data.model.LoginResponse;
 import com.flashnote.java.data.model.User;
 import com.flashnote.java.data.repository.AuthRepository;
@@ -50,6 +51,7 @@ public class AuthViewModel extends AndroidViewModel {
         authRepository.login(username.trim(), password, new AuthRepository.AuthCallback() {
             @Override
             public void onSuccess(LoginResponse response) {
+                PendingRecoveryWorker.enqueue(getApplication());
                 authState.postValue(AuthState.SUCCESS);
                 loginResponse.postValue(response);
                 currentUser.postValue(response.getUser());
