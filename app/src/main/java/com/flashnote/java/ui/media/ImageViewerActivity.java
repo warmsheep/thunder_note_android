@@ -7,9 +7,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.model.LazyHeaders;
-import com.flashnote.java.TokenManager;
 import com.flashnote.java.databinding.ActivityImageViewerBinding;
 
 import java.io.File;
@@ -38,14 +35,9 @@ public class ImageViewerActivity extends AppCompatActivity {
 
         String mediaUrl = getIntent().getStringExtra(EXTRA_MEDIA_URL);
         String requestUrl = MediaUrlResolver.resolve(mediaUrl);
-        String token = new TokenManager(this).getAccessToken();
-
-        GlideUrl glideUrl = new GlideUrl(requestUrl, new LazyHeaders.Builder()
-                .addHeader("Authorization", token == null ? "" : "Bearer " + token)
-                .build());
 
         Glide.with(this)
-                .load(glideUrl)
+                .load(requestUrl)
                 .into(binding.photoView);
     }
 }

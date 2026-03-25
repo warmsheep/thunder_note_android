@@ -19,8 +19,6 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.model.LazyHeaders;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.TokenManager;
@@ -295,15 +293,8 @@ public class EditProfileFragment extends Fragment {
         binding.avatarText.setText(value);
     }
 
-    private Object buildAvatarGlideSource(@NonNull String avatarValue) {
-        String resolved = MediaUrlResolver.resolve(avatarValue);
-        String token = tokenManager.getAccessToken();
-        if (token == null || token.isEmpty()) {
-            return resolved;
-        }
-        return new GlideUrl(resolved, new LazyHeaders.Builder()
-                .addHeader("Authorization", "Bearer " + token)
-                .build());
+    private String buildAvatarGlideSource(@NonNull String avatarValue) {
+        return MediaUrlResolver.resolve(avatarValue);
     }
 
     private void saveProfile() {

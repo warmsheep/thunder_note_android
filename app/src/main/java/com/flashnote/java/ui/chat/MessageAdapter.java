@@ -22,8 +22,6 @@ import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.model.LazyHeaders;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.TokenManager;
@@ -40,7 +38,9 @@ import com.flashnote.java.util.MarkdownRenderer;
 
 import java.io.File;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -245,7 +245,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 continue;
             }
             Glide.with(context)
-                    .load(buildGlideUrl(context, preloadUrl))
+                    .load(resolveMediaUrl(preloadUrl))
                     .fitCenter()
                     .dontAnimate()
                     .override(maxWidthPx, maxHeightPx)
@@ -277,15 +277,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         stopVoiceWaveAnimation(holder.binding.rightVoiceWaveform);
     }
 
-    private GlideUrl buildGlideUrl(Context context, String mediaPathOrUrl) {
-        String token = tokenManager.getAccessToken();
-        String requestUrl = MediaUrlResolver.resolve(mediaPathOrUrl);
-        if (TextUtils.isEmpty(token)) {
-            return new GlideUrl(requestUrl);
-        }
-        return new GlideUrl(requestUrl, new LazyHeaders.Builder()
-                .addHeader("Authorization", "Bearer " + token)
-                .build());
+    private String resolveMediaUrl(String mediaPathOrUrl) {
+        return MediaUrlResolver.resolve(mediaPathOrUrl);
     }
 
     private void showTextOnly(MessageViewHolder holder, Message message, boolean mine) {
@@ -325,7 +318,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
         if (!message.isUploading()) {
             Glide.with(context)
-                    .load(buildGlideUrl(context, message.getMediaUrl()))
+                    .load(resolveMediaUrl(message.getMediaUrl()))
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
                     .fitCenter()
@@ -357,7 +350,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         if (!message.isUploading()) {
             String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
             Glide.with(context)
-                    .load(buildGlideUrl(context, preview))
+                    .load(resolveMediaUrl(preview))
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
                     .fitCenter()
@@ -511,7 +504,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 iv.setLayoutParams(params);
                 
                 Glide.with(context)
-                        .load(buildGlideUrl(context, mediaUrls.get(i)))
+                        .load(resolveMediaUrl(mediaUrls.get(i)))
                         .placeholder(R.drawable.bg_placeholder_card)
                         .error(R.drawable.bg_placeholder_card)
                         .override(sizePx, sizePx)
@@ -964,11 +957,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
         void bind(Message message, int position) {
             boolean showTimeDivider = false;
-            if (position > 0 && message.getCreatedAt() != null) {
+            LocalDateTime displayTime = getDisplayTime(message);
+            if (position > 0 && displayTime != null) {
                 Message prevMessage = items.get(position - 1);
-                if (prevMessage.getCreatedAt() != null) {
-                    LocalDateTime currentTime = message.getCreatedAt();
-                    LocalDateTime prevTime = prevMessage.getCreatedAt();
+                LocalDateTime prevDisplayTime = getDisplayTime(prevMessage);
+                if (prevDisplayTime != null) {
+                    LocalDateTime currentTime = displayTime;
+                    LocalDateTime prevTime = prevDisplayTime;
                     Duration duration = Duration.between(prevTime, currentTime);
                     if (duration.toMillis() >= TEN_MINUTES_IN_MILLIS) {
                         showTimeDivider = true;
@@ -976,9 +971,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 }
             }
 
-            if (showTimeDivider && message.getCreatedAt() != null) {
+            if (showTimeDivider && displayTime != null) {
                 binding.timeDivider.setVisibility(View.VISIBLE);
-                binding.timeDivider.setText(message.getCreatedAt().format(TIME_FORMATTER));
+                binding.timeDivider.setText(displayTime.format(TIME_FORMATTER));
             } else {
                 binding.timeDivider.setVisibility(View.GONE);
             }
@@ -1001,7 +996,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     binding.avatarImage.setVisibility(View.VISIBLE);
                     binding.avatarText.setVisibility(View.GONE);
                     Glide.with(binding.getRoot().getContext())
-                            .load(buildGlideUrl(binding.getRoot().getContext(), peerAvatarUrl))
+                            .load(resolveMediaUrl(peerAvatarUrl))
                             .placeholder(R.drawable.bg_avatar_circle)
                             .error(R.drawable.bg_avatar_circle)
                             .circleCrop()
@@ -1018,7 +1013,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     binding.rightAvatarText.setVisibility(View.GONE);
                     binding.rightAvatarImage.setVisibility(View.VISIBLE);
                     Glide.with(binding.getRoot().getContext())
-                            .load(buildGlideUrl(binding.getRoot().getContext(), userAvatarUrl))
+                            .load(resolveMediaUrl(userAvatarUrl))
                             .placeholder(R.drawable.bg_avatar_circle)
                             .error(R.drawable.bg_avatar_circle)
                             .circleCrop()
@@ -1124,6 +1119,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 binding.rightCheckbox.setOnClickListener(null);
             }
         }
+    }
+
+    @Nullable
+    private LocalDateTime getDisplayTime(@Nullable Message message) {
+        if (message == null) {
+            return null;
+        }
+        Long localSortTimestamp = message.getLocalSortTimestamp();
+        if (localSortTimestamp != null) {
+            return LocalDateTime.ofInstant(Instant.ofEpochMilli(localSortTimestamp), ZoneId.systemDefault());
+        }
+        return message.getCreatedAt();
     }
 
     private static final class FrameRefs {

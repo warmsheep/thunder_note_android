@@ -21,8 +21,6 @@ import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.model.LazyHeaders;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.CardItem;
@@ -284,7 +282,7 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
                 imageView.setLayoutParams(params);
 
                 Glide.with(context)
-                        .load(buildGlideUrl(mediaUrls.get(i)))
+                        .load(resolveMediaUrl(mediaUrls.get(i)))
                         .placeholder(R.drawable.bg_placeholder_card)
                         .error(R.drawable.bg_placeholder_card)
                         .override(sizePx, sizePx)
@@ -361,23 +359,15 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
                 return;
             }
             Glide.with(binding.getRoot().getContext())
-                    .load(buildGlideUrl(mediaUrl))
+                    .load(resolveMediaUrl(mediaUrl))
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
                     .fitCenter()
                     .into(binding.mediaPreviewImage);
         }
 
-        private GlideUrl buildGlideUrl(String mediaUrl) {
-            String token = FlashNoteApp.getInstance().getTokenManager().getAccessToken();
-            String requestUrl = MediaUrlResolver.resolve(mediaUrl);
-            if (token != null && !token.isEmpty()) {
-                return new GlideUrl(requestUrl,
-                        new LazyHeaders.Builder()
-                                .addHeader("Authorization", "Bearer " + token)
-                                .build());
-            }
-            return new GlideUrl(requestUrl);
+        private String resolveMediaUrl(String mediaUrl) {
+            return MediaUrlResolver.resolve(mediaUrl);
         }
 
         private void openImagePreview(Context context, FavoriteItem item) {

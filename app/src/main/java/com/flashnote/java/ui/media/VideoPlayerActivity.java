@@ -12,18 +12,17 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DataSource;
-import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
 import com.flashnote.java.FlashNoteApp;
-import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.databinding.ActivityVideoPlayerBinding;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
+
+import okhttp3.OkHttpClient;
 
 public class VideoPlayerActivity extends AppCompatActivity {
     public static final String EXTRA_MEDIA_URL = "extra_media_url";
@@ -96,15 +95,8 @@ public class VideoPlayerActivity extends AppCompatActivity {
     private void playFromNetwork(String mediaUrl) {
         releasePlayer();
         String requestUrl = MediaUrlResolver.resolve(mediaUrl);
-        String token = new TokenManager(this).getAccessToken();
-
-        Map<String, String> headers = new HashMap<>();
-        if (token != null && !token.trim().isEmpty()) {
-            headers.put("Authorization", "Bearer " + token);
-        }
-
-        DataSource.Factory dataSourceFactory = new DefaultHttpDataSource.Factory()
-                .setDefaultRequestProperties(headers);
+        OkHttpClient okHttpClient = FlashNoteApp.getInstance().getApiClient().getOkHttpClient();
+        DataSource.Factory dataSourceFactory = new OkHttpDataSource.Factory(okHttpClient);
 
         player = new ExoPlayer.Builder(this)
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSourceFactory))

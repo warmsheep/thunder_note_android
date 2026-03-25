@@ -25,8 +25,6 @@ import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.model.LazyHeaders;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.FavoriteItem;
@@ -673,15 +671,8 @@ public class ProfileTabFragment extends Fragment {
         builder.show();
     }
 
-    private Object buildAvatarGlideSource(String avatarValue) {
-        String resolved = MediaUrlResolver.resolve(avatarValue);
-        String token = tokenManager.getAccessToken();
-        if (token == null || token.isEmpty()) {
-            return resolved;
-        }
-        return new GlideUrl(resolved, new LazyHeaders.Builder()
-                .addHeader("Authorization", "Bearer " + token)
-                .build());
+    private String buildAvatarGlideSource(String avatarValue) {
+        return MediaUrlResolver.resolve(avatarValue);
     }
 
     private void loadCachedRecordCount() {

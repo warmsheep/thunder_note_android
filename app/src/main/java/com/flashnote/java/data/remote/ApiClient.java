@@ -21,6 +21,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
     private final TokenManager tokenManager;
+    private final OkHttpClient okHttpClient;
     private final Retrofit retrofit;
     private final AuthService authService;
     private FlashNoteService flashNoteService;
@@ -41,7 +42,7 @@ public class ApiClient {
                     : HttpLoggingInterceptor.Level.NONE
         );
 
-        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+        okHttpClient = new OkHttpClient.Builder()
                 .addInterceptor(new AuthInterceptor(tokenManager))
                 .authenticator(new TokenAuthenticator(tokenManager))
                 .addInterceptor(loggingInterceptor)
@@ -119,6 +120,10 @@ public class ApiClient {
 
     public TokenManager getTokenManager() {
         return tokenManager;
+    }
+
+    public OkHttpClient getOkHttpClient() {
+        return okHttpClient;
     }
 
     private static final class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {

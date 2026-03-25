@@ -9,11 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.load.model.LazyHeaders;
-import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
-import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.ContactUser;
 import com.flashnote.java.databinding.ItemContactBinding;
 import com.flashnote.java.ui.media.MediaUrlResolver;
@@ -32,14 +28,12 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
 
     private final List<ContactUser> items = new ArrayList<>();
     private final OnContactClickListener listener;
-    private final TokenManager tokenManager;
     private Long pendingDeleteContactId = null;
     private String pendingDeleteAction = null;
     private OnDeleteClickListener deleteListener;
 
     public ContactAdapter(OnContactClickListener listener) {
         this.listener = listener;
-        this.tokenManager = FlashNoteApp.getInstance().getTokenManager();
     }
 
     public void setOnDeleteClickListener(OnDeleteClickListener listener) {
@@ -115,15 +109,8 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
         return items.size();
     }
 
-    private GlideUrl buildGlideUrl(Context context, String mediaPathOrUrl) {
-        String token = tokenManager.getAccessToken();
-        String requestUrl = MediaUrlResolver.resolve(mediaPathOrUrl);
-        if (token == null || token.isEmpty()) {
-            return new GlideUrl(requestUrl);
-        }
-        return new GlideUrl(requestUrl, new LazyHeaders.Builder()
-                .addHeader("Authorization", "Bearer " + token)
-                .build());
+    private String resolveMediaUrl(String mediaPathOrUrl) {
+        return MediaUrlResolver.resolve(mediaPathOrUrl);
     }
 
     class ContactViewHolder extends RecyclerView.ViewHolder {
@@ -151,7 +138,7 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
                 binding.avatarText.setVisibility(View.GONE);
                 binding.avatarImage.setVisibility(View.VISIBLE);
                 Glide.with(ctx)
-                        .load(buildGlideUrl(ctx, avatar))
+                        .load(resolveMediaUrl(avatar))
                         .placeholder(R.drawable.bg_avatar_circle)
                         .error(R.drawable.bg_avatar_circle)
                         .circleCrop()

@@ -1,9 +1,11 @@
 package com.flashnote.java;
 
 import android.app.Application;
+import android.content.SharedPreferences;
 
 import androidx.room.Room;
 
+import com.bumptech.glide.Glide;
 import com.flashnote.java.data.local.FlashNoteDatabase;
 import com.flashnote.java.data.remote.ApiClient;
 import com.flashnote.java.data.repository.AuthRepository;
@@ -46,7 +48,23 @@ public class FlashNoteApp extends Application {
         super.onCreate();
         instance = this;
         DebugLog.init();
+        clearStaleCacheOnUpgrade();
         initializeDependencies();
+    }
+
+    private void clearStaleCacheOnUpgrade() {
+        SharedPreferences prefs = getSharedPreferences("flashnote_app", MODE_PRIVATE);
+        int lastCacheClearVersion = prefs.getInt("cache_clear_version", 0);
+        int requiredVersion = 1;
+        if (lastCacheClearVersion < requiredVersion) {
+            new Thread(() -> {
+                try {
+                    Glide.get(FlashNoteApp.this).clearDiskCache();
+                } catch (Exception ignored) {
+                }
+            }).start();
+            prefs.edit().putInt("cache_clear_version", requiredVersion).apply();
+        }
     }
 
     private void initializeDependencies() {
