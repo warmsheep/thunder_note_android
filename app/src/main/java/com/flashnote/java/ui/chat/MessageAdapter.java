@@ -244,6 +244,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             if (TextUtils.isEmpty(preloadUrl)) {
                 continue;
             }
+            if (isLocalOnlyMediaPath(preloadUrl)) {
+                continue;
+            }
             Glide.with(context)
                     .load(resolveMediaUrl(preloadUrl))
                     .fitCenter()
@@ -281,6 +284,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         return MediaUrlResolver.resolve(mediaPathOrUrl);
     }
 
+    private boolean isLocalOnlyMediaPath(@Nullable String mediaPathOrUrl) {
+        if (TextUtils.isEmpty(mediaPathOrUrl)) {
+            return false;
+        }
+        String value = mediaPathOrUrl.trim();
+        return value.startsWith("file://") || value.startsWith("/");
+    }
+
     private void showTextOnly(MessageViewHolder holder, Message message, boolean mine) {
         hideAllMediaContainers(holder, mine);
         TextView messageText = mine ? holder.binding.rightMessageText : holder.binding.messageText;
@@ -316,7 +327,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         refs.uploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
         bindTextForMediaMessage(refs.messageText, message.getContent());
 
-        if (!message.isUploading()) {
+        if (!message.isUploading() && !isLocalOnlyMediaPath(message.getMediaUrl())) {
             Glide.with(context)
                     .load(resolveMediaUrl(message.getMediaUrl()))
                     .placeholder(R.drawable.bg_placeholder_card)
@@ -347,8 +358,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         refs.uploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
         bindTextForMediaMessage(refs.messageText, message.getContent());
 
-        if (!message.isUploading()) {
-            String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
+        String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
+        if (!message.isUploading() && !isLocalOnlyMediaPath(preview)) {
             Glide.with(context)
                     .load(resolveMediaUrl(preview))
                     .placeholder(R.drawable.bg_placeholder_card)

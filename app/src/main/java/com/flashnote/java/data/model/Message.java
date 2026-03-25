@@ -22,6 +22,9 @@ public class Message {
     
     @SerializedName("flashNoteId")
     private Long flashNoteId;
+
+    @SerializedName("clientRequestId")
+    private String clientRequestId;
     
     @SerializedName("role")
     private String role;
@@ -116,6 +119,14 @@ public class Message {
 
     public void setFlashNoteId(Long flashNoteId) {
         this.flashNoteId = flashNoteId;
+    }
+
+    public String getClientRequestId() {
+        return clientRequestId;
+    }
+
+    public void setClientRequestId(String clientRequestId) {
+        this.clientRequestId = clientRequestId;
     }
 
     public String getRole() {
