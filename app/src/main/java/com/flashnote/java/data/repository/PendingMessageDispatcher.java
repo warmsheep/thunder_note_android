@@ -9,6 +9,7 @@ import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.remote.MessageService;
 
 import java.io.File;
+import java.net.SocketTimeoutException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.List;
@@ -30,6 +31,11 @@ public class PendingMessageDispatcher {
     public static final String STATUS_SENDING = "SENDING";
     public static final String STATUS_FAILED = "FAILED";
     public static final String STATUS_SENT = "SENT";
+    private static final String ERROR_NETWORK = "网络错误";
+    private static final String ERROR_FILE_MISSING = "本地文件不存在";
+    private static final String ERROR_SERVER_REJECTED = "服务器拒绝";
+    private static final String ERROR_TIMEOUT = "请求超时";
+    private static final String ERROR_COMPRESSION = "压缩失败";
 
     private final PendingMessageRepository pendingMessageRepository;
     private final MessageService messageService;
@@ -97,7 +103,7 @@ public class PendingMessageDispatcher {
         }
     }
 
-    private void dispatchNow(long localId) {
+    void dispatchNow(long localId) {
         PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(localId);
         if (!canDispatch(pendingMessage)) {
             return;
@@ -124,7 +130,7 @@ public class PendingMessageDispatcher {
     private void prepareVideoThenUpload(long localId, PendingMessage pendingMessage) {
         File localFile = pendingMessage.getLocalFilePath() == null ? null : new File(pendingMessage.getLocalFilePath());
         if (localFile == null || !localFile.exists()) {
-            fail(localId, "本地文件不存在");
+            fail(localId, buildFailureMessage(ERROR_FILE_MISSING, null));
             return;
         }
 
@@ -141,7 +147,7 @@ public class PendingMessageDispatcher {
 
             @Override
             public void onError(String message) {
-                executor.execute(() -> handleVideoPrepareFailureNow(localId, message == null ? "视频处理失败" : message));
+                executor.execute(() -> handleVideoPrepareFailureNow(localId, message == null ? ERROR_COMPRESSION : message));
             }
         });
     }
@@ -160,7 +166,7 @@ public class PendingMessageDispatcher {
     }
 
     void handleVideoPrepareFailureNow(long localId, String errorMessage) {
-        fail(localId, errorMessage == null ? "视频处理失败" : errorMessage);
+        fail(localId, buildFailureMessage(ERROR_COMPRESSION, errorMessage));
     }
 
     private void uploadThenSend(long localId, PendingMessage pendingMessage) {
@@ -169,7 +175,7 @@ public class PendingMessageDispatcher {
                 : pendingMessage.getLocalFilePath();
         File localFile = uploadPath == null ? null : new File(uploadPath);
         if (localFile == null || !localFile.exists()) {
-            fail(localId, "本地文件不存在");
+            fail(localId, buildFailureMessage(ERROR_FILE_MISSING, null));
             return;
         }
 
@@ -186,7 +192,7 @@ public class PendingMessageDispatcher {
 
             @Override
             public void onError(String message, int code) {
-                executor.execute(() -> handleUploadFailureNow(localId, message == null ? "上传失败" : message));
+                executor.execute(() -> handleUploadFailureNow(localId, message, code));
             }
         });
     }
@@ -205,7 +211,11 @@ public class PendingMessageDispatcher {
     }
 
     void handleUploadFailureNow(long localId, String errorMessage) {
-        fail(localId, errorMessage == null ? "上传失败" : errorMessage);
+        handleUploadFailureNow(localId, errorMessage, -1);
+    }
+
+    void handleUploadFailureNow(long localId, String errorMessage, int code) {
+        fail(localId, classifyRepositoryError(errorMessage, code));
     }
 
     private void sendPendingMessage(long localId, PendingMessage pendingMessage) {
@@ -245,14 +255,15 @@ public class PendingMessageDispatcher {
                         notifyListener(latest, serverMessage);
                         pendingMessageRepository.delete(latest);
                     } else {
-                        fail(localId, response.body() != null ? response.body().getMessage() : "发送失败");
+                        String bodyMessage = response.body() != null ? response.body().getMessage() : null;
+                        fail(localId, buildFailureMessage(ERROR_SERVER_REJECTED, bodyMessage == null ? String.valueOf(response.code()) : bodyMessage));
                     }
                 });
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Message>> call, Throwable t) {
-                executor.execute(() -> fail(localId, t == null ? "网络错误" : "网络错误: " + t.getMessage()));
+                executor.execute(() -> fail(localId, classifyThrowable(t)));
             }
         });
     }
@@ -317,6 +328,37 @@ public class PendingMessageDispatcher {
         latest.setAttemptCount(latest.getAttemptCount() + 1);
         pendingMessageRepository.update(latest);
         notifyListener(latest, null);
+    }
+
+    private String classifyThrowable(Throwable throwable) {
+        if (throwable instanceof SocketTimeoutException) {
+            return buildFailureMessage(ERROR_TIMEOUT, throwable.getMessage());
+        }
+        String message = throwable == null ? null : throwable.getMessage();
+        if (message != null && message.toLowerCase().contains("timeout")) {
+            return buildFailureMessage(ERROR_TIMEOUT, message);
+        }
+        return buildFailureMessage(ERROR_NETWORK, message);
+    }
+
+    private String classifyRepositoryError(String message, int code) {
+        if (message != null && message.contains(ERROR_FILE_MISSING)) {
+            return buildFailureMessage(ERROR_FILE_MISSING, null);
+        }
+        if (message != null && message.toLowerCase().contains("timeout")) {
+            return buildFailureMessage(ERROR_TIMEOUT, message);
+        }
+        if (code > 0) {
+            return buildFailureMessage(ERROR_SERVER_REJECTED, message == null ? String.valueOf(code) : message);
+        }
+        return buildFailureMessage(ERROR_NETWORK, message);
+    }
+
+    private String buildFailureMessage(String category, String detail) {
+        if (detail == null || detail.trim().isEmpty() || category.equals(detail.trim())) {
+            return category;
+        }
+        return category + ": " + detail.trim();
     }
 
     private void notifyListener(PendingMessage pendingMessage, Message serverMessage) {

@@ -214,10 +214,11 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     @Override
-    public void retryPendingText(long localId) {
+    public void retryPendingMessage(long localId) {
         pendingStorageExecutor.execute(() -> {
             PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(localId);
-            if (pendingMessage == null) {
+            if (pendingMessage == null
+                    || !PendingMessageDispatcher.STATUS_FAILED.equals(pendingMessage.getStatus())) {
                 return;
             }
             pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
@@ -237,7 +238,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     @Override
-    public void retryAllPendingText() {
+    public void retryAllPendingMessages() {
         pendingMessageDispatcher.dispatchAllPending();
     }
 

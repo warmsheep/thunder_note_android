@@ -204,7 +204,7 @@ public class ChatFragment extends Fragment {
         FlashNoteViewModel flashNoteViewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
         adapter = new MessageAdapter(
                 (message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView),
-                localId -> chatViewModel.retryPendingText(localId)
+                localId -> chatViewModel.retryPendingMessage(localId)
         );
         adapter.setOnSelectionChangedListener(this::updateMergeSelectionCount);
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));

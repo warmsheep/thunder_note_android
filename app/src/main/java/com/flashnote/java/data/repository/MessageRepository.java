@@ -45,11 +45,11 @@ public interface MessageRepository {
 
     void enqueueMedia(long flashNoteId, long peerUserId, String mediaType, File localFile, String fileName, Long fileSize, Integer mediaDuration, Runnable onSuccess);
 
-    void retryPendingText(long localId);
+    void retryPendingMessage(long localId);
 
     void retryPendingForCurrentConversation();
 
-    void retryAllPendingText();
+    void retryAllPendingMessages();
 
     void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess);
 

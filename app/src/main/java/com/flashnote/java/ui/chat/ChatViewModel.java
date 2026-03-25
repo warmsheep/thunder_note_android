@@ -94,19 +94,19 @@ public class ChatViewModel extends AndroidViewModel {
         }
     }
 
-    public void retryPendingText(long localId) {
+    public void retryPendingMessage(long localId) {
         if (localId <= 0L) {
             return;
         }
-        repository.retryPendingText(localId);
+        repository.retryPendingMessage(localId);
     }
 
     public void retryPendingForCurrentConversation() {
         repository.retryPendingForCurrentConversation();
     }
 
-    public void retryAllPendingText() {
-        repository.retryAllPendingText();
+    public void retryAllPendingMessages() {
+        repository.retryAllPendingMessages();
     }
 
     public void sendTextToFlashNote(long targetFlashNoteId, String text, Runnable onSuccess) {

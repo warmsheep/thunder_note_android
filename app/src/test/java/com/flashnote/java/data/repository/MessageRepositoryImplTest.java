@@ -2,18 +2,57 @@ package com.flashnote.java.data.repository;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.same;
 
 import com.flashnote.java.data.model.Message;
+import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.PendingMessage;
+import com.flashnote.java.data.remote.MessageService;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.Before;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
+import retrofit2.Call;
+
+@RunWith(RobolectricTestRunner.class)
+@Config(manifest = Config.NONE)
 public class MessageRepositoryImplTest {
+
+    @Mock
+    MessageService messageService;
+
+    @Mock
+    Call<ApiResponse<Message>> mockSendCall;
+
+    @Mock
+    PendingMessageRepository pendingMessageRepository;
+
+    @Mock
+    FileRepository fileRepository;
+
+    @Mock
+    VideoPreparationService videoPreparationService;
+
+    @Before
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
 
     @Test
     public void buildMergedMessages_filtersPendingWhenServerMessageAlreadyMapped() {
@@ -151,5 +190,69 @@ public class MessageRepositoryImplTest {
         assertEquals("voice.m4a", server.getFileName());
         assertEquals(Long.valueOf(1234L), server.getFileSize());
         assertEquals("voice/object.m4a", server.getMediaUrl());
+    }
+
+    @Test
+    public void retryPendingMessage_onlyRetriesFailedItemAndDispatchesSamePending() {
+        PendingMessage failed = new PendingMessage();
+        failed.setLocalId(9L);
+        failed.setConversationKey(88L);
+        failed.setStatus(PendingMessageDispatcher.STATUS_FAILED);
+        failed.setErrorMessage("网络错误: timeout");
+
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService
+        );
+
+        when(pendingMessageRepository.findByLocalId(9L)).thenReturn(failed);
+        when(messageService.send(org.mockito.ArgumentMatchers.any())).thenReturn(mockSendCall);
+
+        repository.retryPendingMessage(9L);
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(pendingMessageRepository, atLeastOnce()).findByLocalId(9L);
+        verify(pendingMessageRepository, atLeastOnce()).update(same(failed));
+        verify(messageService).send(org.mockito.ArgumentMatchers.any());
+        assertTrue(
+                PendingMessageDispatcher.STATUS_QUEUED.equals(failed.getStatus())
+                        || PendingMessageDispatcher.STATUS_SENDING.equals(failed.getStatus())
+        );
+        assertEquals(null, failed.getErrorMessage());
+    }
+
+    @Test
+    public void retryPendingMessage_ignoresNonFailedItem() {
+        PendingMessage queued = new PendingMessage();
+        queued.setLocalId(10L);
+        queued.setConversationKey(99L);
+        queued.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
+
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService
+        );
+
+        when(pendingMessageRepository.findByLocalId(10L)).thenReturn(queued);
+
+        repository.retryPendingMessage(10L);
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(pendingMessageRepository).findByLocalId(10L);
+        verify(pendingMessageRepository, never()).update(eq(queued));
     }
 }

@@ -22,4 +22,6 @@ public interface PendingMessageRepository {
     LiveData<List<PendingMessage>> observeByConversationKey(long conversationKey);
 
     List<PendingMessage> getByStatus(String status);
+
+    List<PendingMessage> getFailedByConversationKey(long conversationKey);
 }

@@ -32,6 +32,9 @@ public interface PendingMessageDao {
     @Query("SELECT * FROM pending_messages WHERE status = :status ORDER BY created_at ASC")
     List<PendingMessage> getByStatus(String status);
 
+    @Query("SELECT * FROM pending_messages WHERE conversation_key = :conversationKey AND status = :status ORDER BY created_at ASC")
+    List<PendingMessage> getByConversationKeyAndStatus(long conversationKey, String status);
+
     @Query("SELECT * FROM pending_messages WHERE localId = :localId LIMIT 1")
     PendingMessage findByLocalId(long localId);
 }

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
+import static org.junit.Assert.assertEquals;
 
 import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.remote.MessageService;
@@ -135,8 +136,9 @@ public class PendingMessageDispatcherTest {
         dispatcher.handleUploadFailureNow(41L, "upload failed");
 
         verify(pendingMessageRepository, times(2)).update(eq(imagePending));
-        org.junit.Assert.assertEquals(PendingMessageDispatcher.STATUS_FAILED, imagePending.getStatus());
-        org.junit.Assert.assertEquals("upload failed", imagePending.getErrorMessage());
+        assertEquals(PendingMessageDispatcher.STATUS_FAILED, imagePending.getStatus());
+        assertEquals("网络错误: upload failed", imagePending.getErrorMessage());
+        assertEquals(1, imagePending.getAttemptCount());
     }
 
     @Test
@@ -200,8 +202,9 @@ public class PendingMessageDispatcherTest {
         verify(videoPreparationService).prepareVideo(eq(tempFile), callbackCaptor.capture());
         dispatcher.handleVideoPrepareFailureNow(71L, "compress failed");
 
-        org.junit.Assert.assertEquals(PendingMessageDispatcher.STATUS_FAILED, videoPending.getStatus());
-        org.junit.Assert.assertEquals("compress failed", videoPending.getErrorMessage());
+        assertEquals(PendingMessageDispatcher.STATUS_FAILED, videoPending.getStatus());
+        assertEquals("压缩失败: compress failed", videoPending.getErrorMessage());
+        assertEquals(1, videoPending.getAttemptCount());
     }
 
     @Test
@@ -222,6 +225,48 @@ public class PendingMessageDispatcherTest {
 
         verify(fileRepository).upload(eq(processedFile), any(FileRepository.FileCallback.class));
         verify(messageService, never()).send(any());
+    }
+
+    @Test
+    public void dispatchConversationNow_marksMissingLocalFileAsFailed() {
+        PendingMessage imagePending = buildPending(91L, 22L, PendingMessageDispatcher.STATUS_QUEUED);
+        imagePending.setMediaType("IMAGE");
+        imagePending.setLocalFilePath("/tmp/not-exists.jpg");
+
+        when(pendingMessageRepository.getByConversationKey(22L)).thenReturn(List.of(imagePending));
+        when(pendingMessageRepository.findByLocalId(eq(91L))).thenReturn(imagePending);
+
+        dispatcher.dispatchConversationNow(22L);
+
+        assertEquals(PendingMessageDispatcher.STATUS_FAILED, imagePending.getStatus());
+        assertEquals("本地文件不存在", imagePending.getErrorMessage());
+        assertEquals(1, imagePending.getAttemptCount());
+        verify(fileRepository, never()).upload(any(File.class), any(FileRepository.FileCallback.class));
+    }
+
+    @Test
+    public void dispatchNow_marksSendFailureAsServerRejected() {
+        PendingMessage textPending = buildPending(111L, 18L, PendingMessageDispatcher.STATUS_FAILED);
+        when(pendingMessageRepository.findByLocalId(eq(111L))).thenReturn(textPending);
+
+        dispatcher.dispatchNow(111L);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Callback> callbackCaptor = ArgumentCaptor.forClass(Callback.class);
+        verify(mockSendCall).enqueue(callbackCaptor.capture());
+
+        retrofit2.Response<com.flashnote.java.data.model.ApiResponse<com.flashnote.java.data.model.Message>> response =
+                retrofit2.Response.success(new com.flashnote.java.data.model.ApiResponse<>(1, "forbidden", null));
+        callbackCaptor.getValue().onResponse(mockSendCall, response);
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        assertEquals(PendingMessageDispatcher.STATUS_FAILED, textPending.getStatus());
+        assertEquals("服务器拒绝: forbidden", textPending.getErrorMessage());
+        assertEquals(1, textPending.getAttemptCount());
     }
 
     private PendingMessage buildPending(long localId, long conversationKey, String status) {

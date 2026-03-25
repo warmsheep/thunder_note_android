@@ -86,7 +86,7 @@ public class DebugFragment extends Fragment {
                 app.getFlashNoteRepository().refresh();
                 app.getCollectionRepository().refresh();
                 app.getFavoriteRepository().refresh();
-                app.getMessageRepository().retryAllPendingText();
+        app.getMessageRepository().retryAllPendingMessages();
                 getActivity().runOnUiThread(() -> {
                     if (binding != null) {
                         binding.statusText.setText(action + " 成功：" + data);
