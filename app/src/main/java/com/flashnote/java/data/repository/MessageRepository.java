@@ -45,6 +45,8 @@ public interface MessageRepository {
 
     void enqueueMedia(long flashNoteId, long peerUserId, String mediaType, File localFile, String fileName, Long fileSize, Integer mediaDuration, Runnable onSuccess);
 
+    void enqueueCompositeMessage(long flashNoteId, long peerUserId, Message message, SendCallback callback);
+
     void retryPendingMessage(long localId);
 
     void retryPendingForCurrentConversation();
@@ -54,6 +56,10 @@ public interface MessageRepository {
     void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess);
 
     void deleteContactMessage(long peerUserId, long messageId, Runnable onSuccess);
+
+    void deleteMessages(List<Long> messageIds, Runnable onSuccess);
+
+    void clearInboxMessages(Runnable onSuccess);
 
     void sendMessage(long flashNoteId, Message message, Runnable onSuccess);
 

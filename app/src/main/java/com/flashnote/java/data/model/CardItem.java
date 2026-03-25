@@ -30,6 +30,8 @@ public class CardItem {
     @SerializedName("role")
     private String role;
 
+    private String localPath;
+
     public String getType() {
         return type;
     }
@@ -100,5 +102,13 @@ public class CardItem {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getLocalPath() {
+        return localPath;
+    }
+
+    public void setLocalPath(String localPath) {
+        this.localPath = localPath;
     }
 }

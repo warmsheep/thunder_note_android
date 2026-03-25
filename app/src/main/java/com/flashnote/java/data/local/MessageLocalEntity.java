@@ -57,6 +57,9 @@ public class MessageLocalEntity {
     @ColumnInfo(name = "file_size")
     private Long fileSize;
 
+    @ColumnInfo(name = "payload_json")
+    private String payloadJson;
+
     @NonNull
     public Long getId() {
         return id;
@@ -184,5 +187,13 @@ public class MessageLocalEntity {
 
     public void setFileSize(Long fileSize) {
         this.fileSize = fileSize;
+    }
+
+    public String getPayloadJson() {
+        return payloadJson;
+    }
+
+    public void setPayloadJson(String payloadJson) {
+        this.payloadJson = payloadJson;
     }
 }

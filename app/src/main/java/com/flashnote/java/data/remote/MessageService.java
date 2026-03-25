@@ -2,6 +2,7 @@ package com.flashnote.java.data.remote;
 
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.Message;
+import com.flashnote.java.data.model.MessageBatchDeleteRequest;
 import com.flashnote.java.data.model.MessageListRequest;
 import com.flashnote.java.data.model.MessageMergeRequest;
 
@@ -26,6 +27,12 @@ public interface MessageService {
 
     @DELETE("api/messages/{id}")
     Call<ApiResponse<Void>> delete(@Path("id") Long id);
+
+    @POST("api/messages/delete-batch")
+    Call<ApiResponse<Void>> deleteBatch(@Body MessageBatchDeleteRequest request);
+
+    @DELETE("api/messages/clear-inbox")
+    Call<ApiResponse<Void>> clearInbox();
 
     @GET("api/messages/count")
     Call<ApiResponse<Integer>> countMessages();

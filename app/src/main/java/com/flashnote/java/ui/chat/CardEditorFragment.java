@@ -26,7 +26,6 @@ import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.data.model.CardItem;
 import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.Message;
-import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.MessageRepository;
 import com.flashnote.java.databinding.FragmentCardEditorBinding;
 import com.flashnote.java.databinding.ItemCardEditorFileBinding;
@@ -53,7 +52,6 @@ public class CardEditorFragment extends Fragment {
 
     private FragmentCardEditorBinding binding;
     private MessageRepository messageRepository;
-    private FileRepository fileRepository;
     private Uri cameraPhotoUri;
     private boolean saving;
     private String currentAttachmentType;
@@ -110,8 +108,6 @@ public class CardEditorFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         messageRepository = FlashNoteApp.getInstance().getMessageRepository();
-        fileRepository = FlashNoteApp.getInstance().getFileRepository();
-
         String pageTitle = getArguments() == null ? "新建卡片" : getArguments().getString(ARG_TITLE, "新建卡片");
         binding.pageTitleText.setText(pageTitle);
 
@@ -294,7 +290,7 @@ public class CardEditorFragment extends Fragment {
     }
 
     private void saveCard() {
-        if (binding == null || messageRepository == null || fileRepository == null || saving) {
+        if (binding == null || messageRepository == null || saving) {
             return;
         }
         String title = safeText(binding.titleInput.getText());
@@ -325,35 +321,20 @@ public class CardEditorFragment extends Fragment {
             textItem.setRole("user");
             items.add(textItem);
         }
-        uploadAttachmentSequentially(0, items, title, content);
+        for (PendingAttachment attachment : attachments) {
+            CardItem item = new CardItem();
+            item.setType(attachment.type);
+            item.setUrl(attachment.file == null ? null : attachment.file.getAbsolutePath());
+            item.setLocalPath(attachment.file == null ? null : attachment.file.getAbsolutePath());
+            item.setFileName(attachment.displayName);
+            item.setFileSize(attachment.fileSize);
+            item.setSenderId(currentUserId);
+            item.setRole("user");
+            items.add(item);
+        }
+        sendCompositeMessage(buildPayload(title, content, items));
         showToast("卡片已加入发送队列，可立即返回");
         navigateBack();
-    }
-
-    private void uploadAttachmentSequentially(int index, @NonNull List<CardItem> items, @NonNull String title, @NonNull String content) {
-        if (index >= attachments.size()) {
-            sendCompositeMessage(buildPayload(title, content, items));
-            return;
-        }
-        PendingAttachment attachment = attachments.get(index);
-        uploadAttachment(attachment, new UploadResultCallback() {
-            @Override
-            public void onSuccess(@NonNull CardItem item) {
-                items.add(item);
-                uploadAttachmentSequentially(index + 1, items, title, content);
-            }
-
-            @Override
-            public void onError(@NonNull String message) {
-                saving = false;
-                runIfUiAlive(() -> {
-                    if (binding != null) {
-                        syncActionState();
-                    }
-                    showToast(message);
-                });
-            }
-        });
     }
 
     private CardPayload buildPayload(@NonNull String title, @NonNull String content, @NonNull List<CardItem> items) {
@@ -401,55 +382,7 @@ public class CardEditorFragment extends Fragment {
             }
         };
 
-        if (peerUserId > 0L) {
-            messageRepository.sendMessageToContact(peerUserId, message, callback);
-        } else {
-            messageRepository.sendMessage(flashNoteId, message, callback);
-        }
-    }
-
-    private void uploadAttachment(@NonNull PendingAttachment attachment, @NonNull UploadResultCallback callback) {
-        if ("VIDEO".equals(attachment.type)) {
-            VideoCompressor.compress(requireContext(), attachment.file, new VideoCompressor.CompressCallback() {
-                @Override
-                public void onSuccess(File compressedFile) {
-                    uploadFileToServer(attachment, compressedFile, callback);
-                }
-
-                @Override
-                public void onError(String errorMessage) {
-                    callback.onError("视频压缩失败: " + errorMessage);
-                }
-            });
-            return;
-        }
-        uploadFileToServer(attachment, attachment.file, callback);
-    }
-
-    private void uploadFileToServer(@NonNull PendingAttachment attachment,
-                                    @NonNull File uploadFile,
-                                    @NonNull UploadResultCallback callback) {
-        fileRepository.upload(uploadFile, new FileRepository.FileCallback() {
-            @Override
-            public void onSuccess(String value) {
-                CardItem item = new CardItem();
-                item.setType(attachment.type);
-                item.setUrl(value);
-                item.setFileName(attachment.displayName);
-                item.setFileSize(uploadFile.length());
-                item.setSenderId(FlashNoteApp.getInstance().getTokenManager().getUserId());
-                item.setRole("user");
-                if ("VIDEO".equals(attachment.type)) {
-                    item.setThumbnailUrl(value);
-                }
-                callback.onSuccess(item);
-            }
-
-            @Override
-            public void onError(String errorMessage, int code) {
-                callback.onError("上传失败: " + errorMessage);
-            }
-        });
+        messageRepository.enqueueCompositeMessage(flashNoteId, peerUserId, message, callback);
     }
 
     private String resolveCardType() {
@@ -692,12 +625,6 @@ public class CardEditorFragment extends Fragment {
 
     private interface TempFileCallback {
         void onReady(@Nullable File file);
-    }
-
-    private interface UploadResultCallback {
-        void onSuccess(@NonNull CardItem item);
-
-        void onError(@NonNull String message);
     }
 
     private static final class PendingAttachment {

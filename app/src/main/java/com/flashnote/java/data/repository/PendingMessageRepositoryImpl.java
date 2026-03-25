@@ -56,4 +56,9 @@ public class PendingMessageRepositoryImpl implements PendingMessageRepository {
     public List<PendingMessage> getFailedByConversationKey(long conversationKey) {
         return pendingMessageDao.getByConversationKeyAndStatus(conversationKey, PendingMessageDispatcher.STATUS_FAILED);
     }
+
+    @Override
+    public void clearConversation(long conversationKey) {
+        pendingMessageDao.clearConversation(conversationKey);
+    }
 }

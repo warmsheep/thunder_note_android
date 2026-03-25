@@ -173,9 +173,20 @@ public class FlashNoteTabFragment extends Fragment {
             @Override
             public void onDelete(FlashNote item) {
                 if (Boolean.TRUE.equals(item.getInbox()) || (item.getId() != null && item.getId() == COLLECTION_BOX_NOTE_ID)) {
-                    Context toastCtx = getContext();
-                    if (toastCtx != null) {
-                        Toast.makeText(toastCtx, "收集箱不可删除", Toast.LENGTH_SHORT).show();
+                    adapter.clearPendingDelete();
+                    Context ctx = getContext();
+                    if (ctx != null) {
+                        new AlertDialog.Builder(ctx)
+                                .setTitle("清空收集箱")
+                                .setMessage("确定要清空收集箱所有消息吗？删除后不可恢复。")
+                                .setPositiveButton("清空", (dialog, which) -> viewModel.clearInboxMessages(() -> {
+                                    if (!isAdded() || getContext() == null) {
+                                        return;
+                                    }
+                                    requireActivity().runOnUiThread(() -> Toast.makeText(getContext(), "收集箱已清空", Toast.LENGTH_SHORT).show());
+                                }))
+                                .setNegativeButton("取消", null)
+                                .show();
                     }
                     return;
                 }

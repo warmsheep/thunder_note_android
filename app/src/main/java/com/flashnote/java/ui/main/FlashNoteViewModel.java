@@ -128,6 +128,10 @@ public class FlashNoteViewModel extends AndroidViewModel {
         repository.deleteNote(id);
     }
 
+    public void clearInboxMessages(Runnable onSuccess) {
+        repository.clearInboxMessages(onSuccess);
+    }
+
     private void ensureCollectionExists(String collectionName, Runnable onReady) {
         String normalized = normalizeCollectionName(collectionName);
         if (normalized == null) {

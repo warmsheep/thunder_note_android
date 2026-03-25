@@ -8,12 +8,17 @@ import android.os.Looper;
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.local.MessageLocalDao;
 import com.flashnote.java.data.local.MessageLocalEntity;
+import com.flashnote.java.data.model.CardItem;
+import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.Message;
+import com.flashnote.java.data.model.MessageBatchDeleteRequest;
 import com.flashnote.java.data.model.MessageListRequest;
 import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.remote.MessageService;
 import com.flashnote.java.util.ConversationKeyUtil;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -37,6 +42,7 @@ import retrofit2.Response;
 
 public class MessageRepositoryImpl implements MessageRepository {
     private static final String MEDIA_TYPE_TEXT = "TEXT";
+    private static final Gson GSON = new Gson();
     private static final Comparator<Message> MERGED_MESSAGE_COMPARATOR =
             Comparator.<Message>comparingLong(message -> messageSortTimestamp(message))
                     .thenComparingLong(message -> messageSourceOrder(message))
@@ -218,6 +224,12 @@ public class MessageRepositoryImpl implements MessageRepository {
         pendingMessage.setFileName(fileName);
         pendingMessage.setFileSize(fileSize);
         pendingMessage.setMediaDuration(mediaDuration);
+        if ("IMAGE".equalsIgnoreCase(mediaType) || "VIDEO".equalsIgnoreCase(mediaType)) {
+            File thumbnailFile = ThumbnailUtils.createThumbnailFile(localFile, mediaType);
+            if (thumbnailFile != null) {
+                pendingMessage.setThumbnailUrl(thumbnailFile.getAbsolutePath());
+            }
+        }
         if ("VIDEO".equalsIgnoreCase(mediaType)) {
             pendingMessage.setProcessedFilePath(null);
         }
@@ -226,6 +238,38 @@ public class MessageRepositoryImpl implements MessageRepository {
         pendingMessage.setCreatedAt(System.currentTimeMillis());
         if (onSuccess != null) {
             onSuccess.run();
+        }
+        pendingStorageExecutor.execute(() -> {
+            long localId = pendingMessageRepository.insert(pendingMessage);
+            pendingMessage.setLocalId(localId);
+            pendingMessageDispatcher.dispatch(localId);
+        });
+    }
+
+    @Override
+    public void enqueueCompositeMessage(long flashNoteId, long peerUserId, Message message, SendCallback callback) {
+        if (message == null || message.getPayload() == null) {
+            if (callback != null) {
+                callback.onError("卡片内容不能为空");
+            }
+            return;
+        }
+        long conversationKey = peerUserId > 0L
+                ? ConversationKeyUtil.forContact(peerUserId)
+                : ConversationKeyUtil.forFlashNote(flashNoteId);
+        PendingMessage pendingMessage = new PendingMessage();
+        pendingMessage.setConversationKey(conversationKey);
+        pendingMessage.setFlashNoteId(peerUserId > 0L ? null : flashNoteId);
+        pendingMessage.setPeerUserId(peerUserId > 0L ? peerUserId : null);
+        pendingMessage.setClientRequestId(UUID.randomUUID().toString());
+        pendingMessage.setMediaType("COMPOSITE");
+        pendingMessage.setContent(message.getContent());
+        pendingMessage.setFileName(message.getFileName());
+        pendingMessage.setPayloadJson(GSON.toJson(message.getPayload()));
+        pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
+        pendingMessage.setCreatedAt(System.currentTimeMillis());
+        if (callback != null) {
+            callback.onSuccess();
         }
         pendingStorageExecutor.execute(() -> {
             long localId = pendingMessageRepository.insert(pendingMessage);
@@ -410,6 +454,113 @@ public class MessageRepositoryImpl implements MessageRepository {
     @Override
     public void deleteContactMessage(long peerUserId, long messageId, Runnable onSuccess) {
         deleteMessageInternal(ConversationKeyUtil.forContact(peerUserId), messageId, onSuccess);
+    }
+
+    @Override
+    public void deleteMessages(List<Long> messageIds, Runnable onSuccess) {
+        if (messageIds == null || messageIds.isEmpty()) {
+            return;
+        }
+        List<Long> remoteIds = new ArrayList<>();
+        List<Long> pendingLocalIds = new ArrayList<>();
+        for (Long id : messageIds) {
+            if (id == null) {
+                continue;
+            }
+            if (id > 0L) {
+                remoteIds.add(id);
+            } else if (id < 0L) {
+                pendingLocalIds.add(Math.abs(id));
+            }
+        }
+        if (remoteIds.isEmpty()) {
+            pendingStorageExecutor.execute(() -> {
+                for (Long pendingLocalId : pendingLocalIds) {
+                    PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(pendingLocalId);
+                    if (pendingMessage != null) {
+                        pendingMessageRepository.delete(pendingMessage);
+                    }
+                }
+            });
+            if (onSuccess != null) {
+                onSuccess.run();
+            }
+            return;
+        }
+        isLoading.setValue(true);
+        MessageBatchDeleteRequest request = new MessageBatchDeleteRequest();
+        request.setIds(remoteIds);
+        messageService.deleteBatch(request).enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
+                isLoading.setValue(false);
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    clearError();
+                    pendingStorageExecutor.execute(() -> {
+                        for (Long id : remoteIds) {
+                            if (id != null) {
+                                messageLocalDao.deleteById(id);
+                            }
+                        }
+                        for (Long pendingLocalId : pendingLocalIds) {
+                            PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(pendingLocalId);
+                            if (pendingMessage != null) {
+                                pendingMessageRepository.delete(pendingMessage);
+                            }
+                        }
+                    });
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                    return;
+                }
+                String errMsg = response.body() == null ? "Failed to delete messages" : response.body().getMessage();
+                DebugLog.w("MessageRepo", errMsg);
+                errorMessage.setValue(errMsg);
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                isLoading.setValue(false);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("MessageRepo", errMsg);
+                errorMessage.setValue(errMsg);
+            }
+        });
+    }
+
+    @Override
+    public void clearInboxMessages(Runnable onSuccess) {
+        isLoading.setValue(true);
+        long conversationKey = ConversationKeyUtil.forFlashNote(-1L);
+        messageService.clearInbox().enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
+                isLoading.setValue(false);
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    clearError();
+                    pendingStorageExecutor.execute(() -> {
+                        messageLocalDao.clearConversation(conversationKey);
+                        pendingMessageRepository.clearConversation(conversationKey);
+                    });
+                    if (onSuccess != null) {
+                        onSuccess.run();
+                    }
+                    return;
+                }
+                String errMsg = response.body() == null ? "Failed to clear inbox" : response.body().getMessage();
+                DebugLog.w("MessageRepo", errMsg);
+                errorMessage.setValue(errMsg);
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                isLoading.setValue(false);
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("MessageRepo", errMsg);
+                errorMessage.setValue(errMsg);
+            }
+        });
     }
 
     private void deleteMessageInternal(long conversationKey, long messageId, Runnable onSuccess) {
@@ -790,6 +941,13 @@ public class MessageRepositoryImpl implements MessageRepository {
         message.setCreatedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(pendingMessage.getCreatedAt()), ZoneId.systemDefault()));
         message.setLocalSortTimestamp(pendingMessage.getCreatedAt());
         message.setUploading(!PendingMessageDispatcher.STATUS_FAILED.equals(pendingMessage.getStatus()));
+        if (pendingMessage.getPayloadJson() != null && !pendingMessage.getPayloadJson().trim().isEmpty()) {
+            try {
+                message.setPayload(GSON.fromJson(pendingMessage.getPayloadJson(), CardPayload.class));
+            } catch (JsonSyntaxException ex) {
+                DebugLog.w("MessageRepo", "Failed to parse pending payloadJson: " + ex.getMessage());
+            }
+        }
         return message;
     }
 
@@ -805,6 +963,9 @@ public class MessageRepositoryImpl implements MessageRepository {
         }
         if ("VOICE".equalsIgnoreCase(mediaType)) {
             return "[语音]";
+        }
+        if ("COMPOSITE".equalsIgnoreCase(mediaType)) {
+            return "[卡片消息]";
         }
         return "[附件]";
     }
@@ -844,6 +1005,13 @@ public class MessageRepositoryImpl implements MessageRepository {
         }
         if (serverMessage.getFileSize() == null) {
             serverMessage.setFileSize(pendingMessage.getFileSize());
+        }
+        if (serverMessage.getPayload() == null && pendingMessage.getPayloadJson() != null && !pendingMessage.getPayloadJson().trim().isEmpty()) {
+            try {
+                serverMessage.setPayload(GSON.fromJson(pendingMessage.getPayloadJson(), CardPayload.class));
+            } catch (JsonSyntaxException ex) {
+                DebugLog.w("MessageRepo", "Failed to apply pending payloadJson: " + ex.getMessage());
+            }
         }
     }
 
@@ -910,6 +1078,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         entity.setThumbnailUrl(message.getThumbnailUrl());
         entity.setFileName(message.getFileName());
         entity.setFileSize(message.getFileSize());
+        entity.setPayloadJson(message.getPayload() == null ? null : GSON.toJson(message.getPayload()));
         return entity;
     }
 
@@ -937,6 +1106,13 @@ public class MessageRepositoryImpl implements MessageRepository {
             message.setThumbnailUrl(entity.getThumbnailUrl());
             message.setFileName(entity.getFileName());
             message.setFileSize(entity.getFileSize());
+            if (entity.getPayloadJson() != null && !entity.getPayloadJson().trim().isEmpty()) {
+                try {
+                    message.setPayload(GSON.fromJson(entity.getPayloadJson(), CardPayload.class));
+                } catch (JsonSyntaxException ex) {
+                    DebugLog.w("MessageRepo", "Failed to parse payloadJson: " + ex.getMessage());
+                }
+            }
             result.add(message);
         }
         return result;

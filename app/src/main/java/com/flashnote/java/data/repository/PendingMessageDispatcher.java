@@ -4,9 +4,13 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.CardItem;
+import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.remote.MessageService;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 
 import java.io.File;
 import java.net.SocketTimeoutException;
@@ -19,6 +23,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class PendingMessageDispatcher {
+    private static final Gson GSON = new Gson();
 
     public interface Listener {
         void onPendingUpdated(PendingMessage pendingMessage, Message serverMessage);
@@ -114,6 +119,11 @@ public class PendingMessageDispatcher {
             return;
         }
 
+        if (requiresCompositeUpload(pendingMessage)) {
+            uploadCompositeThenSend(localId, pendingMessage);
+            return;
+        }
+
         if (requiresVideoUpload(pendingMessage)) {
             uploadThenSend(localId, pendingMessage);
             return;
@@ -184,10 +194,131 @@ public class PendingMessageDispatcher {
         pendingMessageRepository.update(pendingMessage);
         notifyListener(pendingMessage, null);
 
+        if (requiresThumbnailUpload(pendingMessage)) {
+            File thumbnailFile = asLocalFile(pendingMessage.getThumbnailUrl());
+            if (thumbnailFile != null && thumbnailFile.exists()) {
+                fileRepository.upload(thumbnailFile, new FileRepository.FileCallback() {
+                    @Override
+                    public void onSuccess(String value) {
+                        executor.execute(() -> {
+                            PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
+                            if (latest == null) {
+                                return;
+                            }
+                            latest.setThumbnailUrl(value);
+                            pendingMessageRepository.update(latest);
+                            continueUploadMedia(localId, latest, localFile);
+                        });
+                    }
+
+                    @Override
+                    public void onError(String message, int code) {
+                        executor.execute(() -> handleUploadFailureNow(localId, message, code));
+                    }
+                });
+                return;
+            }
+        }
+
+        continueUploadMedia(localId, pendingMessage, localFile);
+    }
+
+    private void continueUploadMedia(long localId, PendingMessage pendingMessage, File localFile) {
+
         fileRepository.upload(localFile, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String value) {
                 executor.execute(() -> handleUploadSuccessNow(localId, value));
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                executor.execute(() -> handleUploadFailureNow(localId, message, code));
+            }
+        });
+    }
+
+    private void uploadCompositeThenSend(long localId, PendingMessage pendingMessage) {
+        pendingMessage.setStatus(STATUS_UPLOADING);
+        pendingMessage.setErrorMessage(null);
+        pendingMessageRepository.update(pendingMessage);
+        notifyListener(pendingMessage, null);
+
+        CardPayload payload = parsePayload(pendingMessage.getPayloadJson());
+        if (payload == null || payload.getItems() == null) {
+            fail(localId, buildFailureMessage(ERROR_FILE_MISSING, "卡片内容无效"));
+            return;
+        }
+        uploadCompositeItemAt(localId, payload, 0);
+    }
+
+    private void uploadCompositeItemAt(long localId, CardPayload payload, int index) {
+        if (payload.getItems() == null || index >= payload.getItems().size()) {
+            PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
+            if (latest == null) {
+                return;
+            }
+            latest.setPayloadJson(GSON.toJson(payload));
+            pendingMessageRepository.update(latest);
+            sendPendingMessage(localId, latest);
+            return;
+        }
+        CardItem item = payload.getItems().get(index);
+        if (item == null || item.getLocalPath() == null || item.getLocalPath().trim().isEmpty() || "TEXT".equalsIgnoreCase(item.getType())) {
+            uploadCompositeItemAt(localId, payload, index + 1);
+            return;
+        }
+        File localFile = new File(item.getLocalPath());
+        if (!localFile.exists()) {
+            fail(localId, buildFailureMessage(ERROR_FILE_MISSING, localFile.getName()));
+            return;
+        }
+        uploadCompositeThumbnailIfNeeded(localId, item, localFile, () -> fileRepository.upload(localFile, new FileRepository.FileCallback() {
+            @Override
+            public void onSuccess(String value) {
+                executor.execute(() -> {
+                    item.setUrl(value);
+                    item.setLocalPath(null);
+                    PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
+                    if (latest != null) {
+                        latest.setPayloadJson(GSON.toJson(payload));
+                        pendingMessageRepository.update(latest);
+                        notifyListener(latest, null);
+                    }
+                    uploadCompositeItemAt(localId, payload, index + 1);
+                });
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                executor.execute(() -> handleUploadFailureNow(localId, message, code));
+            }
+        }));
+    }
+
+    private void uploadCompositeThumbnailIfNeeded(long localId, CardItem item, File localFile, Runnable continuation) {
+        if (!("IMAGE".equalsIgnoreCase(item.getType()) || "VIDEO".equalsIgnoreCase(item.getType()))) {
+            continuation.run();
+            return;
+        }
+        File thumbnailFile = asLocalFile(item.getThumbnailUrl());
+        if (thumbnailFile == null || !thumbnailFile.exists()) {
+            thumbnailFile = ThumbnailUtils.createThumbnailFile(localFile, item.getType());
+            if (thumbnailFile != null) {
+                item.setThumbnailUrl(thumbnailFile.getAbsolutePath());
+            }
+        }
+        if (thumbnailFile == null || !thumbnailFile.exists()) {
+            continuation.run();
+            return;
+        }
+        fileRepository.upload(thumbnailFile, new FileRepository.FileCallback() {
+            @Override
+            public void onSuccess(String value) {
+                executor.execute(() -> {
+                    item.setThumbnailUrl(value);
+                    continuation.run();
+                });
             }
 
             @Override
@@ -232,9 +363,17 @@ public class PendingMessageDispatcher {
         message.setClientRequestId(pendingMessage.getClientRequestId());
         message.setMediaType(pendingMessage.getMediaType());
         message.setMediaUrl(pendingMessage.getRemoteUrl());
+        message.setThumbnailUrl(isLocalReference(pendingMessage.getThumbnailUrl()) ? null : pendingMessage.getThumbnailUrl());
         message.setFileName(pendingMessage.getFileName());
         message.setFileSize(pendingMessage.getFileSize());
         message.setRole("user");
+        if ("COMPOSITE".equalsIgnoreCase(pendingMessage.getMediaType())) {
+            CardPayload payload = parsePayload(pendingMessage.getPayloadJson());
+            if (payload != null) {
+                sanitizePayloadForServer(payload);
+                message.setPayload(payload);
+            }
+        }
 
         messageService.send(message).enqueue(new Callback<ApiResponse<Message>>() {
             @Override
@@ -316,6 +455,74 @@ public class PendingMessageDispatcher {
         }
         String processedFilePath = pendingMessage.getProcessedFilePath();
         return processedFilePath != null && !processedFilePath.trim().isEmpty();
+    }
+
+    private boolean requiresCompositeUpload(PendingMessage pendingMessage) {
+        if (pendingMessage == null || !"COMPOSITE".equalsIgnoreCase(pendingMessage.getMediaType())) {
+            return false;
+        }
+        CardPayload payload = parsePayload(pendingMessage.getPayloadJson());
+        if (payload == null || payload.getItems() == null) {
+            return false;
+        }
+        for (CardItem item : payload.getItems()) {
+            if (item != null && item.getLocalPath() != null && !item.getLocalPath().trim().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean requiresThumbnailUpload(PendingMessage pendingMessage) {
+        if (pendingMessage == null) {
+            return false;
+        }
+        String mediaType = pendingMessage.getMediaType();
+        if (!("IMAGE".equalsIgnoreCase(mediaType) || "VIDEO".equalsIgnoreCase(mediaType))) {
+            return false;
+        }
+        return isLocalReference(pendingMessage.getThumbnailUrl());
+    }
+
+    private boolean isLocalReference(String value) {
+        return value != null && !value.trim().isEmpty() && (value.startsWith("/") || value.startsWith("file://"));
+    }
+
+    private File asLocalFile(String value) {
+        if (!isLocalReference(value)) {
+            return null;
+        }
+        String path = value.startsWith("file://") ? value.substring("file://".length()) : value;
+        return new File(path);
+    }
+
+    private CardPayload parsePayload(String payloadJson) {
+        if (payloadJson == null || payloadJson.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return GSON.fromJson(payloadJson, CardPayload.class);
+        } catch (JsonSyntaxException ignored) {
+            return null;
+        }
+    }
+
+    private void sanitizePayloadForServer(CardPayload payload) {
+        if (payload == null || payload.getItems() == null) {
+            return;
+        }
+        for (CardItem item : payload.getItems()) {
+            if (item == null) {
+                continue;
+            }
+            item.setLocalPath(null);
+            if (isLocalReference(item.getUrl())) {
+                item.setUrl(null);
+            }
+            if (isLocalReference(item.getThumbnailUrl())) {
+                item.setThumbnailUrl(null);
+            }
+        }
     }
 
     private void fail(long localId, String errorMessage) {

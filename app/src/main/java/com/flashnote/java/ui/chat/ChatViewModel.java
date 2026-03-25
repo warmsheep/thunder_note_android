@@ -159,6 +159,13 @@ public class ChatViewModel extends AndroidViewModel {
         }
     }
 
+    public void deleteMessages(java.util.List<Long> messageIds, Runnable onSuccess) {
+        if (messageIds == null || messageIds.isEmpty()) {
+            return;
+        }
+        repository.deleteMessages(messageIds, onSuccess);
+    }
+
     public void mergeMessages(java.util.List<Long> messageIds, String title, com.flashnote.java.data.repository.MessageRepository.MergeCallback callback) {
         if (messageIds == null || messageIds.isEmpty()) {
             if (callback != null) callback.onError("No messages selected");

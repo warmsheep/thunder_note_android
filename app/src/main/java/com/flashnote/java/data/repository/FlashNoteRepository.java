@@ -35,4 +35,6 @@ public interface FlashNoteRepository {
     void setHidden(Long id, boolean hidden);
     
     void deleteNote(Long id);
+
+    void clearInboxMessages(Runnable onSuccess);
 }

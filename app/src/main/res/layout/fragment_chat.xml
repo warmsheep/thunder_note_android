@@ -312,6 +312,20 @@
                 android:textSize="@dimen/text_size_body_small" />
 
             <TextView
+                android:id="@+id/mergeDeleteButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/bg_logo_primary_soft"
+                android:paddingLeft="12dp"
+                android:paddingTop="6dp"
+                android:paddingRight="12dp"
+                android:paddingBottom="6dp"
+                android:text="删除"
+                android:textColor="@color/primary"
+                android:textSize="@dimen/text_size_body_small" />
+
+            <TextView
                 android:id="@+id/mergeConfirmButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

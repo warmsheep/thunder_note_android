@@ -24,4 +24,6 @@ public interface PendingMessageRepository {
     List<PendingMessage> getByStatus(String status);
 
     List<PendingMessage> getFailedByConversationKey(long conversationKey);
+
+    void clearConversation(long conversationKey);
 }

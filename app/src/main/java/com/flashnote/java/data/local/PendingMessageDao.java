@@ -37,4 +37,7 @@ public interface PendingMessageDao {
 
     @Query("SELECT * FROM pending_messages WHERE localId = :localId LIMIT 1")
     PendingMessage findByLocalId(long localId);
+
+    @Query("DELETE FROM pending_messages WHERE conversation_key = :conversationKey")
+    void clearConversation(long conversationKey);
 }

@@ -91,6 +91,7 @@ public class ChatFragment extends Fragment {
     private int loadMoreAnchorOffset = 0;
     private int messageCountBeforeLoadMore = 0;
     private boolean isMultiSelectMode = false;
+    private boolean skipNextScroll = false;
 
     public static ChatFragment newInstance(long flashNoteId, String title) {
         ChatFragment fragment = new ChatFragment();
@@ -275,7 +276,11 @@ public class ChatFragment extends Fragment {
                 }
                 // Scroll to bottom if not search location scenario
                 if (scrollToMessageId <= 0 && messages != null && !messages.isEmpty() && !wasLoadingMore) {
-                    scrollToBottomAfterLayout(messages);
+                    if (skipNextScroll) {
+                        skipNextScroll = false;
+                    } else {
+                        scrollToBottomAfterLayout(messages);
+                    }
                     isInitialScrollCompleted = true;
                 }
                 if (wasLoadingMore && binding != null) {
@@ -319,6 +324,7 @@ public class ChatFragment extends Fragment {
         setupToolsPanel();
         setupMicButton();
         binding.mergeCancelButton.setOnClickListener(v -> exitMultiSelectMode());
+        binding.mergeDeleteButton.setOnClickListener(v -> handleBatchDelete());
         binding.mergeConfirmButton.setOnClickListener(v -> handleMergeAction());
         updateMergeSelectionCount(0);
     }
@@ -622,6 +628,34 @@ public class ChatFragment extends Fragment {
         });
     }
 
+    private void handleBatchDelete() {
+        if (adapter == null || chatViewModel == null || !isAdded()) {
+            return;
+        }
+        List<Long> selectedIds = new ArrayList<>(adapter.getSelectedIds());
+        if (selectedIds.isEmpty()) {
+            showToast("请先选择消息");
+            return;
+        }
+        new android.app.AlertDialog.Builder(requireContext())
+                .setTitle("批量删除消息")
+                .setMessage("确定要删除选中的 " + selectedIds.size() + " 条消息吗？")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("删除", (dialog, which) -> {
+                    skipNextScroll = true;
+                    chatViewModel.deleteMessages(selectedIds, () -> {
+                        if (!isAdded() || getActivity() == null) {
+                            return;
+                        }
+                        getActivity().runOnUiThread(() -> {
+                            showToast("已删除 " + selectedIds.size() + " 条消息");
+                            exitMultiSelectMode();
+                        });
+                    });
+                })
+                .show();
+    }
+
     private void updateMergeSelectionCount(int selectedCount) {
         if (binding == null) {
             return;
@@ -642,6 +676,7 @@ public class ChatFragment extends Fragment {
                 .setTitle("删除消息")
                 .setMessage("确定要删除这条消息吗？")
                 .setPositiveButton("删除", (dialog, which) -> {
+                    skipNextScroll = true;
                     chatViewModel.deleteMessage(message.getId(), () -> {
                         if (!isAdded() || getActivity() == null) {
                             return;

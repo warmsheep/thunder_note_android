@@ -62,6 +62,10 @@ public class PendingMessage {
     @Nullable
     private String thumbnailUrl;
 
+    @ColumnInfo(name = "payload_json")
+    @Nullable
+    private String payloadJson;
+
     @ColumnInfo(name = "status")
     @Nullable
     private String status;
@@ -202,6 +206,15 @@ public class PendingMessage {
 
     public void setThumbnailUrl(@Nullable String thumbnailUrl) {
         this.thumbnailUrl = thumbnailUrl;
+    }
+
+    @Nullable
+    public String getPayloadJson() {
+        return payloadJson;
+    }
+
+    public void setPayloadJson(@Nullable String payloadJson) {
+        this.payloadJson = payloadJson;
     }
 
     @Nullable

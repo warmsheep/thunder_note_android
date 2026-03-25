@@ -29,15 +29,24 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
     private final FlashNoteService flashNoteService;
     private final FlashNoteLocalDao flashNoteLocalDao;
     private final TokenManager tokenManager;
+    private final MessageRepository messageRepository;
     private final LiveData<List<FlashNote>> notesLiveData;
     private final androidx.lifecycle.MutableLiveData<Boolean> isLoading = new androidx.lifecycle.MutableLiveData<>(false);
     private final androidx.lifecycle.MutableLiveData<String> errorMessage = new androidx.lifecycle.MutableLiveData<>();
     private final ExecutorService localExecutor = Executors.newSingleThreadExecutor();
 
     public FlashNoteRepositoryImpl(FlashNoteService flashNoteService, FlashNoteLocalDao flashNoteLocalDao, TokenManager tokenManager) {
+        this(flashNoteService, flashNoteLocalDao, tokenManager, null);
+    }
+
+    public FlashNoteRepositoryImpl(FlashNoteService flashNoteService,
+                                   FlashNoteLocalDao flashNoteLocalDao,
+                                   TokenManager tokenManager,
+                                   MessageRepository messageRepository) {
         this.flashNoteService = flashNoteService;
         this.flashNoteLocalDao = flashNoteLocalDao;
         this.tokenManager = tokenManager;
+        this.messageRepository = messageRepository;
         long currentUserId = requireCurrentUserId();
         this.notesLiveData = Transformations.map(
                 flashNoteLocalDao.observeAllByUserId(currentUserId),
@@ -297,6 +306,22 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                 isLoading.postValue(false);
                 DebugLog.e("FlashNoteRepo", "delete failed", t);
                 errorMessage.postValue("Network error: " + t.getMessage());
+            }
+        });
+    }
+
+    @Override
+    public void clearInboxMessages(Runnable onSuccess) {
+        if (messageRepository == null) {
+            errorMessage.postValue("消息仓库未初始化");
+            return;
+        }
+        isLoading.postValue(true);
+        messageRepository.clearInboxMessages(() -> {
+            isLoading.postValue(false);
+            clearError();
+            if (onSuccess != null) {
+                onSuccess.run();
             }
         });
     }

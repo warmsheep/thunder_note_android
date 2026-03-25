@@ -284,6 +284,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         return MediaUrlResolver.resolve(mediaPathOrUrl);
     }
 
+    private Object resolveMediaModel(String mediaPathOrUrl) {
+        if (isLocalOnlyMediaPath(mediaPathOrUrl)) {
+            String path = mediaPathOrUrl.startsWith("file://") ? mediaPathOrUrl.substring("file://".length()) : mediaPathOrUrl;
+            return new File(path);
+        }
+        return resolveMediaUrl(mediaPathOrUrl);
+    }
+
     private boolean isLocalOnlyMediaPath(@Nullable String mediaPathOrUrl) {
         if (TextUtils.isEmpty(mediaPathOrUrl)) {
             return false;
@@ -327,9 +335,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         refs.uploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
         bindTextForMediaMessage(refs.messageText, message.getContent());
 
-        if (!message.isUploading() && !isLocalOnlyMediaPath(message.getMediaUrl())) {
+        String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
+        if (!TextUtils.isEmpty(preview)) {
             Glide.with(context)
-                    .load(resolveMediaUrl(message.getMediaUrl()))
+                    .load(resolveMediaModel(preview))
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
                     .fitCenter()
@@ -340,10 +349,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
             refs.imageContainer.setOnClickListener(v -> {
                 Intent intent = new Intent(v.getContext(), ImageViewerActivity.class);
-                intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
+                if (isLocalOnlyMediaPath(message.getMediaUrl())) {
+                    String localPath = message.getMediaUrl().startsWith("file://")
+                            ? message.getMediaUrl().substring("file://".length())
+                            : message.getMediaUrl();
+                    intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, localPath);
+                } else {
+                    intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
+                }
                 v.getContext().startActivity(intent);
             });
         }
+        bindRetryState(holder, message, mine);
     }
 
     private void showVideoMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -365,7 +382,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         }
         if (!message.isUploading() && !isLocalOnlyMediaPath(preview)) {
             Glide.with(context)
-                    .load(resolveMediaUrl(preview))
+                    .load(resolveMediaModel(preview))
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)
                     .fitCenter()
@@ -381,6 +398,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 clickContext.startActivity(intent);
             });
         }
+        bindRetryState(holder, message, mine);
     }
 
     private void showVoiceMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -415,6 +433,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 stopVoiceWaveAnimation(refs.voiceWaveform);
             }
         }
+        bindRetryState(holder, message, mine);
     }
 
     private void showFileMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -433,6 +452,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
             refs.fileContainer.setOnClickListener(v -> openFileMessage(v.getContext(), message));
         }
+        bindRetryState(holder, message, mine);
     }
 
     private void showCompositeMessage(MessageViewHolder holder, Message message, boolean mine) {
@@ -448,6 +468,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             refs.compositeTitle.setText("未知的卡片内容");
             refs.compositeSummary.setVisibility(View.GONE);
             refs.compositeGrid.setVisibility(View.GONE);
+            bindRetryState(holder, message, mine);
             return;
         }
 
@@ -523,7 +544,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 iv.setLayoutParams(params);
                 
                 Glide.with(context)
-                        .load(resolveMediaUrl(mediaUrls.get(i)))
+                        .load(resolveMediaModel(mediaUrls.get(i)))
                         .placeholder(R.drawable.bg_placeholder_card)
                         .error(R.drawable.bg_placeholder_card)
                         .override(sizePx, sizePx)
@@ -546,6 +567,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             String detailPeerAvatar = peerAvatarUrl != null ? peerAvatarUrl : peerAvatar;
             CardDetailActivity.start(context, detailTitle, payload, userAvatar, userAvatarUrl, detailPeerAvatar);
         });
+        bindRetryState(holder, message, mine);
     }
 
     private void toggleVoicePlayback(Context context, Message message, View voiceContainer, View voiceWaveform) {
