@@ -24,6 +24,7 @@ import retrofit2.Response;
 
 public class UserRepositoryImpl implements UserRepository {
     private final UserService userService;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final MutableLiveData<UserProfile> profileLiveData = new MutableLiveData<>();
     private final MutableLiveData<List<ContactUser>> contactsLiveData = new MutableLiveData<>();
     private final MutableLiveData<List<FriendRequest>> friendRequestsLiveData = new MutableLiveData<>();
@@ -248,17 +249,17 @@ public class UserRepositoryImpl implements UserRepository {
             @Override
             public void onResponse(Call<ApiResponse<List<ContactSearchUser>>> call, Response<ApiResponse<List<ContactSearchUser>>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(response.body().getData()));
+                    mainHandler.post(() -> callback.onSuccess(response.body().getData()));
                     return;
                 }
                 String message = response.body() == null ? "HTTP " + response.code() : response.body().getMessage();
                 int code = response.body() == null ? response.code() : response.body().getCode();
-                new Handler(Looper.getMainLooper()).post(() -> callback.onError(message, code));
+                mainHandler.post(() -> callback.onError(message, code));
             }
 
             @Override
             public void onFailure(Call<ApiResponse<List<ContactSearchUser>>> call, Throwable t) {
-                new Handler(Looper.getMainLooper()).post(() -> callback.onError(t.getMessage(), -1));
+                mainHandler.post(() -> callback.onError(t.getMessage(), -1));
             }
         });
     }
@@ -269,7 +270,7 @@ public class UserRepositoryImpl implements UserRepository {
             public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     if (callback != null) {
-                        new Handler(Looper.getMainLooper()).post(callback::onSuccess);
+                        mainHandler.post(callback::onSuccess);
                     }
                     fetchContacts(null);
                     fetchFriendRequests(null);
@@ -279,14 +280,14 @@ public class UserRepositoryImpl implements UserRepository {
                 String message = response.body() == null ? "HTTP " + response.code() : response.body().getMessage();
                 int code = response.body() == null ? response.code() : response.body().getCode();
                 if (callback != null) {
-                    new Handler(Looper.getMainLooper()).post(() -> callback.onError(message, code));
+                    mainHandler.post(() -> callback.onError(message, code));
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
                 if (callback != null) {
-                    new Handler(Looper.getMainLooper()).post(() -> callback.onError(t.getMessage(), -1));
+                    mainHandler.post(() -> callback.onError(t.getMessage(), -1));
                 }
             }
         };
@@ -294,27 +295,27 @@ public class UserRepositoryImpl implements UserRepository {
 
     private void notifySuccess(ProfileCallback callback, UserProfile profile) {
         if (callback != null) {
-            new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(profile));
+            mainHandler.post(() -> callback.onSuccess(profile));
         }
     }
 
     private void notifyError(ProfileCallback callback, String message, int code) {
         DebugLog.w("UserRepo", message);
         if (callback != null) {
-            new Handler(Looper.getMainLooper()).post(() -> callback.onError(message, code));
+            mainHandler.post(() -> callback.onError(message, code));
         }
     }
 
     private void notifyContactsSuccess(ContactsCallback callback, List<ContactUser> contacts) {
         if (callback != null) {
-            new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(contacts));
+            mainHandler.post(() -> callback.onSuccess(contacts));
         }
     }
 
     private void notifyContactsError(ContactsCallback callback, String message, int code) {
         DebugLog.w("UserRepo", message);
         if (callback != null) {
-            new Handler(Looper.getMainLooper()).post(() -> callback.onError(message, code));
+            mainHandler.post(() -> callback.onError(message, code));
         }
     }
 }

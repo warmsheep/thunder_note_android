@@ -24,6 +24,11 @@ import com.flashnote.java.databinding.FragmentMainShellBinding;
 
 public class MainShellFragment extends Fragment {
     private static final String KEY_SELECTED_TAB = "selected_tab";
+    private static final String TAG_FLASHNOTE = "tab_flashnote";
+    private static final String TAG_COLLECTION = "tab_collection";
+    private static final String TAG_CONTACT = "tab_contact";
+    private static final String TAG_FAVORITE = "tab_favorite";
+    private static final String TAG_PROFILE = "tab_profile";
 
     private FragmentMainShellBinding binding;
     private int selectedTabId = R.id.tab_flashnote;
@@ -73,30 +78,76 @@ public class MainShellFragment extends Fragment {
     }
 
     private void switchContent(int tabId) {
-        Fragment fragment;
-        if (tabId == R.id.tab_collection) {
-            fragment = new CollectionTabFragment();
-        } else if (tabId == R.id.tab_contact) {
-            fragment = new ContactTabFragment();
-        } else if (tabId == R.id.tab_favorite) {
-            fragment = new FavoriteTabFragment();
-        } else if (tabId == R.id.tab_profile) {
-            fragment = new ProfileTabFragment();
-        } else {
-            fragment = new FlashNoteTabFragment();
-        }
-
         if (!isAdded()) {
             return;
         }
-        androidx.fragment.app.FragmentTransaction transaction = getChildFragmentManager().beginTransaction()
-                .replace(R.id.mainContentContainer, fragment)
+
+        androidx.fragment.app.FragmentManager fragmentManager = getChildFragmentManager();
+        String targetTag = resolveTabTag(tabId);
+        Fragment targetFragment = fragmentManager.findFragmentByTag(targetTag);
+        if (targetFragment == null) {
+            targetFragment = createTabFragment(tabId);
+        }
+
+        androidx.fragment.app.FragmentTransaction transaction = fragmentManager.beginTransaction()
                 .setReorderingAllowed(true);
+
+        java.util.List<Fragment> fragments = fragmentManager.getFragments();
+        for (Fragment fragment : fragments) {
+            if (fragment == null) {
+                continue;
+            }
+            if (fragment == targetFragment) {
+                continue;
+            }
+            transaction.hide(fragment);
+        }
+
+        if (targetFragment.isAdded()) {
+            transaction.show(targetFragment);
+        } else {
+            transaction.add(R.id.mainContentContainer, targetFragment, targetTag);
+        }
+
         if (getChildFragmentManager().isStateSaved()) {
             transaction.commitAllowingStateLoss();
         } else {
             transaction.commit();
         }
+    }
+
+    @NonNull
+    private Fragment createTabFragment(int tabId) {
+        if (tabId == R.id.tab_collection) {
+            return new CollectionTabFragment();
+        }
+        if (tabId == R.id.tab_contact) {
+            return new ContactTabFragment();
+        }
+        if (tabId == R.id.tab_favorite) {
+            return new FavoriteTabFragment();
+        }
+        if (tabId == R.id.tab_profile) {
+            return new ProfileTabFragment();
+        }
+        return new FlashNoteTabFragment();
+    }
+
+    @NonNull
+    private String resolveTabTag(int tabId) {
+        if (tabId == R.id.tab_collection) {
+            return TAG_COLLECTION;
+        }
+        if (tabId == R.id.tab_contact) {
+            return TAG_CONTACT;
+        }
+        if (tabId == R.id.tab_favorite) {
+            return TAG_FAVORITE;
+        }
+        if (tabId == R.id.tab_profile) {
+            return TAG_PROFILE;
+        }
+        return TAG_FLASHNOTE;
     }
 
     private void applyEmojiIcons() {

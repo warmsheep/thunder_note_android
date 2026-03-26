@@ -123,7 +123,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             selectedIds.clear();
         }
         dispatchSelectionChanged();
-        notifyDataSetChanged();
+        notifyItemRangeChanged(0, items.size(), selectionMode ? "selection-mode-on" : "selection-mode-off");
     }
 
     public boolean isSelectionMode() {
@@ -149,7 +149,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             selectedIds.add(id);
         }
         dispatchSelectionChanged();
-        notifyDataSetChanged();
+        notifyMessageChanged(id, "selection-toggle");
+    }
+
+    public void refreshVisibleAvatars() {
+        if (!items.isEmpty()) {
+            notifyItemRangeChanged(0, items.size(), "avatar-only");
+        }
     }
 
     private void dispatchSelectionChanged() {
@@ -584,10 +590,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         if (messageId != null && messageId.equals(currentPlayingMessageId) && mediaPlayer != null && mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
             stopVoiceWaveAnimation(voiceWaveform);
-            notifyDataSetChanged();
+            notifyPlaybackStateChanged(currentPlayingMessageId, messageId);
             return;
         }
 
+        Long previousPlayingMessageId = currentPlayingMessageId;
         stopVoicePlayback();
         mediaPlayer = new MediaPlayer();
         String token = tokenManager.getAccessToken();
@@ -605,11 +612,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 mp.start();
                 currentPlayingMessageId = messageId;
                 startVoiceWaveAnimation(voiceWaveform);
-                notifyDataSetChanged();
+                notifyPlaybackStateChanged(previousPlayingMessageId, messageId);
             });
             mediaPlayer.setOnCompletionListener(mp -> {
+                Long completedMessageId = currentPlayingMessageId;
                 stopVoicePlayback();
-                notifyDataSetChanged();
+                notifyPlaybackStateChanged(completedMessageId, null);
             });
             mediaPlayer.prepareAsync();
         } catch (Exception exception) {
@@ -628,6 +636,38 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             mediaPlayer = null;
         }
         currentPlayingMessageId = null;
+    }
+
+    private void notifyPlaybackStateChanged(@Nullable Long previousMessageId, @Nullable Long currentMessageId) {
+        if (previousMessageId != null) {
+            notifyMessageChanged(previousMessageId, "voice-state");
+        }
+        if (currentMessageId != null && !currentMessageId.equals(previousMessageId)) {
+            notifyMessageChanged(currentMessageId, "voice-state");
+        }
+    }
+
+    private void notifyMessageChanged(@Nullable Long messageId, @Nullable Object payload) {
+        if (messageId == null) {
+            return;
+        }
+        int position = findPositionById(messageId);
+        if (position >= 0) {
+            notifyItemChanged(position, payload);
+        }
+    }
+
+    private int findPositionById(@Nullable Long messageId) {
+        if (messageId == null) {
+            return RecyclerView.NO_POSITION;
+        }
+        for (int i = 0; i < items.size(); i++) {
+            Message item = items.get(i);
+            if (item != null && messageId.equals(item.getId())) {
+                return i;
+            }
+        }
+        return RecyclerView.NO_POSITION;
     }
 
     private java.util.Map<View, android.animation.AnimatorSet> waveAnimators = new java.util.WeakHashMap<>();

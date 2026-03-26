@@ -16,6 +16,7 @@ import java.nio.ByteBuffer;
 public class VideoCompressor {
     private static final String TAG = "VideoCompressor";
     private static final int MIN_COMPRESS_SIZE_BYTES = 5 * 1024 * 1024;
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
     public interface CompressCallback {
         void onSuccess(File compressedFile);
@@ -25,12 +26,12 @@ public class VideoCompressor {
 
     public static void compress(Context context, File inputFile, CompressCallback callback) {
         if (inputFile == null || !inputFile.exists()) {
-            new Handler(Looper.getMainLooper()).post(() -> callback.onError("输入文件无效"));
+            MAIN_HANDLER.post(() -> callback.onError("输入文件无效"));
             return;
         }
 
         if (inputFile.length() < MIN_COMPRESS_SIZE_BYTES) {
-            new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(inputFile));
+            MAIN_HANDLER.post(() -> callback.onSuccess(inputFile));
             return;
         }
 
@@ -39,19 +40,18 @@ public class VideoCompressor {
                 File outputFile = new File(context.getCacheDir(), "compressed_" + System.currentTimeMillis() + ".mp4");
                 boolean success = remuxVideo(inputFile.getAbsolutePath(), outputFile.getAbsolutePath());
 
-                Handler handler = new Handler(Looper.getMainLooper());
                 if (success && outputFile.exists() && outputFile.length() > 0
                         && outputFile.length() < inputFile.length()) {
-                    handler.post(() -> callback.onSuccess(outputFile));
+                    MAIN_HANDLER.post(() -> callback.onSuccess(outputFile));
                 } else {
                     if (outputFile.exists()) {
                         outputFile.delete();
                     }
-                    handler.post(() -> callback.onSuccess(inputFile));
+                    MAIN_HANDLER.post(() -> callback.onSuccess(inputFile));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Compression failed", e);
-                new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(inputFile));
+                MAIN_HANDLER.post(() -> callback.onSuccess(inputFile));
             }
         }).start();
     }

@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
@@ -85,11 +86,45 @@ public class ContactAdapter extends RecyclerView.Adapter<ContactAdapter.ContactV
     }
 
     public void submitList(List<ContactUser> contacts) {
+        List<ContactUser> newItems = contacts == null ? new ArrayList<>() : new ArrayList<>(contacts);
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return items.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newItems.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                Long oldId = items.get(oldItemPosition).getUserId();
+                Long newId = newItems.get(newItemPosition).getUserId();
+                return oldId != null && oldId.equals(newId);
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                return hasSameContent(items.get(oldItemPosition), newItems.get(newItemPosition));
+            }
+        });
         items.clear();
-        if (contacts != null) {
-            items.addAll(contacts);
-        }
-        notifyDataSetChanged();
+        items.addAll(newItems);
+        diffResult.dispatchUpdatesTo(this);
+    }
+
+    private boolean hasSameContent(@NonNull ContactUser oldItem, @NonNull ContactUser newItem) {
+        return equalsNullable(oldItem.getNickname(), newItem.getNickname())
+                && equalsNullable(oldItem.getUsername(), newItem.getUsername())
+                && equalsNullable(oldItem.getAvatar(), newItem.getAvatar())
+                && equalsNullable(oldItem.getRelationStatus(), newItem.getRelationStatus())
+                && equalsNullable(oldItem.getLatestMessage(), newItem.getLatestMessage());
+    }
+
+    private boolean equalsNullable(Object left, Object right) {
+        return left == null ? right == null : left.equals(right);
     }
 
     @NonNull

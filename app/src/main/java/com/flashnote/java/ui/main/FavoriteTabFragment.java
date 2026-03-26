@@ -63,12 +63,9 @@ public class FavoriteTabFragment extends Fragment {
                 viewModel.removeFavorite(item.getMessageId(), new FavoriteRepository.ActionCallback() {
                     @Override
                     public void onSuccess(String message) {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
+                        runIfUiAlive(() -> {
                             android.content.Context context = getContext();
-                            if (isAdded() && context != null) {
+                            if (context != null) {
                                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                             }
                         });
@@ -76,12 +73,9 @@ public class FavoriteTabFragment extends Fragment {
 
                     @Override
                     public void onError(String message, int code) {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
+                        runIfUiAlive(() -> {
                             android.content.Context context = getContext();
-                            if (isAdded() && context != null) {
+                            if (context != null) {
                                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                             }
                         });
@@ -122,6 +116,19 @@ public class FavoriteTabFragment extends Fragment {
         boolean empty = latestFavorites.isEmpty();
         binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
         binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+    }
+
+    private void runIfUiAlive(@NonNull Runnable action) {
+        androidx.fragment.app.FragmentActivity activity = getActivity();
+        if (!isAdded() || activity == null || binding == null) {
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            if (!isAdded() || binding == null) {
+                return;
+            }
+            action.run();
+        });
     }
 
     @Override

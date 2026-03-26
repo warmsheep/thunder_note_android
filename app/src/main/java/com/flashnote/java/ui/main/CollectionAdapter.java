@@ -6,6 +6,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.flashnote.java.data.model.Collection;
@@ -58,11 +59,69 @@ public class CollectionAdapter extends RecyclerView.Adapter<CollectionAdapter.Co
     }
 
     public void submitList(List<CollectionGroup> groups) {
+        List<CollectionGroup> newItems = groups == null ? new ArrayList<>() : new ArrayList<>(groups);
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return items.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newItems.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                return buildGroupKey(items.get(oldItemPosition)).equals(buildGroupKey(newItems.get(newItemPosition)));
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                return hasSameContent(items.get(oldItemPosition), newItems.get(newItemPosition));
+            }
+        });
         items.clear();
-        if (groups != null) {
-            items.addAll(groups);
+        items.addAll(newItems);
+        diffResult.dispatchUpdatesTo(this);
+    }
+
+    private String buildGroupKey(@NonNull CollectionGroup group) {
+        Collection source = group.getSource();
+        if (source != null && source.getId() != null) {
+            return "id:" + source.getId();
         }
-        notifyDataSetChanged();
+        return "name:" + group.getName();
+    }
+
+    private boolean hasSameContent(@NonNull CollectionGroup oldItem, @NonNull CollectionGroup newItem) {
+        if (!buildGroupKey(oldItem).equals(buildGroupKey(newItem))) {
+            return false;
+        }
+        List<FlashNote> oldNotes = oldItem.getNotes();
+        List<FlashNote> newNotes = newItem.getNotes();
+        if (oldNotes.size() != newNotes.size()) {
+            return false;
+        }
+        for (int i = 0; i < oldNotes.size(); i++) {
+            FlashNote oldNote = oldNotes.get(i);
+            FlashNote newNote = newNotes.get(i);
+            Long oldId = oldNote.getId();
+            Long newId = newNote.getId();
+            if (oldId == null ? newId != null : !oldId.equals(newId)) {
+                return false;
+            }
+            if (!equalsNullable(oldNote.getTitle(), newNote.getTitle())
+                    || !equalsNullable(oldNote.getContent(), newNote.getContent())
+                    || !equalsNullable(oldNote.getIcon(), newNote.getIcon())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean equalsNullable(Object left, Object right) {
+        return left == null ? right == null : left.equals(right);
     }
 
     @NonNull

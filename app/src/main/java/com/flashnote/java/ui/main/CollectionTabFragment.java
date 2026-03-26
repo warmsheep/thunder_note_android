@@ -199,13 +199,7 @@ public class CollectionTabFragment extends Fragment {
                     }
                     String oldName = group.getName();
                     viewModel.updateCollection(target.getId(), newName, target.getDescription(), () -> {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
-                            if (!isAdded()) {
-                                return;
-                            }
+                        runIfUiAlive(() -> {
                             flashNoteViewModel.renameCollectionLocally(oldName, newName);
                             flashNoteViewModel.refresh();
                             renderGroups();
@@ -245,13 +239,7 @@ public class CollectionTabFragment extends Fragment {
                 .setTitle("删除合集")
                 .setMessage("删除后，归属到该合集的闪记会变为未分类。确定继续吗？")
                 .setPositiveButton("删除", (dialog, which) -> viewModel.deleteCollection(target.getId(), () -> {
-                    if (!isAdded() || getActivity() == null) {
-                        return;
-                    }
-                    getActivity().runOnUiThread(() -> {
-                        if (!isAdded()) {
-                            return;
-                        }
+                    runIfUiAlive(() -> {
                         flashNoteViewModel.clearCollectionLocally(group.getName());
                         flashNoteViewModel.refresh();
                         renderGroups();
@@ -263,6 +251,19 @@ public class CollectionTabFragment extends Fragment {
                 }))
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    private void runIfUiAlive(@NonNull Runnable action) {
+        androidx.fragment.app.FragmentActivity activity = getActivity();
+        if (!isAdded() || activity == null || binding == null) {
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            if (!isAdded() || binding == null) {
+                return;
+            }
+            action.run();
+        });
     }
 
     @Nullable

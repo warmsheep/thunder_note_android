@@ -222,7 +222,7 @@ public class ChatFragment extends Fragment {
         userRepository.getProfile().observe(getViewLifecycleOwner(), profile -> {
             if (profile != null && profile.getAvatar() != null && !profile.getAvatar().isEmpty()) {
                 adapter.setUserAvatarUrl(profile.getAvatar(), requireContext());
-                adapter.notifyDataSetChanged();
+                adapter.refreshVisibleAvatars();
             }
         });
         
@@ -234,7 +234,7 @@ public class ChatFragment extends Fragment {
                             String avatar = contact.getAvatar();
                             if (avatar != null && !avatar.isEmpty()) {
                                 adapter.setPeerAvatar(avatar);
-                                adapter.notifyDataSetChanged();
+                                adapter.refreshVisibleAvatars();
                             }
                             break;
                         }
@@ -684,8 +684,7 @@ public class ChatFragment extends Fragment {
         chatViewModel.mergeMessages(selectedIds, title, new com.flashnote.java.data.repository.MessageRepository.MergeCallback() {
             @Override
             public void onSuccess(Message mergedMessage) {
-                if (!isAdded() || getActivity() == null) return;
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     chatViewModel.addLocalMessage(mergedMessage);
                     showToast("合并成功");
                     exitMultiSelectMode();
@@ -694,10 +693,7 @@ public class ChatFragment extends Fragment {
 
             @Override
             public void onError(String errorMessage) {
-                if (!isAdded() || getActivity() == null) return;
-                getActivity().runOnUiThread(() -> {
-                    showToast("合并失败: " + errorMessage);
-                });
+                runIfUiAlive(() -> showToast("合并失败: " + errorMessage));
             }
         });
     }
@@ -718,10 +714,7 @@ public class ChatFragment extends Fragment {
                 .setPositiveButton("删除", (dialog, which) -> {
                     skipNextScroll = true;
                     chatViewModel.deleteMessages(selectedIds, () -> {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
+                        runIfUiAlive(() -> {
                             showToast("已删除 " + selectedIds.size() + " 条消息");
                             exitMultiSelectMode();
                         });
@@ -752,15 +745,7 @@ public class ChatFragment extends Fragment {
                 .setPositiveButton("删除", (dialog, which) -> {
                     skipNextScroll = true;
                     chatViewModel.deleteMessage(message.getId(), () -> {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
-                            android.content.Context context = getContext();
-                            if (isAdded() && context != null) {
-                                Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show();
-                            }
-                        });
+                        runIfUiAlive(() -> showToast("消息已删除"));
                     });
                 })
                 .setNegativeButton("取消", null)
@@ -811,10 +796,7 @@ public class ChatFragment extends Fragment {
         fileRepository.download(objectName, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String path) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     File file = new File(path);
                     if (!file.exists()) {
                         showToast("分享文件不存在");
@@ -826,10 +808,7 @@ public class ChatFragment extends Fragment {
 
             @Override
             public void onError(String errorMessage, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> showToast("准备分享失败: " + errorMessage));
+                runIfUiAlive(() -> showToast("准备分享失败: " + errorMessage));
             }
         });
     }
@@ -987,12 +966,9 @@ public class ChatFragment extends Fragment {
         favoriteRepository.addFavorite(message.getId(), new FavoriteRepository.ActionCallback() {
             @Override
             public void onSuccess(String messageText) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     android.content.Context context = getContext();
-                    if (isAdded() && context != null) {
+                    if (context != null) {
                         Toast.makeText(context, messageText, Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -1000,12 +976,9 @@ public class ChatFragment extends Fragment {
 
             @Override
             public void onError(String messageText, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     android.content.Context context = getContext();
-                    if (isAdded() && context != null) {
+                    if (context != null) {
                         Toast.makeText(context, messageText, Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -1472,10 +1445,16 @@ public class ChatFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        if (!isAdded() || getActivity() == null) {
+        androidx.fragment.app.FragmentActivity activity = getActivity();
+        if (!isAdded() || activity == null || binding == null) {
             return;
         }
-        requireActivity().runOnUiThread(action);
+        activity.runOnUiThread(() -> {
+            if (!isAdded() || binding == null) {
+                return;
+            }
+            action.run();
+        });
     }
 
     private void copyUriToTempFile(Uri uri, String prefix, FileCallback callback) {
@@ -1500,10 +1479,10 @@ public class ChatFragment extends Fragment {
                 }
 
                 final File finalFile = tempFile;
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> callback.onFileReady(finalFile));
+                runIfUiAlive(() -> callback.onFileReady(finalFile));
             } catch (IOException e) {
                 DebugLog.e("ChatFragment", "Failed to copy picked file to temp storage", e);
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> callback.onFileReady(null));
+                runIfUiAlive(() -> callback.onFileReady(null));
             }
         }).start();
     }

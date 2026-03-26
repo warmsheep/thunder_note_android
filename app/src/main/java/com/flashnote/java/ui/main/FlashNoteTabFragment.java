@@ -508,10 +508,7 @@ public class FlashNoteTabFragment extends Fragment {
         viewModel.searchNotes(normalizedQuery, new com.flashnote.java.data.repository.FlashNoteRepository.SearchCallback() {
             @Override
             public void onSuccess(List<FlashNoteSearchResult> noteNameResults, List<FlashNoteSearchResult> messageContentResults) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     latestSearchResults = noteNameResults == null ? new ArrayList<>() : new ArrayList<>(noteNameResults);
                     latestMessageContentResults = messageContentResults == null ? new ArrayList<>() : new ArrayList<>(messageContentResults);
                     renderNotes();
@@ -520,10 +517,7 @@ public class FlashNoteTabFragment extends Fragment {
 
             @Override
             public void onError(String message) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     Context errorCtx = getContext();
                     if (errorCtx != null) {
                         Toast.makeText(errorCtx, message, Toast.LENGTH_SHORT).show();
@@ -570,10 +564,7 @@ public class FlashNoteTabFragment extends Fragment {
                     viewModel.searchNotes(query, new com.flashnote.java.data.repository.FlashNoteRepository.SearchCallback() {
                         @Override
                         public void onSuccess(List<FlashNoteSearchResult> noteNameResults, List<FlashNoteSearchResult> messageContentResults) {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> {
+                            runIfUiAlive(() -> {
                                 currentQuery = query;
                                 latestSearchResults = noteNameResults == null ? new ArrayList<>() : new ArrayList<>(noteNameResults);
                                 latestMessageContentResults = messageContentResults == null ? new ArrayList<>() : new ArrayList<>(messageContentResults);
@@ -589,10 +580,7 @@ public class FlashNoteTabFragment extends Fragment {
 
                         @Override
                         public void onError(String message) {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> {
+                            runIfUiAlive(() -> {
                                 Context errorCtx = getContext();
                                 if (errorCtx != null) {
                                     Toast.makeText(errorCtx, message, Toast.LENGTH_SHORT).show();
@@ -1066,10 +1054,16 @@ public class FlashNoteTabFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        if (!isAdded() || getActivity() == null) {
+        androidx.fragment.app.FragmentActivity activity = getActivity();
+        if (!isAdded() || activity == null || binding == null) {
             return;
         }
-        getActivity().runOnUiThread(action);
+        activity.runOnUiThread(() -> {
+            if (!isAdded() || binding == null) {
+                return;
+            }
+            action.run();
+        });
     }
 
     @NonNull

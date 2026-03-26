@@ -177,19 +177,15 @@ public class ProfileTabFragment extends Fragment {
         app.getMessageRepository().countMessages(new MessageRepository.CountCallback() {
             @Override
             public void onSuccess(long count) {
-                if (isAdded() && getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        binding.recordCount.setText(String.valueOf(count));
-                        persistRecordCount(count);
-                    });
-                }
+                runIfUiAlive(() -> {
+                    binding.recordCount.setText(String.valueOf(count));
+                    persistRecordCount(count);
+                });
             }
 
             @Override
             public void onError(String message, int code) {
-                if (isAdded() && getActivity() != null) {
-                    getActivity().runOnUiThread(() -> binding.recordCount.setText("0"));
-                }
+                runIfUiAlive(() -> binding.recordCount.setText("0"));
             }
         });
     }
@@ -290,19 +286,14 @@ public class ProfileTabFragment extends Fragment {
         userRepository.fetchProfile(new UserRepository.ProfileCallback() {
             @Override
             public void onSuccess(UserProfile profile) {
-                if (isAdded() && getActivity() != null) {
-                    getActivity().runOnUiThread(() -> loadStats());
-                }
+                runIfUiAlive(ProfileTabFragment.this::loadStats);
             }
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     android.content.Context context = getContext();
-                    if (isAdded() && context != null) {
+                    if (context != null) {
                         Toast.makeText(context, "获取资料失败：" + message, Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -484,10 +475,7 @@ public class ProfileTabFragment extends Fragment {
                     userRepository.updateProfile(currentProfile, new UserRepository.ProfileCallback() {
                         @Override
                         public void onSuccess(UserProfile profile) {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> {
+                            runIfUiAlive(() -> {
                                 currentProfile = profile;
                                 updateProfileUI(profile);
                                 android.content.Context ctx = getContext();
@@ -499,10 +487,7 @@ public class ProfileTabFragment extends Fragment {
 
                         @Override
                         public void onError(String message, int code) {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> {
+                            runIfUiAlive(() -> {
                                 android.content.Context ctx = getContext();
                                 if (ctx != null) {
                                     Toast.makeText(ctx, "保存失败：" + message, Toast.LENGTH_SHORT).show();
@@ -528,13 +513,7 @@ public class ProfileTabFragment extends Fragment {
         userRepository.updateProfile(currentProfile, new UserRepository.ProfileCallback() {
             @Override
             public void onSuccess(UserProfile profile) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
-                    if (!isAdded() || binding == null) {
-                        return;
-                    }
+                runIfUiAlive(() -> {
                     binding.bioText.setText(bio.isEmpty() ? "暂无简介" : bio);
                     android.content.Context context = getContext();
                     if (context != null) {
@@ -545,12 +524,9 @@ public class ProfileTabFragment extends Fragment {
 
             @Override
             public void onError(String message, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
+                runIfUiAlive(() -> {
                     android.content.Context context = getContext();
-                    if (isAdded() && context != null) {
+                    if (context != null) {
                         Toast.makeText(context, "更新失败：" + message, Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -833,10 +809,16 @@ public class ProfileTabFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        if (!isAdded() || getActivity() == null) {
+        androidx.fragment.app.FragmentActivity activity = getActivity();
+        if (!isAdded() || activity == null || binding == null) {
             return;
         }
-        getActivity().runOnUiThread(action);
+        activity.runOnUiThread(() -> {
+            if (!isAdded() || binding == null) {
+                return;
+            }
+            action.run();
+        });
     }
 
     private void clearLocalAvatarCache() {

@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.flashnote.java.R;
@@ -39,24 +40,51 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
     }
 
     public void submitList(List<FlashNote> notes) {
+        List<FlashNote> newItems = notes == null ? new ArrayList<>() : new ArrayList<>(notes);
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return items.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newItems.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                FlashNote oldItem = items.get(oldItemPosition);
+                FlashNote newItem = newItems.get(newItemPosition);
+                Long oldId = oldItem.getId();
+                Long newId = newItem.getId();
+                return oldId != null && oldId.equals(newId);
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                return hasSameContent(items.get(oldItemPosition), newItems.get(newItemPosition));
+            }
+        });
         items.clear();
-        if (notes != null) {
-            items.addAll(notes);
-        }
-        notifyDataSetChanged();
+        items.addAll(newItems);
+        diffResult.dispatchUpdatesTo(this);
     }
 
     public void setPendingDeleteNoteId(Long noteId) {
+        Long previous = pendingDeleteNoteId;
         this.pendingDeleteNoteId = noteId;
-        notifyDataSetChanged();
+        notifyPendingDeleteChanged(previous);
+        notifyPendingDeleteChanged(noteId);
     }
 
     public void clearPendingDelete() {
         if (pendingDeleteNoteId == null) {
             return;
         }
+        Long previous = pendingDeleteNoteId;
         pendingDeleteNoteId = null;
-        notifyDataSetChanged();
+        notifyPendingDeleteChanged(previous);
     }
 
     @NonNull
@@ -105,6 +133,36 @@ public class FlashNoteAdapter extends RecyclerView.Adapter<FlashNoteAdapter.Flas
         } else {
             return dateTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy/M/d"));
         }
+    }
+
+    private void notifyPendingDeleteChanged(Long noteId) {
+        if (noteId == null) {
+            return;
+        }
+        for (int i = 0; i < items.size(); i++) {
+            Long itemId = items.get(i).getId();
+            if (itemId != null && itemId.equals(noteId)) {
+                notifyItemChanged(i);
+                return;
+            }
+        }
+    }
+
+    private boolean hasSameContent(@NonNull FlashNote oldItem, @NonNull FlashNote newItem) {
+        return equalsNullable(oldItem.getTitle(), newItem.getTitle())
+                && equalsNullable(oldItem.getIcon(), newItem.getIcon())
+                && equalsNullable(oldItem.getTags(), newItem.getTags())
+                && equalsNullable(oldItem.getLatestMessage(), newItem.getLatestMessage())
+                && equalsNullable(oldItem.getContent(), newItem.getContent())
+                && equalsNullable(oldItem.getPinned(), newItem.getPinned())
+                && equalsNullable(oldItem.getHidden(), newItem.getHidden())
+                && equalsNullable(oldItem.getInbox(), newItem.getInbox())
+                && equalsNullable(oldItem.getUpdatedAt(), newItem.getUpdatedAt())
+                && equalsNullable(oldItem.getCreatedAt(), newItem.getCreatedAt());
+    }
+
+    private boolean equalsNullable(Object left, Object right) {
+        return left == null ? right == null : left.equals(right);
     }
 
     class FlashNoteViewHolder extends RecyclerView.ViewHolder {

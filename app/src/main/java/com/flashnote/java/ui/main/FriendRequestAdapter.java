@@ -4,6 +4,7 @@ import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.flashnote.java.data.model.FriendRequest;
@@ -26,11 +27,44 @@ public class FriendRequestAdapter extends RecyclerView.Adapter<FriendRequestAdap
     }
 
     public void submitList(List<FriendRequest> requests) {
+        List<FriendRequest> newItems = requests == null ? new ArrayList<>() : new ArrayList<>(requests);
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return items.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newItems.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                FriendRequest oldItem = items.get(oldItemPosition);
+                FriendRequest newItem = newItems.get(newItemPosition);
+                Long oldId = oldItem.getRequestId();
+                Long newId = newItem.getRequestId();
+                return oldId != null && oldId.equals(newId);
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                return hasSameContent(items.get(oldItemPosition), newItems.get(newItemPosition));
+            }
+        });
         items.clear();
-        if (requests != null) {
-            items.addAll(requests);
-        }
-        notifyDataSetChanged();
+        items.addAll(newItems);
+        diffResult.dispatchUpdatesTo(this);
+    }
+
+    private boolean hasSameContent(@NonNull FriendRequest oldItem, @NonNull FriendRequest newItem) {
+        return equalsNullable(oldItem.getNickname(), newItem.getNickname())
+                && equalsNullable(oldItem.getUsername(), newItem.getUsername());
+    }
+
+    private boolean equalsNullable(Object left, Object right) {
+        return left == null ? right == null : left.equals(right);
     }
 
     @NonNull
