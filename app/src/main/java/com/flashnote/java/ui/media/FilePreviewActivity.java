@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
 import com.flashnote.java.R;
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.databinding.ActivityFilePreviewBinding;
 import com.flashnote.java.util.MarkdownRenderer;
 
@@ -38,49 +39,54 @@ public class FilePreviewActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityFilePreviewBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        try {
+            setContentView(binding.getRoot());
 
-        binding.backBtn.setOnClickListener(v -> finish());
-        binding.openExternalBtn.setOnClickListener(v -> openExternal());
+            binding.backBtn.setOnClickListener(v -> finish());
+            binding.openExternalBtn.setOnClickListener(v -> openExternal());
 
-        String filePath = getIntent().getStringExtra(EXTRA_FILE_PATH);
-        String fileName = getIntent().getStringExtra(EXTRA_FILE_NAME);
-        if (TextUtils.isEmpty(filePath)) {
+            String filePath = getIntent().getStringExtra(EXTRA_FILE_PATH);
+            String fileName = getIntent().getStringExtra(EXTRA_FILE_NAME);
+            if (TextUtils.isEmpty(filePath)) {
+                showUnsupported(getString(R.string.file_preview_unsupported));
+                return;
+            }
+
+            file = new File(filePath);
+            if (!file.exists() || !file.isFile()) {
+                showUnsupported(getString(R.string.file_preview_unsupported));
+                return;
+            }
+
+            if (TextUtils.isEmpty(fileName)) {
+                fileName = file.getName();
+            }
+            binding.fileNameText.setText(fileName);
+
+            String ext = getFileExtension(fileName);
+            if (isImage(ext)) {
+                Intent intent = new Intent(this, ImageViewerActivity.class);
+                intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+                startActivity(intent);
+                finish();
+                return;
+            }
+
+            if (isText(ext)) {
+                showTextPreview(file, "md".equals(ext));
+                return;
+            }
+
+            if ("pdf".equals(ext)) {
+                showPdfPreview(file);
+                return;
+            }
+
             showUnsupported(getString(R.string.file_preview_unsupported));
-            return;
-        }
-
-        file = new File(filePath);
-        if (!file.exists() || !file.isFile()) {
+        } catch (Throwable throwable) {
+            DebugLog.e("FilePreview", "FilePreviewActivity onCreate failed", throwable);
             showUnsupported(getString(R.string.file_preview_unsupported));
-            return;
         }
-
-        if (TextUtils.isEmpty(fileName)) {
-            fileName = file.getName();
-        }
-        binding.fileNameText.setText(fileName);
-
-        String ext = getFileExtension(fileName);
-        if (isImage(ext)) {
-            Intent intent = new Intent(this, ImageViewerActivity.class);
-            intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
-            startActivity(intent);
-            finish();
-            return;
-        }
-
-        if (isText(ext)) {
-            showTextPreview(file, "md".equals(ext));
-            return;
-        }
-
-        if ("pdf".equals(ext)) {
-            showPdfPreview(file);
-            return;
-        }
-
-        showUnsupported(getString(R.string.file_preview_unsupported));
     }
 
     @Override
@@ -120,6 +126,7 @@ public class FilePreviewActivity extends AppCompatActivity {
             pdfFd = ParcelFileDescriptor.open(previewFile, ParcelFileDescriptor.MODE_READ_ONLY);
             pdfRenderer = new PdfRenderer(pdfFd);
             if (pdfRenderer.getPageCount() <= 0) {
+                closePdfRenderer();
                 showUnsupported(getString(R.string.file_preview_pdf_failed));
                 return;
             }
@@ -138,10 +145,12 @@ public class FilePreviewActivity extends AppCompatActivity {
             binding.textPreviewContainer.setVisibility(android.view.View.GONE);
             binding.pdfPreviewImage.setVisibility(android.view.View.VISIBLE);
             binding.unsupportedText.setVisibility(android.view.View.GONE);
-        } catch (IOException | RuntimeException exception) {
+        } catch (Throwable t) {
+            DebugLog.e("FilePreview", "PDF preview failed: " + previewFile.getAbsolutePath() + " size=" + previewFile.length(), t);
             closePdfRenderer();
-            showUnsupported(getString(R.string.file_preview_pdf_failed));
-        } catch (OutOfMemoryError error) {
+            if (previewFile.exists() && !previewFile.delete()) {
+                DebugLog.w("FilePreview", "Failed to delete corrupt cache file: " + previewFile.getAbsolutePath());
+            }
             showUnsupported(getString(R.string.file_preview_pdf_failed));
         }
     }
@@ -158,15 +167,22 @@ public class FilePreviewActivity extends AppCompatActivity {
             Toast.makeText(this, getString(R.string.file_preview_unsupported), Toast.LENGTH_SHORT).show();
             return;
         }
-        Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(uri, resolveMimeType(file.getName()));
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, resolveMimeType(file.getName()));
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (intent.resolveActivity(getPackageManager()) == null) {
+                Toast.makeText(this, "未找到可打开该文件的应用", Toast.LENGTH_SHORT).show();
+                return;
+            }
             startActivity(intent);
         } catch (ActivityNotFoundException exception) {
             Toast.makeText(this, "未找到可打开该文件的应用", Toast.LENGTH_SHORT).show();
+        } catch (IllegalArgumentException | SecurityException exception) {
+            DebugLog.e("FilePreview", "Failed to open file with external app", exception);
+            Toast.makeText(this, "文件打开失败，请重试", Toast.LENGTH_SHORT).show();
         }
     }
 

@@ -26,6 +26,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.LiveData;
 
 import com.bumptech.glide.Glide;
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.FavoriteItem;
@@ -214,23 +215,16 @@ public class ProfileTabFragment extends Fragment {
                     } else {
                         updateSyncBadge(0);
                     }
-                    android.content.Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, R.string.message_sync_completed, Toast.LENGTH_SHORT).show();
-                    }
                     loadStats();
                 });
             }
 
             @Override
             public void onError(String message, int code) {
+                DebugLog.logHandledError("ProfileTab", "Sync failed: " + message);
                 runIfUiAlive(() -> {
                     syncInProgress = false;
                     updateSyncProgress(false);
-                    android.content.Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, getString(R.string.message_sync_failed, message), Toast.LENGTH_SHORT).show();
-                    }
                 });
             }
         });
@@ -278,11 +272,8 @@ public class ProfileTabFragment extends Fragment {
 
             @Override
             public void onError(String message, int code) {
+                DebugLog.logHandledError("ProfileTab", "获取资料失败: " + message);
                 runIfUiAlive(() -> {
-                    android.content.Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, getString(R.string.message_profile_fetch_failed, message), Toast.LENGTH_SHORT).show();
-                    }
                 });
             }
         });
@@ -365,11 +356,6 @@ public class ProfileTabFragment extends Fragment {
                                 runIfUiAlive(() -> {
                                     currentProfile = profile;
                                     updateProfileUI(profile);
-                                    android.content.Context ctx = getContext();
-                                    if (ctx != null) {
-                                        Toast.makeText(ctx, R.string.message_profile_saved, Toast.LENGTH_SHORT).show();
-                                        Toast.makeText(ctx, R.string.message_profile_saved, Toast.LENGTH_SHORT).show();
-                                    }
                                 });
                             }
 
@@ -408,10 +394,6 @@ public class ProfileTabFragment extends Fragment {
             public void onSuccess(UserProfile profile) {
                 runIfUiAlive(() -> {
                     binding.bioText.setText(bio.isEmpty() ? getString(R.string.status_empty_bio) : bio);
-                    android.content.Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, R.string.message_bio_updated, Toast.LENGTH_SHORT).show();
-                    }
                 });
             }
 
@@ -618,8 +600,12 @@ public class ProfileTabFragment extends Fragment {
 
         @Override
         public void showToast(@NonNull String message) {
+            if (DebugLog.isLikelyNetworkIssue(message)) {
+                DebugLog.logHandledError("ProfileTab", message);
+                return;
+            }
             android.content.Context context = getContext();
-            if (context != null) {
+            if (context != null && DebugLog.shouldShowToast("ProfileTab:" + message, 2000L)) {
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
             }
         }

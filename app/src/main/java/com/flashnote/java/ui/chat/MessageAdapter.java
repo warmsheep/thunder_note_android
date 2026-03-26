@@ -600,20 +600,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             return;
         }
 
-        Toast.makeText(effectiveContext, "正在下载文件...", Toast.LENGTH_SHORT).show();
+        DebugLog.i("MessageAdapter", "Start downloading file for open: object=" + objectName);
         fileRepository.download(objectName, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String path) {
                 Context callbackContext = effectiveContext;
                 File downloadedFile = new File(path);
                 if (!downloadedFile.exists() || downloadedFile.length() == 0) {
-                    if (Looper.myLooper() == Looper.getMainLooper()) {
-                        Toast.makeText(callbackContext, "文件下载异常，请重试", Toast.LENGTH_SHORT).show();
-                    } else {
-                        new Handler(Looper.getMainLooper()).post(() -> 
-                            Toast.makeText(callbackContext, "文件下载异常，请重试", Toast.LENGTH_SHORT).show()
-                        );
-                    }
+                    DebugLog.w("MessageAdapter", "Downloaded file missing or empty: path=" + path);
                     return;
                 }
                 if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -628,14 +622,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             @Override
             public void onError(String errorMsg, int code) {
                 String errorMessage = "文件下载失败: " + errorMsg;
-                Context callbackContext = effectiveContext;
-                if (Looper.myLooper() == Looper.getMainLooper()) {
-                    Toast.makeText(callbackContext, errorMessage, Toast.LENGTH_SHORT).show();
-                } else {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        Toast.makeText(callbackContext, errorMessage, Toast.LENGTH_SHORT).show()
-                    );
-                }
+                DebugLog.logHandledError("MessageAdapter", errorMessage);
             }
         });
     }
@@ -650,6 +637,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 ? message.getFileName()
                 : fallbackFileName(message.getMediaUrl());
         String ext = getFileExtension(fileName);
+        DebugLog.i("MessageAdapter", "Open cached file: path=" + file.getAbsolutePath()
+                + " size=" + file.length()
+                + " fileName=" + fileName
+                + " ext=" + ext);
 
         boolean isActivityContext = context instanceof Activity;
 
@@ -678,24 +669,38 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             openFileWithExternalApp(context, file);
         } catch (Exception exception) {
             DebugLog.e("MessageAdapter", "Failed to open cached file", exception);
-            Toast.makeText(context, "文件打开失败", Toast.LENGTH_SHORT).show();
+            if (file.exists() && !file.delete()) {
+                DebugLog.w("MessageAdapter", "Failed to delete corrupt cache file: " + file.getAbsolutePath());
+            }
+            Toast.makeText(context, "文件打开失败，缓存已清理，请重试", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void openFileWithExternalApp(Context context, File file) {
-        Uri uri = FileProvider.getUriForFile(
-                context,
-                context.getPackageName() + ".fileprovider",
-                file
-        );
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(uri, resolveMimeType(file.getName()));
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (file == null || !file.exists() || !file.isFile() || !file.canRead()) {
+            Toast.makeText(context, "文件不可读或不存在", Toast.LENGTH_SHORT).show();
+            return;
+        }
         try {
+            Uri uri = FileProvider.getUriForFile(
+                    context,
+                    context.getPackageName() + ".fileprovider",
+                    file
+            );
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, resolveMimeType(file.getName()));
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (intent.resolveActivity(context.getPackageManager()) == null) {
+                Toast.makeText(context, "未找到可打开该文件的应用", Toast.LENGTH_SHORT).show();
+                return;
+            }
             context.startActivity(intent);
         } catch (ActivityNotFoundException e) {
             Toast.makeText(context, "未找到可打开该文件的应用", Toast.LENGTH_SHORT).show();
+        } catch (IllegalArgumentException | SecurityException e) {
+            DebugLog.e("MessageAdapter", "Failed to open file with external app", e);
+            Toast.makeText(context, "文件打开失败", Toast.LENGTH_SHORT).show();
         }
     }
 

@@ -19,6 +19,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.R;
 import com.flashnote.java.databinding.FragmentMainShellBinding;
 
@@ -44,22 +45,26 @@ public class MainShellFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        try {
+            binding.bottomNav.setItemActiveIndicatorEnabled(false);
+            applyEmojiIcons();
+            binding.bottomNav.post(this::disableBottomNavLongPressHints);
+            binding.bottomNav.setOnItemSelectedListener(this::onTabSelected);
 
-        binding.bottomNav.setItemActiveIndicatorEnabled(false);
-        applyEmojiIcons();
-        binding.bottomNav.post(this::disableBottomNavLongPressHints);
-        binding.bottomNav.setOnItemSelectedListener(this::onTabSelected);
+            if (savedInstanceState != null) {
+                selectedTabId = savedInstanceState.getInt(KEY_SELECTED_TAB, R.id.tab_flashnote);
+            }
 
-        if (savedInstanceState != null) {
-            selectedTabId = savedInstanceState.getInt(KEY_SELECTED_TAB, R.id.tab_flashnote);
+            ContactViewModel contactViewModel = new ViewModelProvider(this).get(ContactViewModel.class);
+            contactViewModel.getPendingRequestCount().observe(getViewLifecycleOwner(), count ->
+                    updateContactBadge(count != null && count > 0));
+            contactViewModel.refreshContacts();
+
+            binding.bottomNav.setSelectedItemId(selectedTabId);
+        } catch (RuntimeException exception) {
+            DebugLog.e("MainShell", "MainShellFragment onViewCreated failed", exception);
+            throw exception;
         }
-
-        ContactViewModel contactViewModel = new ViewModelProvider(this).get(ContactViewModel.class);
-        contactViewModel.getPendingRequestCount().observe(getViewLifecycleOwner(), count ->
-                updateContactBadge(count != null && count > 0));
-        contactViewModel.refreshContacts();
-
-        binding.bottomNav.setSelectedItemId(selectedTabId);
     }
 
     public void updateContactBadge(boolean show) {

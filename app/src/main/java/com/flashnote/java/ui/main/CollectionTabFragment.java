@@ -15,6 +15,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FlashNote;
@@ -103,7 +104,11 @@ public class CollectionTabFragment extends Fragment {
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
             android.content.Context context = getContext();
             if (context != null && error != null && !error.isEmpty()) {
-                Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
+                DebugLog.logHandledError("CollectionTab", error);
+                if (!DebugLog.isLikelyNetworkIssue(error)
+                        && DebugLog.shouldShowToast("CollectionTab:" + error, 2000L)) {
+                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show();
+                }
                 viewModel.clearError();
             }
         });

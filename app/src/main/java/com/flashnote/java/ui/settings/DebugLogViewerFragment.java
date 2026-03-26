@@ -30,9 +30,16 @@ public class DebugLogViewerFragment extends Fragment {
         binding.backButton.setOnClickListener(v -> navigateBack());
         binding.clearLogButton.setOnClickListener(v -> DebugLog.clear());
 
+        String persistedLog = DebugLog.readPersistedLog();
+        String persistedHeader = (persistedLog == null || persistedLog.isEmpty())
+                ? ""
+                : "=== 历史日志 (上次运行) ===\n" + persistedLog + "\n=== 当前会话日志 ===\n";
+
         DebugLog.getLiveData().observe(getViewLifecycleOwner(), log -> {
             if (binding != null) {
-                binding.debugLogText.setText(log == null || log.isEmpty() ? "暂无日志" : log);
+                String currentSessionLog = (log == null || log.isEmpty()) ? "" : log;
+                String combinedLog = persistedHeader + currentSessionLog;
+                binding.debugLogText.setText(combinedLog.isEmpty() ? "暂无日志" : combinedLog);
             }
         });
     }

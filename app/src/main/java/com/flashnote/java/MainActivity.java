@@ -25,11 +25,16 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        try {
+            binding = ActivityMainBinding.inflate(getLayoutInflater());
+            setContentView(binding.getRoot());
 
-        if (savedInstanceState == null) {
-            openSplash();
+            if (savedInstanceState == null) {
+                openSplash();
+            }
+        } catch (RuntimeException exception) {
+            DebugLog.e("MainActivity", "MainActivity onCreate failed", exception);
+            throw exception;
         }
     }
 

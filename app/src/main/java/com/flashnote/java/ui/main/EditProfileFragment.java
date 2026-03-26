@@ -19,6 +19,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.TokenManager;
@@ -104,7 +105,7 @@ public class EditProfileFragment extends Fragment {
 
             @Override
             public void onError(String message, int code) {
-                showToast("获取资料失败：" + message);
+                DebugLog.logHandledError("EditProfile", "获取资料失败: " + message);
             }
         });
     }
@@ -164,6 +165,7 @@ public class EditProfileFragment extends Fragment {
                     .getIntent(requireContext());
             ucropLauncher.launch(ucropIntent);
         } catch (Exception e) {
+            DebugLog.e("EditProfile", "Failed to start avatar crop", e);
             showToast("无法打开图片裁剪");
         }
     }
@@ -185,6 +187,7 @@ public class EditProfileFragment extends Fragment {
                 fos.write(buffer, 0, read);
             }
         } catch (Exception e) {
+            DebugLog.e("EditProfile", "Failed to persist cropped avatar", e);
             showToast("保存头像失败");
             return;
         }
@@ -199,16 +202,15 @@ public class EditProfileFragment extends Fragment {
                 runIfUiAlive(() -> {
                     showProgress(false);
                     renderAvatar(value);
-                    showToast("头像已预览，可点击保存提交");
                 });
             }
 
             @Override
             public void onError(String message, int code) {
                 isUploadingAvatar = false;
+                DebugLog.logHandledError("EditProfile", "上传头像失败: " + message);
                 runIfUiAlive(() -> {
                     showProgress(false);
-                    showToast("上传头像失败：" + message);
                 });
             }
         });

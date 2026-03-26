@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ContactSearchUser;
 import com.flashnote.java.data.model.ContactUser;
 import com.flashnote.java.data.model.FriendRequest;
@@ -154,7 +155,11 @@ public class ContactTabFragment extends Fragment {
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
             if (error != null && !error.isEmpty()) {
-                toast(error);
+                DebugLog.logHandledError("ContactTab", error);
+                if (!DebugLog.isLikelyNetworkIssue(error)
+                        && DebugLog.shouldShowToast("ContactTab:" + error, 2000L)) {
+                    toast(error);
+                }
                 viewModel.clearError();
             }
         });

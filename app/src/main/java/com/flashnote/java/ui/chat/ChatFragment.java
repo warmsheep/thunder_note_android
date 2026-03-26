@@ -686,7 +686,6 @@ public class ChatFragment extends Fragment {
             public void onSuccess(Message mergedMessage) {
                 runIfUiAlive(() -> {
                     chatViewModel.addLocalMessage(mergedMessage);
-                    showToast("合并成功");
                     exitMultiSelectMode();
                 });
             }
@@ -715,7 +714,6 @@ public class ChatFragment extends Fragment {
                     skipNextScroll = true;
                     chatViewModel.deleteMessages(selectedIds, () -> {
                         runIfUiAlive(() -> {
-                            showToast("已删除 " + selectedIds.size() + " 条消息");
                             exitMultiSelectMode();
                         });
                     });
@@ -744,9 +742,7 @@ public class ChatFragment extends Fragment {
                 .setMessage("确定要删除这条消息吗？")
                 .setPositiveButton("删除", (dialog, which) -> {
                     skipNextScroll = true;
-                    chatViewModel.deleteMessage(message.getId(), () -> {
-                        runIfUiAlive(() -> showToast("消息已删除"));
-                    });
+                    chatViewModel.deleteMessage(message.getId(), () -> { });
                 })
                 .setNegativeButton("取消", null)
                 .show();
@@ -797,7 +793,6 @@ public class ChatFragment extends Fragment {
             showToast("文件地址无效，无法分享");
             return;
         }
-        showToast("正在准备分享文件...");
         fileRepository.download(objectName, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String path) {

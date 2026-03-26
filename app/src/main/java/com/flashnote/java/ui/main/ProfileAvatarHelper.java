@@ -7,6 +7,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.UserRepository;
@@ -57,6 +58,7 @@ final class ProfileAvatarHelper {
 
             ucropLauncher.launch(ucropIntent);
         } catch (Exception e) {
+            DebugLog.e("ProfileAvatar", "Failed to start avatar crop", e);
             Toast.makeText(context, "无法打开图片裁剪", Toast.LENGTH_SHORT).show();
         }
     }
@@ -72,6 +74,7 @@ final class ProfileAvatarHelper {
             try (java.io.InputStream inputStream = context.getContentResolver().openInputStream(resultUri);
                  java.io.FileOutputStream fos = new java.io.FileOutputStream(avatarFile)) {
                 if (inputStream == null) {
+                    DebugLog.w("ProfileAvatar", "Cropped avatar input stream is null");
                     Toast.makeText(context, "裁剪后的图片读取失败", Toast.LENGTH_SHORT).show();
                     return;
                 }
@@ -83,6 +86,7 @@ final class ProfileAvatarHelper {
             }
             uploadAvatar(avatarFile, fileRepository, userRepository, bridge, profileConsumer);
         } catch (Exception e) {
+            DebugLog.e("ProfileAvatar", "Failed to save cropped avatar", e);
             Toast.makeText(context, "保存头像失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
@@ -99,12 +103,12 @@ final class ProfileAvatarHelper {
                 bridge.runIfUiAlive(() -> {
                     bridge.clearLocalAvatarCache();
                     updatedProfile.setAvatar(emoji);
-                    bridge.showToast("头像已更新");
                 });
             }
 
             @Override
             public void onError(String message, int code) {
+                DebugLog.logHandledError("ProfileAvatar", "更新头像失败: " + message);
                 bridge.runIfUiAlive(() -> bridge.showToast("更新头像失败：" + message));
             }
         });
@@ -123,6 +127,7 @@ final class ProfileAvatarHelper {
 
             @Override
             public void onError(String message, int code) {
+                DebugLog.logHandledError("ProfileAvatar", "上传头像失败: " + message);
                 bridge.runIfUiAlive(() -> bridge.showToast("上传头像失败: " + message));
             }
         });
@@ -138,12 +143,12 @@ final class ProfileAvatarHelper {
                 profileConsumer.accept(profile);
                 bridge.runIfUiAlive(() -> {
                     bridge.loadAvatarImage(avatarUrl);
-                    bridge.showToast("头像已更新");
                 });
             }
 
             @Override
             public void onError(String message, int code) {
+                DebugLog.logHandledError("ProfileAvatar", "更新头像失败: " + message);
                 bridge.runIfUiAlive(() -> bridge.showToast("更新头像失败: " + message));
             }
         });

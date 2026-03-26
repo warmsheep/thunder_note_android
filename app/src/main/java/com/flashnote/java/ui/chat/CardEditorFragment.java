@@ -334,7 +334,6 @@ public class CardEditorFragment extends Fragment {
             items.add(item);
         }
         sendCompositeMessage(buildPayload(title, content, items));
-        showToast("卡片已加入发送队列，可立即返回");
         navigateBack();
     }
 
@@ -376,11 +375,11 @@ public class CardEditorFragment extends Fragment {
             @Override
             public void onError(String messageText) {
                 saving = false;
+                DebugLog.logHandledError("CardEditor", TextUtils.isEmpty(messageText) ? "卡片发送失败" : messageText);
                 runIfUiAlive(() -> {
                     if (binding != null) {
                         syncActionState();
                     }
-                    showToast(TextUtils.isEmpty(messageText) ? "卡片发送失败" : messageText);
                 });
             }
         };
@@ -474,7 +473,7 @@ public class CardEditorFragment extends Fragment {
                 }
             }
         } catch (Exception exception) {
-            DebugLog.w("CardEditor", "Failed to resolve original file name");
+            DebugLog.e("CardEditor", "Failed to resolve original file name", exception);
         } finally {
             if (cursor != null) {
                 cursor.close();
@@ -509,6 +508,7 @@ public class CardEditorFragment extends Fragment {
                 }
                 postTempFile(callback, tempFile);
             } catch (Exception exception) {
+                DebugLog.e("CardEditor", "Failed to copy temp file for card attachment", exception);
                 if (tempFile != null && tempFile.exists()) {
                     tempFile.delete();
                 }

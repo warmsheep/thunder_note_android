@@ -349,8 +349,10 @@ public class FlashNoteTabFragment extends Fragment {
 
         viewModel.getErrorMessage().observe(getViewLifecycleOwner(), error -> {
             if (error != null && !error.isEmpty()) {
+                DebugLog.logHandledError("FlashNoteTab", error);
                 Context errorCtx = getContext();
-                if (errorCtx != null) {
+                if (errorCtx != null && !DebugLog.isLikelyNetworkIssue(error)
+                        && DebugLog.shouldShowToast("FlashNoteTab:" + error, 2000L)) {
                     Toast.makeText(errorCtx, error, Toast.LENGTH_SHORT).show();
                 }
                 viewModel.clearError();
@@ -361,10 +363,6 @@ public class FlashNoteTabFragment extends Fragment {
             String preview = result == null ? null : result.getString("inbox_preview");
             if (preview != null && !preview.isBlank()) {
                 viewModel.updateInboxPreviewLocally(preview);
-            }
-            Context context = getContext();
-            if (context != null) {
-                Toast.makeText(context, R.string.flashnote_saved_to_inbox, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -1020,7 +1018,6 @@ public class FlashNoteTabFragment extends Fragment {
                 if (binding != null) {
                     playCaptureAnimation(binding.fabAdd);
                 }
-                Toast.makeText(requireContext(), R.string.flashnote_added_to_outbox, Toast.LENGTH_SHORT).show();
             }));
         });
     }
