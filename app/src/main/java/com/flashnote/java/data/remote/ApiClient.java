@@ -1,6 +1,7 @@
 package com.flashnote.java.data.remote;
 
 import com.flashnote.java.BuildConfig;
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.TokenManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -34,13 +35,8 @@ public class ApiClient {
 
     public ApiClient(TokenManager tokenManager) {
         this.tokenManager = tokenManager;
-        
-        HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
-        loggingInterceptor.setLevel(
-                BuildConfig.DEBUG 
-                    ? HttpLoggingInterceptor.Level.BODY 
-                    : HttpLoggingInterceptor.Level.NONE
-        );
+
+        HttpLoggingInterceptor loggingInterceptor = createLoggingInterceptor(BuildConfig.DEBUG);
 
         okHttpClient = new OkHttpClient.Builder()
                 .addInterceptor(new AuthInterceptor(tokenManager))
@@ -126,6 +122,15 @@ public class ApiClient {
         return okHttpClient;
     }
 
+    static HttpLoggingInterceptor createLoggingInterceptor(boolean debug) {
+        HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
+        loggingInterceptor.redactHeader("Authorization");
+        loggingInterceptor.setLevel(debug
+                ? HttpLoggingInterceptor.Level.BASIC
+                : HttpLoggingInterceptor.Level.NONE);
+        return loggingInterceptor;
+    }
+
     private static final class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {
         private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
@@ -148,6 +153,7 @@ public class ApiClient {
             try {
                 return LocalDateTime.parse(raw, FORMATTER);
             } catch (Exception e) {
+                DebugLog.w("ApiClient", "Failed to parse LocalDateTime: " + raw);
                 return null;
             }
         }

@@ -11,7 +11,6 @@ import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
-import retrofit2.http.Query;
 
 public interface AuthService {
     @POST("api/auth/login")
@@ -21,7 +20,7 @@ public interface AuthService {
     Call<ApiResponse<Void>> register(@Body RegisterRequest request);
     
     @POST("api/auth/refresh")
-    Call<ApiResponse<LoginResponse>> refreshToken(@Query("refreshToken") String refreshToken);
+    Call<ApiResponse<LoginResponse>> refreshToken(@Body RefreshTokenRequest request);
     
     @POST("api/auth/logout")
     Call<ApiResponse<Void>> logout();

@@ -3,6 +3,7 @@ package com.flashnote.java.data.remote;
 import androidx.annotation.NonNull;
 
 import com.flashnote.java.BuildConfig;
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.LoginResponse;
@@ -13,13 +14,15 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 
 import okhttp3.Authenticator;
-import okhttp3.FormBody;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
+import okhttp3.RequestBody;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.Route;
 
 public class TokenAuthenticator implements Authenticator {
+    private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
     private static final Type LOGIN_RESPONSE_TYPE = new TypeToken<ApiResponse<LoginResponse>>() { }
             .getType();
 
@@ -48,9 +51,10 @@ public class TokenAuthenticator implements Authenticator {
         }
 
         OkHttpClient refreshClient = new OkHttpClient.Builder().build();
+        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
         Request refreshRequest = new Request.Builder()
-                .url(BuildConfig.BASE_URL + "api/auth/refresh?refreshToken=" + refreshToken)
-                .post(new FormBody.Builder().build())
+                .url(BuildConfig.BASE_URL + "api/auth/refresh")
+                .post(RequestBody.create(gson.toJson(refreshTokenRequest), JSON_MEDIA_TYPE))
                 .build();
 
         try (Response refreshResponse = refreshClient.newCall(refreshRequest).execute()) {
@@ -76,6 +80,7 @@ public class TokenAuthenticator implements Authenticator {
                     .header("Authorization", "Bearer " + loginResponse.getToken())
                     .build();
         } catch (Exception exception) {
+            DebugLog.e("TokenAuth", "Refresh token request failed", exception);
             tokenManager.clearTokens();
             return null;
         }
