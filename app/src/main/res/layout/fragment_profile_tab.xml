@@ -11,61 +11,122 @@
         android:orientation="vertical">
 
     <!-- 1. 渐变头部区域 -->
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/profileHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_profile_header"
-        android:padding="24dp"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
+        android:background="@drawable/bg_profile_header">
 
-        <!-- 头像 -->
-        <FrameLayout
-            android:id="@+id/avatarContainer"
-            android:layout_width="70dp"
-            android:layout_height="70dp"
-            android:background="@drawable/bg_avatar_circle"
-            android:clickable="true"
-            android:focusable="true">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <!-- 头像 -->
+            <FrameLayout
+                android:id="@+id/avatarContainer"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:background="@drawable/bg_avatar_circle"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:id="@+id/avatarText"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="😊"
+                    android:textSize="32sp" />
+
+                <ImageView
+                    android:id="@+id/avatarImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+            </FrameLayout>
 
             <TextView
-                android:id="@+id/avatarText"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:textSize="32sp"
-                android:text="😊" />
+                android:id="@+id/syncHintText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="同步"
+                android:textColor="#D9FFFFFF"
+                android:textSize="12sp" />
+
+            <!-- 用户名 -->
+            <TextView
+                android:id="@+id/usernameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="加载中..."
+                android:textColor="@color/white"
+                android:textSize="@dimen/text_size_page_title"
+                android:textStyle="bold" />
+
+            <!-- 简介 -->
+            <TextView
+                android:id="@+id/bioText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="暂无简介"
+                android:textColor="#B0FFFFFF"
+                android:textSize="@dimen/text_size_body" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/syncButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="end|top"
+            android:layout_marginTop="14dp"
+            android:layout_marginEnd="14dp"
+            android:background="@android:color/transparent"
+            android:clickable="true"
+            android:contentDescription="同步"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:padding="6dp">
 
             <ImageView
-                android:id="@+id/avatarImage"
+                android:id="@+id/syncIcon"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:scaleType="centerCrop"
+                android:src="@drawable/ic_sync"
+                android:tint="@color/white" />
+
+            <ProgressBar
+                android:id="@+id/syncProgress"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                android:indeterminateTint="@color/white"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/syncPendingBadge"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="end|top"
+                android:layout_marginTop="-4dp"
+                android:layout_marginEnd="-4dp"
+                android:background="@drawable/bg_sync_badge"
+                android:gravity="center"
+                android:text="0"
+                android:textColor="@color/white"
+                android:textSize="10sp"
+                android:textStyle="bold"
                 android:visibility="gone" />
         </FrameLayout>
-
-        <!-- 用户名 -->
-        <TextView
-            android:id="@+id/usernameText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="加载中..."
-            android:textColor="@color/white"
-            android:textSize="@dimen/text_size_page_title"
-            android:textStyle="bold" />
-
-        <!-- 简介 -->
-        <TextView
-            android:id="@+id/bioText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="暂无简介"
-            android:textColor="#B0FFFFFF"
-            android:textSize="@dimen/text_size_body" />
-    </LinearLayout>
+    </FrameLayout>
 
     <!-- 2. 统计行 -->
     <LinearLayout
@@ -234,49 +295,6 @@
                 android:layout_weight="1"
                 android:layout_marginStart="14dp"
                 android:text="设置"
-                android:textSize="@dimen/text_size_body"
-                android:textColor="@color/text_primary" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="›"
-                android:textSize="14sp"
-                android:textColor="#CCCCCC" />
-        </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="0.5dp"
-            android:layout_marginStart="62dp"
-            android:background="@color/border" />
-
-        <!-- 调试工具 -->
-        <LinearLayout
-            android:id="@+id/menuDebug"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackground">
-
-            <TextView
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="@drawable/bg_menu_icon"
-                android:gravity="center"
-                android:text="🔧"
-                android:textSize="18sp" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="14dp"
-                android:text="调试工具"
                 android:textSize="@dimen/text_size_body"
                 android:textColor="@color/text_primary" />
 

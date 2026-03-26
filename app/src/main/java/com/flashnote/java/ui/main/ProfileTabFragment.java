@@ -23,14 +23,17 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.LiveData;
 
 import com.bumptech.glide.Glide;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.FavoriteItem;
+import com.flashnote.java.data.repository.PendingMessageRepository;
 import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.MessageRepository;
+import com.flashnote.java.data.repository.SyncRepository;
 import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.R;
 import com.flashnote.java.ui.media.MediaUrlResolver;
@@ -50,7 +53,12 @@ public class ProfileTabFragment extends Fragment {
     private UserRepository userRepository;
     private FileRepository fileRepository;
     private TokenManager tokenManager;
+    private SyncRepository syncRepository;
+    private PendingMessageRepository pendingMessageRepository;
     private UserProfile currentProfile;
+    private LiveData<Integer> pendingSyncCountLiveData;
+    private boolean syncInProgress;
+    private int pendingSyncCount;
     
     private static final String[] AVATAR_EMOJIS = {"💼", "📚", "❤️", "🌟", "🎯", "🚀", "🎨", "🎵", "📷", "🍕", "⚽", "😊"};
     private static final int AVATAR_MAX_SIZE = 512;
@@ -96,6 +104,8 @@ public class ProfileTabFragment extends Fragment {
         userRepository = app.getUserRepository();
         fileRepository = app.getFileRepository();
         tokenManager = app.getTokenManager();
+        syncRepository = app.getSyncRepository();
+        pendingMessageRepository = app.getPendingMessageRepository();
 
         String username = tokenManager.getUsername();
         if (username != null) {
@@ -113,6 +123,7 @@ public class ProfileTabFragment extends Fragment {
 
         loadCachedRecordCount();
         loadLocalAvatar();
+        observePendingSyncCount();
 
         fetchProfile();
         setupClickActions();
@@ -123,9 +134,9 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         binding.avatarContainer.setOnClickListener(v -> openEditProfile());
+        binding.syncButton.setOnClickListener(v -> triggerSync());
         binding.menuChangePassword.setOnClickListener(v -> openChangePassword());
         binding.menuSettings.setOnClickListener(v -> openSettings());
-        binding.menuDebug.setOnClickListener(v -> openDebug());
         binding.menuLogout.setOnClickListener(v -> logout());
     }
 
@@ -181,6 +192,98 @@ public class ProfileTabFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void observePendingSyncCount() {
+        if (pendingMessageRepository == null) {
+            return;
+        }
+        pendingSyncCountLiveData = pendingMessageRepository.observePendingSyncCount();
+        pendingSyncCountLiveData.observe(getViewLifecycleOwner(), count -> updateSyncBadge(count == null ? 0 : count));
+    }
+
+    private void triggerSync() {
+        if (syncRepository == null || syncInProgress) {
+            return;
+        }
+        syncInProgress = true;
+        updateSyncProgress(true);
+        syncRepository.syncAll(new SyncRepository.SyncCallback() {
+            @Override
+            public void onSuccess(java.util.Map<String, Object> data) {
+                runIfUiAlive(() -> {
+                    syncInProgress = false;
+                    updateSyncProgress(false);
+                    if (syncRepository != null) {
+                        syncRepository.getPendingSyncCount(count -> runIfUiAlive(() -> updateSyncBadge(count)));
+                    } else {
+                        updateSyncBadge(0);
+                    }
+                    android.content.Context context = getContext();
+                    if (context != null) {
+                        Toast.makeText(context, "同步完成", Toast.LENGTH_SHORT).show();
+                    }
+                    loadStats();
+                });
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                runIfUiAlive(() -> {
+                    syncInProgress = false;
+                    updateSyncProgress(false);
+                    android.content.Context context = getContext();
+                    if (context != null) {
+                        Toast.makeText(context, "同步失败：" + message, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+    }
+
+    private void updateSyncProgress(boolean syncing) {
+        if (binding == null) {
+            return;
+        }
+        binding.syncIcon.setVisibility(syncing ? View.INVISIBLE : View.VISIBLE);
+        binding.syncProgress.setVisibility(syncing ? View.VISIBLE : View.GONE);
+        binding.syncButton.setEnabled(!syncing);
+        binding.syncButton.setAlpha(syncing ? 0.75f : 1f);
+        refreshSyncHintText();
+    }
+
+    private void updateSyncBadge(int count) {
+        if (binding == null) {
+            return;
+        }
+        pendingSyncCount = count;
+        if (count <= 0) {
+            binding.syncPendingBadge.setVisibility(View.GONE);
+            refreshSyncHintText();
+            return;
+        }
+        binding.syncPendingBadge.setVisibility(View.VISIBLE);
+        binding.syncPendingBadge.setText(count > 99 ? "99+" : String.valueOf(count));
+        refreshSyncHintText();
+    }
+
+    private void refreshSyncHintText() {
+        if (binding == null) {
+            return;
+        }
+        if (syncInProgress) {
+            binding.syncHintText.setText("正在同步中，请稍候...");
+            return;
+        }
+        if (pendingSyncCount <= 0) {
+            binding.syncHintText.setText("已同步，点击可手动刷新");
+            return;
+        }
+        if (pendingSyncCount == 1) {
+            binding.syncHintText.setText("有 1 条待同步记录");
+            return;
+        }
+        binding.syncHintText.setText("有 " + pendingSyncCount + " 条待同步记录");
     }
 
     private void fetchProfile() {
@@ -761,15 +864,6 @@ public class ProfileTabFragment extends Fragment {
         }
         if (getActivity() instanceof ShellNavigator navigator) {
             navigator.openSettings();
-        }
-    }
-
-    private void openDebug() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.openDebug();
         }
     }
 

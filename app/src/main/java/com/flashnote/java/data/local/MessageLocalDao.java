@@ -16,6 +16,9 @@ public interface MessageLocalDao {
     @Query("SELECT * FROM messages_local WHERE conversation_key = :conversationKey ORDER BY created_at ASC")
     List<MessageLocalEntity> getByConversationKeyNow(long conversationKey);
 
+    @Query("SELECT * FROM messages_local ORDER BY created_at ASC")
+    List<MessageLocalEntity> getAllNow();
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsert(MessageLocalEntity message);
 

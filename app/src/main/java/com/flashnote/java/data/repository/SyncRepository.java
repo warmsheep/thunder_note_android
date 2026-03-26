@@ -16,7 +16,15 @@ public interface SyncRepository {
 
     void pullAndRefreshLocal(SyncCallback callback);
 
+    void syncAll(SyncCallback callback);
+
+    void getPendingSyncCount(CountCallback callback);
+
     void pushLocalState(SyncCallback callback);
     
     void push(Map<String, Object> payload, SyncCallback callback);
+
+    interface CountCallback {
+        void onResult(int count);
+    }
 }

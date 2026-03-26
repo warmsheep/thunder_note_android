@@ -13,6 +13,9 @@ public interface FavoriteLocalDao {
     @Query("SELECT * FROM favorites_local WHERE user_id = :userId ORDER BY favorited_at DESC, id DESC")
     LiveData<List<FavoriteLocalEntity>> observeAllByUserId(long userId);
 
+    @Query("SELECT * FROM favorites_local WHERE user_id = :userId ORDER BY favorited_at DESC, id DESC")
+    List<FavoriteLocalEntity> getAllNowByUserId(long userId);
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsert(FavoriteLocalEntity item);
 

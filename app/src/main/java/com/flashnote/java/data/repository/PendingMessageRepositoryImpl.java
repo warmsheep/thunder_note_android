@@ -6,9 +6,19 @@ import androidx.lifecycle.LiveData;
 import com.flashnote.java.data.local.PendingMessageDao;
 import com.flashnote.java.data.model.PendingMessage;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class PendingMessageRepositoryImpl implements PendingMessageRepository {
+
+    private static final List<String> PENDING_SYNC_STATUSES = Arrays.asList(
+            PendingMessageDispatcher.STATUS_QUEUED,
+            PendingMessageDispatcher.STATUS_PROCESSING,
+            PendingMessageDispatcher.STATUS_UPLOADING,
+            PendingMessageDispatcher.STATUS_UPLOADED,
+            PendingMessageDispatcher.STATUS_SENDING,
+            PendingMessageDispatcher.STATUS_FAILED
+    );
 
     private final PendingMessageDao pendingMessageDao;
 
@@ -48,8 +58,18 @@ public class PendingMessageRepositoryImpl implements PendingMessageRepository {
     }
 
     @Override
+    public LiveData<Integer> observePendingSyncCount() {
+        return pendingMessageDao.observeCountByStatuses(PENDING_SYNC_STATUSES);
+    }
+
+    @Override
     public List<PendingMessage> getByStatus(String status) {
         return pendingMessageDao.getByStatus(status);
+    }
+
+    @Override
+    public int getPendingSyncCountNow() {
+        return pendingMessageDao.countByStatuses(PENDING_SYNC_STATUSES);
     }
 
     @Override

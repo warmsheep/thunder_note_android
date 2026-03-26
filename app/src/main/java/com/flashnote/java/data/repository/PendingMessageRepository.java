@@ -21,7 +21,11 @@ public interface PendingMessageRepository {
 
     LiveData<List<PendingMessage>> observeByConversationKey(long conversationKey);
 
+    LiveData<Integer> observePendingSyncCount();
+
     List<PendingMessage> getByStatus(String status);
+
+    int getPendingSyncCountNow();
 
     List<PendingMessage> getFailedByConversationKey(long conversationKey);
 

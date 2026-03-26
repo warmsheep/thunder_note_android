@@ -13,6 +13,9 @@ public interface CollectionLocalDao {
     @Query("SELECT * FROM collections_local WHERE user_id = :userId ORDER BY updated_at DESC, id DESC")
     LiveData<List<CollectionLocalEntity>> observeAllByUserId(long userId);
 
+    @Query("SELECT * FROM collections_local WHERE user_id = :userId ORDER BY updated_at DESC, id DESC")
+    List<CollectionLocalEntity> getAllNowByUserId(long userId);
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsert(CollectionLocalEntity item);
 
