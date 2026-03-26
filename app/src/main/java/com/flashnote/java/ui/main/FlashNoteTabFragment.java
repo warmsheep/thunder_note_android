@@ -131,7 +131,6 @@ public class FlashNoteTabFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         viewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
         messageRepository = FlashNoteApp.getInstance().getMessageRepository();
-        fileRepository = FlashNoteApp.getInstance().getFileRepository();
 
         adapter = new FlashNoteAdapter(new FlashNoteAdapter.OnItemActionListener() {
             @Override
@@ -360,11 +359,14 @@ public class FlashNoteTabFragment extends Fragment {
         });
 
         getParentFragmentManager().setFragmentResultListener("quick_capture_saved", getViewLifecycleOwner(), (requestKey, result) -> {
+            String preview = result == null ? null : result.getString("inbox_preview");
+            if (preview != null && !preview.isBlank()) {
+                viewModel.updateInboxPreviewLocally(preview);
+            }
             Context context = getContext();
             if (context != null) {
                 Toast.makeText(context, "已保存到收集箱", Toast.LENGTH_SHORT).show();
             }
-            viewModel.refresh();
         });
 
         viewModel.refreshIfNeeded();
@@ -1017,50 +1019,48 @@ public class FlashNoteTabFragment extends Fragment {
                 }
                 return;
             }
-            Message message = new Message();
-            message.setFlashNoteId(COLLECTION_BOX_NOTE_ID);
-            message.setMediaType(resolveCaptureMediaType(mediaType));
-            message.setMediaUrl(file.getAbsolutePath());
             String originalName = getOriginalFileName(uri);
-            message.setFileName(originalName != null && !originalName.isBlank() ? originalName : file.getName());
-            message.setFileSize(file.length());
-            message.setRole("user");
-            message.setUploading(true);
-            messageRepository.addLocalMessage(message);
-            fileRepository.upload(file, new FileRepository.FileCallback() {
-                @Override
-                public void onSuccess(String value) {
-                    message.setMediaUrl(value);
-                    message.setUploading(false);
-                    messageRepository.sendMessage(COLLECTION_BOX_NOTE_ID, message, new MessageRepository.SendCallback() {
-                        @Override
-                        public void onSuccess() {
-                            runIfUiAlive(() -> {
-                                if (binding != null) {
-                                    playCaptureAnimation(binding.fabAdd);
-                                }
-                                Toast.makeText(requireContext(), "已保存到收集箱", Toast.LENGTH_SHORT).show();
-                                viewModel.refresh();
-                            });
-                        }
-
-                        @Override
-                        public void onError(String messageText) {
-                            message.setUploading(false);
-                            messageRepository.removeLocalMessage(message);
-                            runIfUiAlive(() -> Toast.makeText(requireContext(), TextUtils.isEmpty(messageText) ? "保存失败" : messageText, Toast.LENGTH_SHORT).show());
-                        }
-                    });
+            String resolvedMediaType = resolveCaptureMediaType(mediaType);
+            String fileName = originalName != null && !originalName.isBlank() ? originalName : file.getName();
+            Integer mediaDuration = null;
+            if ("VIDEO".equals(resolvedMediaType)) {
+                mediaDuration = resolveVideoDurationSeconds(file.getAbsolutePath());
+            }
+            String preview = resolveInboxPreviewText(resolvedMediaType);
+            viewModel.updateInboxPreviewLocally(preview);
+            messageRepository.enqueueMedia(COLLECTION_BOX_NOTE_ID, 0L, resolvedMediaType, file, fileName, file.length(), mediaDuration, () -> runIfUiAlive(() -> {
+                if (binding != null) {
+                    playCaptureAnimation(binding.fabAdd);
                 }
-
-                @Override
-                public void onError(String messageText, int code) {
-                    message.setUploading(false);
-                    messageRepository.removeLocalMessage(message);
-                    runIfUiAlive(() -> Toast.makeText(requireContext(), "上传失败: " + messageText, Toast.LENGTH_SHORT).show());
-                }
-            });
+                Toast.makeText(requireContext(), "已加入收集箱发送队列", Toast.LENGTH_SHORT).show();
+            }));
         });
+    }
+
+    @Nullable
+    private Integer resolveVideoDurationSeconds(@NonNull String filePath) {
+        try {
+            android.media.MediaMetadataRetriever retriever = new android.media.MediaMetadataRetriever();
+            retriever.setDataSource(filePath);
+            String duration = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION);
+            retriever.release();
+            if (duration != null) {
+                return Integer.parseInt(duration) / 1000;
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    @NonNull
+    private String resolveInboxPreviewText(@NonNull String mediaType) {
+        if ("VIDEO".equalsIgnoreCase(mediaType)) {
+            return "[视频]";
+        }
+        if ("FILE".equalsIgnoreCase(mediaType)) {
+            return "[文件]";
+        }
+        return "[图片]";
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {

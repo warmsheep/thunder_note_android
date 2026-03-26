@@ -365,7 +365,9 @@ public class CardEditorFragment extends Fragment {
                         syncActionState();
                     }
                     if (flashNoteId == COLLECTION_BOX_NOTE_ID && peerUserId == 0L) {
-                        getParentFragmentManager().setFragmentResult("quick_capture_saved", Bundle.EMPTY);
+                        Bundle result = new Bundle();
+                        result.putString("inbox_preview", payload.getTitle());
+                        getParentFragmentManager().setFragmentResult("quick_capture_saved", result);
                     }
                 });
             }

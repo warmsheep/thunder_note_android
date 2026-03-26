@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -26,6 +27,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class FlashNoteRepositoryImpl implements FlashNoteRepository {
+    private static final long INBOX_NOTE_ID = -1L;
     private final FlashNoteService flashNoteService;
     private final FlashNoteLocalDao flashNoteLocalDao;
     private final TokenManager tokenManager;
@@ -324,6 +326,16 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
                 onSuccess.run();
             }
         });
+    }
+
+    @Override
+    public void updateInboxPreviewLocally(String latestMessage) {
+        String preview = latestMessage == null ? null : latestMessage.trim();
+        if (preview == null || preview.isEmpty()) {
+            return;
+        }
+        String updatedAt = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        localExecutor.execute(() -> flashNoteLocalDao.updateLatestMessage(INBOX_NOTE_ID, preview, updatedAt));
     }
 
     private void applyUpdatedNote(FlashNote updatedNote) {

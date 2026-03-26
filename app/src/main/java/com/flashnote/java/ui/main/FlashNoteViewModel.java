@@ -132,6 +132,10 @@ public class FlashNoteViewModel extends AndroidViewModel {
         repository.clearInboxMessages(onSuccess);
     }
 
+    public void updateInboxPreviewLocally(String latestMessage) {
+        repository.updateInboxPreviewLocally(latestMessage);
+    }
+
     private void ensureCollectionExists(String collectionName, Runnable onReady) {
         String normalized = normalizeCollectionName(collectionName);
         if (normalized == null) {

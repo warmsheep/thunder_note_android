@@ -22,6 +22,9 @@ public interface FlashNoteLocalDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsert(FlashNoteLocalEntity note);
 
+    @Query("UPDATE flash_notes_local SET latest_message = :latestMessage, updated_at = :updatedAt WHERE id = :id")
+    void updateLatestMessage(long id, String latestMessage, String updatedAt);
+
     @Query("DELETE FROM flash_notes_local WHERE id = :id")
     void deleteById(long id);
 

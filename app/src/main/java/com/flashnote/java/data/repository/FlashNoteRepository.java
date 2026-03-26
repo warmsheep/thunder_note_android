@@ -37,4 +37,6 @@ public interface FlashNoteRepository {
     void deleteNote(Long id);
 
     void clearInboxMessages(Runnable onSuccess);
+
+    void updateInboxPreviewLocally(String latestMessage);
 }

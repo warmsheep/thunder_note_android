@@ -13,14 +13,17 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.flashnote.java.FlashNoteApp;
+import com.flashnote.java.ui.main.FlashNoteViewModel;
 import com.flashnote.java.databinding.FragmentQuickCaptureTextBinding;
 import com.flashnote.java.data.repository.MessageRepository;
+import androidx.lifecycle.ViewModelProvider;
 
 public class QuickCaptureTextFragment extends Fragment {
     private static final long COLLECTION_BOX_NOTE_ID = -1L;
 
     private FragmentQuickCaptureTextBinding binding;
     private MessageRepository messageRepository;
+    private FlashNoteViewModel flashNoteViewModel;
 
     @Nullable
     @Override
@@ -35,6 +38,7 @@ public class QuickCaptureTextFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         messageRepository = FlashNoteApp.getInstance().getMessageRepository();
+        flashNoteViewModel = new ViewModelProvider(requireActivity()).get(FlashNoteViewModel.class);
 
         binding.cancelButton.setOnClickListener(v -> navigateBack());
         binding.saveButton.setOnClickListener(v -> saveCaptureText());
@@ -61,7 +65,12 @@ public class QuickCaptureTextFragment extends Fragment {
                 return;
             }
             getActivity().runOnUiThread(() -> {
-                getParentFragmentManager().setFragmentResult("quick_capture_saved", Bundle.EMPTY);
+                if (flashNoteViewModel != null) {
+                    flashNoteViewModel.updateInboxPreviewLocally(content);
+                }
+                Bundle result = new Bundle();
+                result.putString("inbox_preview", content);
+                getParentFragmentManager().setFragmentResult("quick_capture_saved", result);
                 navigateBack();
             });
         });
