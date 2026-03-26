@@ -11,6 +11,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
 import com.flashnote.java.data.local.MessageLocalDao;
 import com.flashnote.java.data.local.MessageLocalEntity;
@@ -483,5 +485,95 @@ public class MessageRepositoryImplTest {
         }
 
         verify(messageLocalDao, atLeastOnce()).upsert(any(MessageLocalEntity.class));
+    }
+
+    @Test
+    public void loadMessages_pageOne_preservesExistingVoiceDurationWhenRemoteDurationMissing() {
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Callback<ApiResponse<java.util.List<Message>>>> callbackCaptor = org.mockito.ArgumentCaptor.forClass(Callback.class);
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                messageLocalDao,
+                true
+        );
+
+        MessageLocalEntity existing = new MessageLocalEntity();
+        existing.setId(88L);
+        existing.setConversationKey(12L);
+        existing.setCreatedAt("2026-03-25T13:00:00");
+        existing.setMediaType("VOICE");
+        existing.setMediaDuration(9);
+        when(messageLocalDao.getByConversationKeyNow(12L)).thenReturn(java.util.List.of(existing));
+        when(messageLocalDao.observeByConversationKey(anyLong())).thenReturn(new androidx.lifecycle.MutableLiveData<>(new java.util.ArrayList<>()));
+
+        java.util.concurrent.atomic.AtomicReference<java.util.List<MessageLocalEntity>> savedEntities = new java.util.concurrent.atomic.AtomicReference<>();
+        doAnswer(invocation -> {
+            savedEntities.set(invocation.getArgument(0));
+            return null;
+        }).when(messageLocalDao).upsertAll(any());
+
+        Message remote = new Message();
+        remote.setId(88L);
+        remote.setFlashNoteId(12L);
+        remote.setContent("voice message");
+        remote.setMediaType("VOICE");
+        remote.setCreatedAt(java.time.LocalDateTime.parse("2026-03-25T13:00:00"));
+        remote.setMediaDuration(null);
+
+        repository.bindFlashNote(12L);
+
+        verify(mockListCall).enqueue(callbackCaptor.capture());
+        callbackCaptor.getValue().onResponse(
+                mockListCall,
+                retrofit2.Response.success(new ApiResponse<>(0, "ok", java.util.List.of(remote)))
+        );
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        org.junit.Assert.assertNotNull(savedEntities.get());
+        org.junit.Assert.assertEquals(Integer.valueOf(9), savedEntities.get().get(0).getMediaDuration());
+    }
+
+    @Test
+    public void retryPendingVoiceMessage_sendsMediaDurationToServer() {
+        PendingMessage voice = new PendingMessage();
+        voice.setLocalId(12L);
+        voice.setConversationKey(88L);
+        voice.setStatus(PendingMessageDispatcher.STATUS_FAILED);
+        voice.setMediaType("VOICE");
+        voice.setMediaDuration(7);
+        voice.setRemoteUrl("voice/object.m4a");
+        voice.setFileName("voice.m4a");
+        voice.setFileSize(1234L);
+
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                messageLocalDao
+        );
+
+        when(pendingMessageRepository.findByLocalId(12L)).thenReturn(voice);
+        when(messageService.send(any())).thenReturn(mockSendCall);
+
+        repository.retryPendingMessage(12L);
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        org.mockito.ArgumentCaptor<Message> messageCaptor = org.mockito.ArgumentCaptor.forClass(Message.class);
+        verify(messageService).send(messageCaptor.capture());
+        org.junit.Assert.assertEquals(Integer.valueOf(7), messageCaptor.getValue().getMediaDuration());
     }
 }

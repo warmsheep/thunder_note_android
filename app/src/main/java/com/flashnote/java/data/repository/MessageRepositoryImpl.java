@@ -1031,6 +1031,8 @@ public class MessageRepositoryImpl implements MessageRepository {
         pendingStorageExecutor.execute(() -> {
             Map<String, String> createdAtByClientRequestId = new HashMap<>();
             Map<Long, String> createdAtByMessageId = new HashMap<>();
+            Map<String, Integer> durationByClientRequestId = new HashMap<>();
+            Map<Long, Integer> durationByMessageId = new HashMap<>();
             if (replaceConversation) {
                 List<MessageLocalEntity> existingEntities = messageLocalDao.getByConversationKeyNow(conversationKey);
                 for (MessageLocalEntity existing : existingEntities) {
@@ -1042,6 +1044,15 @@ public class MessageRepositoryImpl implements MessageRepository {
                     }
                     if (existing.getId() != null && existing.getCreatedAt() != null) {
                         createdAtByMessageId.put(existing.getId(), existing.getCreatedAt());
+                    }
+                    if (existing.getClientRequestId() != null
+                            && !existing.getClientRequestId().trim().isEmpty()
+                            && existing.getMediaDuration() != null
+                            && existing.getMediaDuration() > 0) {
+                        durationByClientRequestId.put(existing.getClientRequestId(), existing.getMediaDuration());
+                    }
+                    if (existing.getId() != null && existing.getMediaDuration() != null && existing.getMediaDuration() > 0) {
+                        durationByMessageId.put(existing.getId(), existing.getMediaDuration());
                     }
                 }
             }
@@ -1058,6 +1069,18 @@ public class MessageRepositoryImpl implements MessageRepository {
                 }
                 if (preservedCreatedAt != null && !preservedCreatedAt.trim().isEmpty()) {
                     entity.setCreatedAt(preservedCreatedAt);
+                }
+                Integer preservedDuration = null;
+                if (entity.getClientRequestId() != null && !entity.getClientRequestId().trim().isEmpty()) {
+                    preservedDuration = durationByClientRequestId.get(entity.getClientRequestId());
+                }
+                if ((preservedDuration == null || preservedDuration <= 0) && entity.getId() != null) {
+                    preservedDuration = durationByMessageId.get(entity.getId());
+                }
+                if ((entity.getMediaDuration() == null || entity.getMediaDuration() <= 0)
+                        && preservedDuration != null
+                        && preservedDuration > 0) {
+                    entity.setMediaDuration(preservedDuration);
                 }
             }
             if (replaceConversation) {

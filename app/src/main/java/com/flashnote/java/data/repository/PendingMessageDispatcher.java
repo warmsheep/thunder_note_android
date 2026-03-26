@@ -378,6 +378,7 @@ public class PendingMessageDispatcher {
         message.setThumbnailUrl(isLocalReference(pendingMessage.getThumbnailUrl()) ? null : pendingMessage.getThumbnailUrl());
         message.setFileName(pendingMessage.getFileName());
         message.setFileSize(pendingMessage.getFileSize());
+        message.setMediaDuration(pendingMessage.getMediaDuration());
         message.setRole("user");
         if ("COMPOSITE".equalsIgnoreCase(pendingMessage.getMediaType())) {
             CardPayload payload = parsePayload(pendingMessage.getPayloadJson());
