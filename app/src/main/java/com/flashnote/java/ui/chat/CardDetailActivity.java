@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.CardItem;
 import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.Message;
@@ -91,7 +92,7 @@ public class CardDetailActivity extends AppCompatActivity {
                 adapter.submitList(new ArrayList<>(detailMessages));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            DebugLog.e("CardDetailActivity", "Failed to parse card payload", e);
         }
     }
 

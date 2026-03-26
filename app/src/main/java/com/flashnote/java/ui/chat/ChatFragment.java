@@ -37,6 +37,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.FlashNote;
@@ -1181,7 +1182,7 @@ public class ChatFragment extends Fragment {
             binding.micButton.setColorFilter(0xFFFF0000);
             showToast("录音中...");
         } catch (IOException e) {
-            e.printStackTrace();
+            DebugLog.e("ChatFragment", "Failed to start recording", e);
             showToast("录音失败");
         }
     }
@@ -1193,7 +1194,7 @@ public class ChatFragment extends Fragment {
                 mediaRecorder.release();
                 mediaRecorder = null;
             } catch (RuntimeException e) {
-                e.printStackTrace();
+                DebugLog.e("ChatFragment", "Failed to stop recording cleanly", e);
             }
         }
         isRecording = false;
@@ -1318,7 +1319,7 @@ public class ChatFragment extends Fragment {
             }
             retriever.release();
         } catch (Exception e) {
-            e.printStackTrace();
+            DebugLog.e("ChatFragment", "Failed to resolve voice duration", e);
         }
 
         Integer finalDurationSeconds = durationSeconds;
@@ -1358,7 +1359,7 @@ public class ChatFragment extends Fragment {
             String storageDir = requireContext().getCacheDir().getAbsolutePath();
             photoFile = new File(storageDir, "IMG_" + timeStamp + ".jpg");
         } catch (Exception ex) {
-            ex.printStackTrace();
+            DebugLog.e("ChatFragment", "Failed to prepare camera temp file", ex);
         }
 
         if (photoFile != null) {
@@ -1501,7 +1502,7 @@ public class ChatFragment extends Fragment {
                 final File finalFile = tempFile;
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> callback.onFileReady(finalFile));
             } catch (IOException e) {
-                e.printStackTrace();
+                DebugLog.e("ChatFragment", "Failed to copy picked file to temp storage", e);
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> callback.onFileReady(null));
             }
         }).start();

@@ -6,6 +6,8 @@ import android.media.MediaMetadataRetriever;
 
 import androidx.annotation.Nullable;
 
+import com.flashnote.java.DebugLog;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.UUID;
@@ -29,7 +31,8 @@ public final class ThumbnailUtils {
             if ("VIDEO".equalsIgnoreCase(mediaType)) {
                 return generateVideoThumbnail(sourceFile);
             }
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            DebugLog.w("ThumbnailUtils", "Failed to create thumbnail for mediaType=" + mediaType);
         }
         return null;
     }

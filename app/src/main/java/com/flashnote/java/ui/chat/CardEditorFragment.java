@@ -22,6 +22,7 @@ import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.data.model.CardItem;
 import com.flashnote.java.data.model.CardPayload;
@@ -472,7 +473,8 @@ public class CardEditorFragment extends Fragment {
                     return cursor.getString(nameIndex);
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            DebugLog.w("CardEditor", "Failed to resolve original file name");
         } finally {
             if (cursor != null) {
                 cursor.close();

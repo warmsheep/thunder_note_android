@@ -12,6 +12,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.databinding.FragmentSplashBinding;
@@ -44,7 +45,9 @@ public class SplashFragment extends Fragment {
             if (binding.versionText != null) {
                 binding.versionText.setText("v" + versionName);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception exception) {
+            DebugLog.w("SplashFragment", "Failed to resolve version name");
+        }
         
         navigateTask = this::navigateNext;
         handler.postDelayed(navigateTask, SPLASH_DELAY_MS);

@@ -39,6 +39,7 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.flashnote.java.DebugLog;
 import com.flashnote.java.R;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.data.model.Collection;
@@ -1047,7 +1048,8 @@ public class FlashNoteTabFragment extends Fragment {
             if (duration != null) {
                 return Integer.parseInt(duration) / 1000;
             }
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            DebugLog.w("FlashNoteTab", "Failed to resolve video duration");
         }
         return null;
     }
@@ -1142,7 +1144,8 @@ public class FlashNoteTabFragment extends Fragment {
                     return cursor.getString(nameIndex);
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            DebugLog.w("FlashNoteTab", "Failed to resolve original file name");
         }
         return null;
     }

@@ -90,7 +90,8 @@ public class VideoCompressor {
             if (rotation != null && !rotation.isEmpty()) {
                 try {
                     muxer.setOrientationHint(Integer.parseInt(rotation));
-                } catch (NumberFormatException ignored) {
+                } catch (NumberFormatException exception) {
+                    Log.w(TAG, "Invalid video rotation metadata: " + rotation, exception);
                 }
             }
             int muxerVideoTrack = muxer.addTrack(extractor.getTrackFormat(videoTrackIndex));
@@ -115,19 +116,22 @@ public class VideoCompressor {
                 if (extractor != null) {
                     extractor.release();
                 }
-            } catch (Exception ignored) {
+            } catch (Exception exception) {
+                Log.w(TAG, "Failed to release MediaExtractor", exception);
             }
             try {
                 if (muxer != null) {
                     muxer.release();
                 }
-            } catch (Exception ignored) {
+            } catch (Exception exception) {
+                Log.w(TAG, "Failed to release MediaMuxer", exception);
             }
             try {
                 if (retriever != null) {
                     retriever.release();
                 }
-            } catch (Exception ignored) {
+            } catch (Exception exception) {
+                Log.w(TAG, "Failed to release MediaMetadataRetriever", exception);
             }
         }
     }

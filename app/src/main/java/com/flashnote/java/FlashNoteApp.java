@@ -63,7 +63,8 @@ public class FlashNoteApp extends Application {
             new Thread(() -> {
                 try {
                     Glide.get(FlashNoteApp.this).clearDiskCache();
-                } catch (Exception ignored) {
+                } catch (Exception exception) {
+                    DebugLog.w("FlashNoteApp", "Failed to clear stale Glide cache");
                 }
             }).start();
             prefs.edit().putInt("cache_clear_version", requiredVersion).apply();
