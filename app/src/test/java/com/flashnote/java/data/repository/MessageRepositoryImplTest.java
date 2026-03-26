@@ -89,9 +89,12 @@ public class MessageRepositoryImplTest {
         pending.setCreatedAt(1_000L);
         pending.setServerMessageId(101L);
 
-        List<Message> merged = MessageRepositoryImpl.buildMergedMessages(
+        List<Message> merged = MessageRepositoryMergeHelper.buildMergedMessages(
                 List.of(remote),
-                List.of(pending)
+                List.of(pending),
+                java.util.Comparator.<Message>comparingLong(MessageRepositoryMergeHelper::messageSortTimestamp)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageSourceOrder)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageStableTieBreaker)
         );
 
         assertEquals(1, merged.size());
@@ -120,9 +123,12 @@ public class MessageRepositoryImplTest {
         pending.setStatus(PendingMessageDispatcher.STATUS_FAILED);
         pending.setCreatedAt(3_000L);
 
-        List<Message> merged = MessageRepositoryImpl.buildMergedMessages(
+        List<Message> merged = MessageRepositoryMergeHelper.buildMergedMessages(
                 List.of(newerRemote, olderRemote),
-                List.of(pending)
+                List.of(pending),
+                java.util.Comparator.<Message>comparingLong(MessageRepositoryMergeHelper::messageSortTimestamp)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageSourceOrder)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageStableTieBreaker)
         );
 
         assertEquals(3, merged.size());
@@ -150,9 +156,12 @@ public class MessageRepositoryImplTest {
         pending.setStatus(PendingMessageDispatcher.STATUS_FAILED);
         pending.setCreatedAt(10_000L);
 
-        List<Message> merged = MessageRepositoryImpl.buildMergedMessages(
+        List<Message> merged = MessageRepositoryMergeHelper.buildMergedMessages(
                 List.of(remote),
-                List.of(pending)
+                List.of(pending),
+                java.util.Comparator.<Message>comparingLong(MessageRepositoryMergeHelper::messageSortTimestamp)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageSourceOrder)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageStableTieBreaker)
         );
 
         assertEquals(1, merged.size());
@@ -178,9 +187,12 @@ public class MessageRepositoryImplTest {
         pending.setStatus(PendingMessageDispatcher.STATUS_FAILED);
         pending.setCreatedAt(19_000L);
 
-        List<Message> merged = MessageRepositoryImpl.buildMergedMessages(
+        List<Message> merged = MessageRepositoryMergeHelper.buildMergedMessages(
                 List.of(remote),
-                List.of(pending)
+                List.of(pending),
+                java.util.Comparator.<Message>comparingLong(MessageRepositoryMergeHelper::messageSortTimestamp)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageSourceOrder)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageStableTieBreaker)
         );
 
         assertEquals(1, merged.size());

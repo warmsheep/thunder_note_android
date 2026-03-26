@@ -44,15 +44,17 @@ public class MessageRepositoryImpl implements MessageRepository {
     private static final String MEDIA_TYPE_TEXT = "TEXT";
     private static final Gson GSON = new Gson();
     private static final Comparator<Message> MERGED_MESSAGE_COMPARATOR =
-            Comparator.<Message>comparingLong(message -> messageSortTimestamp(message))
-                    .thenComparingLong(message -> messageSourceOrder(message))
-                    .thenComparingLong(message -> messageStableTieBreaker(message));
+            Comparator.<Message>comparingLong(MessageRepositoryMergeHelper::messageSortTimestamp)
+                    .thenComparingLong(MessageRepositoryMergeHelper::messageSourceOrder)
+                    .thenComparingLong(MessageRepositoryMergeHelper::messageStableTieBreaker);
     private final MessageService messageService;
     private final PendingMessageRepository pendingMessageRepository;
     private final FileRepository fileRepository;
     private final VideoPreparationService videoPreparationService;
     private final MessageLocalDao messageLocalDao;
     private final PendingMessageDispatcher pendingMessageDispatcher;
+    private final MessageRepositoryDeleteHelper deleteHelper = new MessageRepositoryDeleteHelper();
+    private final MessageRepositoryLoadHelper loadHelper = new MessageRepositoryLoadHelper();
     private final boolean enableTextPendingPipeline;
     private final ExecutorService pendingStorageExecutor = Executors.newSingleThreadExecutor();
     private final Map<Long, MutableLiveData<List<Message>>> conversations = new HashMap<>();
@@ -233,7 +235,7 @@ public class MessageRepositoryImpl implements MessageRepository {
         if ("VIDEO".equalsIgnoreCase(mediaType)) {
             pendingMessage.setProcessedFilePath(null);
         }
-        pendingMessage.setContent(defaultMediaContent(mediaType));
+        pendingMessage.setContent(MessageRepositoryMergeHelper.defaultMediaContent(mediaType));
         pendingMessage.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
         pendingMessage.setCreatedAt(System.currentTimeMillis());
         if (onSuccess != null) {
@@ -339,44 +341,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     }
 
     private void loadMessages(long conversationKey, Long flashNoteId, Long peerUserId, int page, int limit) {
-        isLoading.setValue(true);
-        MessageListRequest request = new MessageListRequest(flashNoteId, peerUserId, page, limit);
-        messageService.list(request).enqueue(new Callback<ApiResponse<List<Message>>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<List<Message>>> call, 
-                                 Response<ApiResponse<List<Message>>> response) {
-                isLoading.setValue(false);
-                if (response.isSuccessful() && response.body() != null) {
-                    ApiResponse<List<Message>> apiResponse = response.body();
-                    if (apiResponse.isSuccess() && apiResponse.getData() != null) {
-                        clearError();
-                        List<Message> newMessages = apiResponse.getData();
-                        persistRemoteMessages(conversationKey, newMessages, page == 1);
-                        
-                        boolean hasMore = newMessages.size() >= limit;
-                        hasMoreMap.put(conversationKey, hasMore);
-                        MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(conversationKey);
-                        hasMoreLiveData.setValue(hasMore);
-                    } else {
-                        String errMsg = apiResponse.getMessage();
-                        DebugLog.w("MessageRepo", errMsg);
-                        errorMessage.setValue(errMsg);
-                    }
-                } else {
-                    String errMsg = "Failed to load messages: " + response.code();
-                    DebugLog.w("MessageRepo", errMsg);
-                    errorMessage.setValue(errMsg);
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<List<Message>>> call, Throwable t) {
-                isLoading.setValue(false);
-                String errMsg = "Network error: " + t.getMessage();
-                DebugLog.w("MessageRepo", errMsg);
-                errorMessage.setValue(errMsg);
-            }
-        });
+        loadHelper.loadMessages(conversationKey, flashNoteId, peerUserId, page, limit, messageService, new LoadStateBridgeImpl());
     }
 
     @Override
@@ -448,156 +413,66 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void deleteMessage(long flashNoteId, long messageId, Runnable onSuccess) {
-        deleteMessageInternal(ConversationKeyUtil.forFlashNote(flashNoteId), messageId, onSuccess);
+        deleteHelper.deleteSingleMessage(messageId, onSuccess, messageService, messageLocalDao, pendingStorageExecutor, new DeleteStateBridgeImpl());
     }
 
     @Override
     public void deleteContactMessage(long peerUserId, long messageId, Runnable onSuccess) {
-        deleteMessageInternal(ConversationKeyUtil.forContact(peerUserId), messageId, onSuccess);
+        deleteHelper.deleteSingleMessage(messageId, onSuccess, messageService, messageLocalDao, pendingStorageExecutor, new DeleteStateBridgeImpl());
     }
 
     @Override
     public void deleteMessages(List<Long> messageIds, Runnable onSuccess) {
-        if (messageIds == null || messageIds.isEmpty()) {
-            return;
-        }
-        List<Long> remoteIds = new ArrayList<>();
-        List<Long> pendingLocalIds = new ArrayList<>();
-        for (Long id : messageIds) {
-            if (id == null) {
-                continue;
-            }
-            if (id > 0L) {
-                remoteIds.add(id);
-            } else if (id < 0L) {
-                pendingLocalIds.add(Math.abs(id));
-            }
-        }
-        if (remoteIds.isEmpty()) {
-            pendingStorageExecutor.execute(() -> {
-                for (Long pendingLocalId : pendingLocalIds) {
-                    PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(pendingLocalId);
-                    if (pendingMessage != null) {
-                        pendingMessageRepository.delete(pendingMessage);
-                    }
-                }
-            });
-            if (onSuccess != null) {
-                onSuccess.run();
-            }
-            return;
-        }
-        isLoading.setValue(true);
-        MessageBatchDeleteRequest request = new MessageBatchDeleteRequest();
-        request.setIds(remoteIds);
-        messageService.deleteBatch(request).enqueue(new Callback<ApiResponse<Void>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
-                isLoading.setValue(false);
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    clearError();
-                    pendingStorageExecutor.execute(() -> {
-                        for (Long id : remoteIds) {
-                            if (id != null) {
-                                messageLocalDao.deleteById(id);
-                            }
-                        }
-                        for (Long pendingLocalId : pendingLocalIds) {
-                            PendingMessage pendingMessage = pendingMessageRepository.findByLocalId(pendingLocalId);
-                            if (pendingMessage != null) {
-                                pendingMessageRepository.delete(pendingMessage);
-                            }
-                        }
-                    });
-                    if (onSuccess != null) {
-                        onSuccess.run();
-                    }
-                    return;
-                }
-                String errMsg = response.body() == null ? "Failed to delete messages" : response.body().getMessage();
-                DebugLog.w("MessageRepo", errMsg);
-                errorMessage.setValue(errMsg);
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                isLoading.setValue(false);
-                String errMsg = "Network error: " + t.getMessage();
-                DebugLog.w("MessageRepo", errMsg);
-                errorMessage.setValue(errMsg);
-            }
-        });
+        deleteHelper.deleteMessages(messageIds, onSuccess, messageService, pendingMessageRepository, messageLocalDao, pendingStorageExecutor, new DeleteStateBridgeImpl());
     }
 
     @Override
     public void clearInboxMessages(Runnable onSuccess) {
-        isLoading.setValue(true);
         long conversationKey = ConversationKeyUtil.forFlashNote(-1L);
-        messageService.clearInbox().enqueue(new Callback<ApiResponse<Void>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
-                isLoading.setValue(false);
-                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    clearError();
-                    pendingStorageExecutor.execute(() -> {
-                        messageLocalDao.clearConversation(conversationKey);
-                        pendingMessageRepository.clearConversation(conversationKey);
-                    });
-                    if (onSuccess != null) {
-                        onSuccess.run();
-                    }
-                    return;
-                }
-                String errMsg = response.body() == null ? "Failed to clear inbox" : response.body().getMessage();
-                DebugLog.w("MessageRepo", errMsg);
-                errorMessage.setValue(errMsg);
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                isLoading.setValue(false);
-                String errMsg = "Network error: " + t.getMessage();
-                DebugLog.w("MessageRepo", errMsg);
-                errorMessage.setValue(errMsg);
-            }
-        });
+        deleteHelper.clearInboxMessages(conversationKey, onSuccess, messageService, pendingMessageRepository, messageLocalDao, pendingStorageExecutor, new DeleteStateBridgeImpl());
     }
 
-    private void deleteMessageInternal(long conversationKey, long messageId, Runnable onSuccess) {
-        isLoading.setValue(true);
-        messageService.delete(messageId).enqueue(new Callback<ApiResponse<Void>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<Void>> call, 
-                                 Response<ApiResponse<Void>> response) {
-                isLoading.setValue(false);
-                if (response.isSuccessful() && response.body() != null) {
-                    ApiResponse<Void> apiResponse = response.body();
-                    if (apiResponse.isSuccess()) {
-                        clearError();
-                        pendingStorageExecutor.execute(() -> messageLocalDao.deleteById(messageId));
-                        if (onSuccess != null) {
-                            onSuccess.run();
-                        }
-                    } else {
-                        String errMsg = apiResponse.getMessage();
-                        DebugLog.w("MessageRepo", errMsg);
-                        errorMessage.setValue(errMsg);
-                    }
-                } else {
-                    String errMsg = "Failed to delete message: " + response.code();
-                    DebugLog.w("MessageRepo", errMsg);
-                    errorMessage.setValue(errMsg);
-                }
-            }
+    private final class DeleteStateBridgeImpl implements MessageRepositoryDeleteHelper.DeleteStateBridge {
+        @Override
+        public void onLoadingChanged(boolean loading) {
+            isLoading.setValue(loading);
+        }
 
-            @Override
-            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                isLoading.setValue(false);
-                String errMsg = "Network error: " + t.getMessage();
-                DebugLog.w("MessageRepo", errMsg);
-                errorMessage.setValue(errMsg);
-            }
-        });
+        @Override
+        public void onError(String message) {
+            errorMessage.setValue(message);
+        }
+
+        @Override
+        public void clearError() {
+            MessageRepositoryImpl.this.clearError();
+        }
+    }
+
+    private final class LoadStateBridgeImpl implements MessageRepositoryLoadHelper.LoadStateBridge {
+        @Override
+        public void onLoadingChanged(boolean loading) {
+            isLoading.setValue(loading);
+        }
+
+        @Override
+        public void onError(String message) {
+            errorMessage.setValue(message);
+        }
+
+        @Override
+        public void clearError() {
+            MessageRepositoryImpl.this.clearError();
+        }
+
+        @Override
+        public void onMessagesLoaded(long conversationKey, List<Message> messages, int page, int limit) {
+            persistRemoteMessages(conversationKey, messages, page == 1);
+            boolean hasMore = messages.size() >= limit;
+            hasMoreMap.put(conversationKey, hasMore);
+            MutableLiveData<Boolean> hasMoreLiveData = ensureHasMoreLiveData(conversationKey);
+            hasMoreLiveData.setValue(hasMore);
+        }
     }
 
     @Override
@@ -757,96 +632,8 @@ public class MessageRepositoryImpl implements MessageRepository {
                                            List<Message> remoteOverride,
                                            List<PendingMessage> pendingOverride) {
         MutableLiveData<List<Message>> mergedLiveData = ensureMergedLiveDataInternal(conversationKey);
-        List<Message> merged = buildMergedMessages(remoteOverride, pendingOverride);
+        List<Message> merged = MessageRepositoryMergeHelper.buildMergedMessages(remoteOverride, pendingOverride, MERGED_MESSAGE_COMPARATOR);
         setLiveDataValue(mergedLiveData, merged);
-    }
-
-    static List<Message> buildMergedMessages(List<Message> remoteMessages,
-                                             List<PendingMessage> pendingMessages) {
-        List<Message> merged = new ArrayList<>();
-        HashSet<Long> remoteIds = new HashSet<>();
-        HashSet<String> remoteClientRequestIds = new HashSet<>();
-        List<Message> normalizedRemote = remoteMessages == null ? Collections.emptyList() : remoteMessages;
-        for (Message remoteMessage : normalizedRemote) {
-            if (remoteMessage == null) {
-                continue;
-            }
-            if (remoteMessage.getId() != null) {
-                if (!remoteIds.add(remoteMessage.getId())) {
-                    continue;
-                }
-            }
-            String clientRequestId = normalizeClientRequestId(remoteMessage.getClientRequestId());
-            if (!clientRequestId.isEmpty()) {
-                remoteClientRequestIds.add(clientRequestId);
-            }
-            merged.add(remoteMessage);
-        }
-        if (pendingMessages != null) {
-            for (PendingMessage pendingMessage : pendingMessages) {
-                if (pendingMessage == null || PendingMessageDispatcher.STATUS_SENT.equals(pendingMessage.getStatus())) {
-                    continue;
-                }
-                Long serverMessageId = pendingMessage.getServerMessageId();
-                if (serverMessageId != null && remoteIds.contains(serverMessageId)) {
-                    continue;
-                }
-                String pendingClientRequestId = normalizeClientRequestId(pendingMessage.getClientRequestId());
-                if (!pendingClientRequestId.isEmpty() && remoteClientRequestIds.contains(pendingClientRequestId)) {
-                    continue;
-                }
-                if (matchesRemoteFingerprint(merged, pendingMessage)) {
-                    continue;
-                }
-                merged.add(toUiMessage(pendingMessage));
-            }
-        }
-        merged.sort(MERGED_MESSAGE_COMPARATOR);
-        return merged;
-    }
-
-    private static boolean matchesRemoteFingerprint(List<Message> remoteMessages, PendingMessage pendingMessage) {
-        if (remoteMessages == null || remoteMessages.isEmpty() || pendingMessage == null) {
-            return false;
-        }
-        if (!MEDIA_TYPE_TEXT.equalsIgnoreCase(nullToEmpty(pendingMessage.getMediaType()))) {
-            return false;
-        }
-        String pendingContent = nullToEmpty(pendingMessage.getContent()).trim();
-        if (pendingContent.isEmpty()) {
-            return false;
-        }
-        long pendingCreatedAt = pendingMessage.getCreatedAt();
-        for (Message remoteMessage : remoteMessages) {
-            if (remoteMessage == null) {
-                continue;
-            }
-            if (!"user".equalsIgnoreCase(nullToEmpty(remoteMessage.getRole()))) {
-                continue;
-            }
-            if (!MEDIA_TYPE_TEXT.equalsIgnoreCase(nullToEmpty(remoteMessage.getMediaType()))) {
-                continue;
-            }
-            if (!pendingContent.equals(nullToEmpty(remoteMessage.getContent()).trim())) {
-                continue;
-            }
-            long remoteTimestamp = messageSortTimestamp(remoteMessage);
-            if (remoteTimestamp == Long.MAX_VALUE) {
-                continue;
-            }
-            if (Math.abs(remoteTimestamp - pendingCreatedAt) <= 2_000L) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static String normalizeClientRequestId(String value) {
-        return nullToEmpty(value).trim();
-    }
-
-    private static String nullToEmpty(String value) {
-        return value == null ? "" : value;
     }
 
     private void observePendingConversation(long conversationKey) {
@@ -880,39 +667,6 @@ public class MessageRepositoryImpl implements MessageRepository {
         });
     }
 
-    private static long messageSourceOrder(Message message) {
-        return isPendingUiMessage(message) ? 1L : 0L;
-    }
-
-    private static long messageSortTimestamp(Message message) {
-        if (message == null) {
-            return Long.MAX_VALUE;
-        }
-        Long localSortTimestamp = message.getLocalSortTimestamp();
-        if (localSortTimestamp != null) {
-            return localSortTimestamp;
-        }
-        LocalDateTime createdAt = message.getCreatedAt();
-        if (createdAt == null) {
-            return Long.MAX_VALUE;
-        }
-        return createdAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-    }
-
-    private static long messageStableTieBreaker(Message message) {
-        if (message == null || message.getId() == null) {
-            return Long.MAX_VALUE;
-        }
-        long id = message.getId();
-        if (id < 0L) {
-            return -id;
-        }
-        return id;
-    }
-
-    private static boolean isPendingUiMessage(Message message) {
-        return message != null && message.getId() != null && message.getId() < 0L;
-    }
 
     private MutableLiveData<List<Message>> ensureMergedLiveDataInternal(long conversationKey) {
         MutableLiveData<List<Message>> existing = mergedConversations.get(conversationKey);
@@ -924,51 +678,6 @@ public class MessageRepositoryImpl implements MessageRepository {
         return created;
     }
 
-    private static Message toUiMessage(PendingMessage pendingMessage) {
-        Message message = new Message();
-        message.setId(-pendingMessage.getLocalId());
-        message.setFlashNoteId(pendingMessage.getFlashNoteId());
-        message.setReceiverId(pendingMessage.getPeerUserId());
-        message.setClientRequestId(pendingMessage.getClientRequestId());
-        message.setContent(pendingMessage.getContent());
-        message.setMediaType(pendingMessage.getMediaType());
-        message.setMediaUrl(pendingMessage.getRemoteUrl() != null ? pendingMessage.getRemoteUrl() : pendingMessage.getLocalFilePath());
-        message.setThumbnailUrl(pendingMessage.getThumbnailUrl() != null ? pendingMessage.getThumbnailUrl() : pendingMessage.getRemoteUrl());
-        message.setFileName(pendingMessage.getFileName());
-        message.setFileSize(pendingMessage.getFileSize());
-        message.setMediaDuration(pendingMessage.getMediaDuration());
-        message.setRole("user");
-        message.setCreatedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(pendingMessage.getCreatedAt()), ZoneId.systemDefault()));
-        message.setLocalSortTimestamp(pendingMessage.getCreatedAt());
-        message.setUploading(!PendingMessageDispatcher.STATUS_FAILED.equals(pendingMessage.getStatus()));
-        if (pendingMessage.getPayloadJson() != null && !pendingMessage.getPayloadJson().trim().isEmpty()) {
-            try {
-                message.setPayload(GSON.fromJson(pendingMessage.getPayloadJson(), CardPayload.class));
-            } catch (JsonSyntaxException ex) {
-                DebugLog.w("MessageRepo", "Failed to parse pending payloadJson: " + ex.getMessage());
-            }
-        }
-        return message;
-    }
-
-    private String defaultMediaContent(String mediaType) {
-        if ("IMAGE".equalsIgnoreCase(mediaType)) {
-            return "[图片]";
-        }
-        if ("FILE".equalsIgnoreCase(mediaType)) {
-            return "[文件]";
-        }
-        if ("VIDEO".equalsIgnoreCase(mediaType)) {
-            return "[视频]";
-        }
-        if ("VOICE".equalsIgnoreCase(mediaType)) {
-            return "[语音]";
-        }
-        if ("COMPOSITE".equalsIgnoreCase(mediaType)) {
-            return "[卡片消息]";
-        }
-        return "[附件]";
-    }
 
     private void onPendingUpdated(PendingMessage pendingMessage, Message serverMessage) {
         long conversationKey = pendingMessage.getConversationKey();

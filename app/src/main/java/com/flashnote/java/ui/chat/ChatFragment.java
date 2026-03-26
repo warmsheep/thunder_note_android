@@ -74,6 +74,8 @@ public class ChatFragment extends Fragment {
     private ChatViewModel chatViewModel;
     private FileRepository fileRepository;
     private MessageAdapter adapter;
+    private final ChatMediaHelper mediaHelper = new ChatMediaHelper();
+    private final ChatShareHelper shareHelper = new ChatShareHelper();
     private boolean isToolsPanelVisible = false;
     private boolean isRecording = false;
     private MediaRecorder mediaRecorder;
@@ -773,6 +775,7 @@ public class ChatFragment extends Fragment {
         if (!isAdded() || getContext() == null || message == null) {
             return;
         }
+        Context context = requireContext();
         String mediaType = message.getMediaType();
         if (TextUtils.isEmpty(mediaType)
                 || "TEXT".equalsIgnoreCase(mediaType)
@@ -781,13 +784,17 @@ public class ChatFragment extends Fragment {
             return;
         }
 
-        File localFile = tryResolveLocalFile(message.getMediaUrl());
+        File localFile = shareHelper.tryResolveLocalFile(context, message.getMediaUrl());
         if (localFile != null && localFile.exists()) {
-            shareFileByIntent(localFile, message);
+            try {
+                shareHelper.shareFileByIntent(context, localFile, message);
+            } catch (ActivityNotFoundException e) {
+                showToast("未找到可分享的应用");
+            }
             return;
         }
 
-        String objectName = extractObjectNameForDownload(message.getMediaUrl());
+        String objectName = shareHelper.extractObjectNameForDownload(message.getMediaUrl());
         if (TextUtils.isEmpty(objectName)) {
             showToast("文件地址无效，无法分享");
             return;
@@ -802,7 +809,11 @@ public class ChatFragment extends Fragment {
                         showToast("分享文件不存在");
                         return;
                     }
-                    shareFileByIntent(file, message);
+                    try {
+                        shareHelper.shareFileByIntent(context, file, message);
+                    } catch (ActivityNotFoundException e) {
+                        showToast("未找到可分享的应用");
+                    }
                 });
             }
 
@@ -811,87 +822,6 @@ public class ChatFragment extends Fragment {
                 runIfUiAlive(() -> showToast("准备分享失败: " + errorMessage));
             }
         });
-    }
-
-    @Nullable
-    private File tryResolveLocalFile(String mediaUrl) {
-        if (TextUtils.isEmpty(mediaUrl)) {
-            return null;
-        }
-        File direct = new File(mediaUrl);
-        if (direct.exists()) {
-            return direct;
-        }
-        String objectName = extractObjectNameForDownload(mediaUrl);
-        if (TextUtils.isEmpty(objectName)) {
-            return null;
-        }
-        Context context = requireContext();
-        File cached = new File(context.getCacheDir(), objectName.replace('/', '_'));
-        if (cached.exists()) {
-            return cached;
-        }
-        File externalCache = context.getExternalCacheDir() == null
-                ? null
-                : new File(context.getExternalCacheDir(), objectName.replace('/', '_'));
-        if (externalCache != null && externalCache.exists()) {
-            return externalCache;
-        }
-        String originalName = sanitizeFileName(fallbackFileNameFromObjectName(objectName));
-        File shared = new File(new File(context.getCacheDir(), "share"), originalName);
-        return shared.exists() ? shared : null;
-    }
-
-    @Nullable
-    private String extractObjectNameForDownload(String mediaUrl) {
-        if (TextUtils.isEmpty(mediaUrl)) {
-            return null;
-        }
-        if (mediaUrl.startsWith("http")) {
-            Uri uri = Uri.parse(mediaUrl);
-            String objectName = uri.getQueryParameter("objectName");
-            if (!TextUtils.isEmpty(objectName)) {
-                return Uri.decode(objectName);
-            }
-            String path = uri.getPath();
-            if (!TextUtils.isEmpty(path) && path.startsWith("/")) {
-                return path.substring(1);
-            }
-            return null;
-        }
-        return mediaUrl;
-    }
-
-    @NonNull
-    private String fallbackFileNameFromObjectName(@NonNull String objectName) {
-        int slashIndex = objectName.lastIndexOf('/');
-        if (slashIndex >= 0 && slashIndex < objectName.length() - 1) {
-            return objectName.substring(slashIndex + 1);
-        }
-        return objectName;
-    }
-
-    private void shareFileByIntent(@NonNull File file, @NonNull Message message) {
-        if (!isAdded()) {
-            return;
-        }
-        Context context = requireContext();
-        File shareFile = prepareShareFile(file, message.getFileName());
-        Uri contentUri = FileProvider.getUriForFile(
-                context,
-                context.getPackageName() + ".fileprovider",
-                shareFile
-        );
-        Intent intent = new Intent(Intent.ACTION_SEND);
-        intent.setType(resolveShareMimeType(shareFile, message));
-        intent.putExtra(Intent.EXTRA_STREAM, contentUri);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        intent.setClipData(android.content.ClipData.newRawUri("share", contentUri));
-        try {
-            startActivity(Intent.createChooser(intent, "分享到"));
-        } catch (ActivityNotFoundException e) {
-            showToast("未找到可分享的应用");
-        }
     }
 
     @NonNull
@@ -928,31 +858,6 @@ public class ChatFragment extends Fragment {
             return "shared_file";
         }
         return sanitized;
-    }
-
-    private String resolveShareMimeType(@NonNull File file, @NonNull Message message) {
-        String mediaType = message.getMediaType();
-        if ("IMAGE".equalsIgnoreCase(mediaType)) {
-            return "image/*";
-        }
-        if ("VIDEO".equalsIgnoreCase(mediaType)) {
-            return "video/*";
-        }
-        if ("VOICE".equalsIgnoreCase(mediaType)) {
-            return "audio/*";
-        }
-
-        String extension = MimeTypeMap.getFileExtensionFromUrl(file.getName());
-        if (TextUtils.isEmpty(extension) && !TextUtils.isEmpty(message.getFileName())) {
-            extension = MimeTypeMap.getFileExtensionFromUrl(message.getFileName());
-        }
-        if (!TextUtils.isEmpty(extension)) {
-            String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension.toLowerCase(Locale.ROOT));
-            if (!TextUtils.isEmpty(mime)) {
-                return mime;
-            }
-        }
-        return "*/*";
     }
 
     private void handleFavorite(Message message, FavoriteRepository favoriteRepository) {
@@ -1320,27 +1225,17 @@ public class ChatFragment extends Fragment {
     }
 
     private void openCamera() {
-        if (!requireContext().getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
+        Context context = requireContext();
+        if (!mediaHelper.hasCamera(context)) {
             showToast("设备没有相机");
             return;
         }
 
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        File photoFile = null;
-        try {
-            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-            String storageDir = requireContext().getCacheDir().getAbsolutePath();
-            photoFile = new File(storageDir, "IMG_" + timeStamp + ".jpg");
-        } catch (Exception ex) {
-            DebugLog.e("ChatFragment", "Failed to prepare camera temp file", ex);
-        }
+        File photoFile = mediaHelper.prepareCameraPhotoFile(context);
 
         if (photoFile != null) {
-            cameraPhotoUri = FileProvider.getUriForFile(
-                    requireContext(),
-                    requireContext().getPackageName() + ".fileprovider",
-                    photoFile
-            );
+            cameraPhotoUri = mediaHelper.buildCameraUri(context, photoFile);
             takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
             takePictureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             try {
@@ -1352,7 +1247,7 @@ public class ChatFragment extends Fragment {
     }
 
     private void handleMediaPicked(Uri uri) {
-        String mimeType = requireContext().getContentResolver().getType(uri);
+        String mimeType = mediaHelper.resolveMimeType(requireContext(), uri);
         if (mimeType == null) {
             showToast("无法识别文件类型");
             return;
@@ -1368,8 +1263,8 @@ public class ChatFragment extends Fragment {
     }
 
     private void handleImagePicked(Uri uri) {
-        String originalFileName = getOriginalFileName(uri);
-        copyUriToTempFile(uri, "image", file -> {
+        String originalFileName = mediaHelper.getOriginalFileName(requireContext(), uri);
+        mediaHelper.copyUriToTempFile(requireContext().getApplicationContext(), this::runIfUiAlive, uri, "image", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
@@ -1387,9 +1282,9 @@ public class ChatFragment extends Fragment {
     }
 
     private void handleVideoPicked(Uri uri) {
-        String originalFileName = getOriginalFileName(uri);
+        String originalFileName = mediaHelper.getOriginalFileName(requireContext(), uri);
 
-        copyUriToTempFile(uri, "video", file -> {
+        mediaHelper.copyUriToTempFile(requireContext().getApplicationContext(), this::runIfUiAlive, uri, "video", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
@@ -1407,8 +1302,8 @@ public class ChatFragment extends Fragment {
     }
 
     private void handleFilePicked(Uri uri) {
-        String originalFileName = getOriginalFileName(uri);
-        copyUriToTempFile(uri, "file", file -> {
+        String originalFileName = mediaHelper.getOriginalFileName(requireContext(), uri);
+        mediaHelper.copyUriToTempFile(requireContext().getApplicationContext(), this::runIfUiAlive, uri, "file", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
@@ -1426,8 +1321,8 @@ public class ChatFragment extends Fragment {
     }
 
     private void handleCameraPhoto(Uri uri) {
-        String originalFileName = getOriginalFileName(uri);
-        copyUriToTempFile(uri, "image", file -> {
+        String originalFileName = mediaHelper.getOriginalFileName(requireContext(), uri);
+        mediaHelper.copyUriToTempFile(requireContext().getApplicationContext(), this::runIfUiAlive, uri, "image", file -> {
             if (file == null) {
                 showToast("文件处理失败");
                 return;
@@ -1457,36 +1352,6 @@ public class ChatFragment extends Fragment {
         });
     }
 
-    private void copyUriToTempFile(Uri uri, String prefix, FileCallback callback) {
-        Context appContext = requireContext().getApplicationContext();
-        new Thread(() -> {
-            File tempFile = null;
-            try {
-                String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-                String extension = getFileExtension(uri);
-                String storageDir = appContext.getCacheDir().getAbsolutePath();
-                tempFile = new File(storageDir, prefix + "_" + timeStamp + "." + extension);
-
-                try (InputStream inputStream = appContext.getContentResolver().openInputStream(uri);
-                     FileOutputStream outputStream = new FileOutputStream(tempFile)) {
-                    if (inputStream != null) {
-                        byte[] buffer = new byte[65536];
-                        int bytesRead;
-                        while ((bytesRead = inputStream.read(buffer)) != -1) {
-                            outputStream.write(buffer, 0, bytesRead);
-                        }
-                    }
-                }
-
-                final File finalFile = tempFile;
-                runIfUiAlive(() -> callback.onFileReady(finalFile));
-            } catch (IOException e) {
-                DebugLog.e("ChatFragment", "Failed to copy picked file to temp storage", e);
-                runIfUiAlive(() -> callback.onFileReady(null));
-            }
-        }).start();
-    }
-
     private void sendMediaToCapturedConversation(@NonNull Message message,
                                                  long targetFlashNoteId,
                                                  long targetPeerUserId,
@@ -1498,66 +1363,6 @@ public class ChatFragment extends Fragment {
         if (targetFlashNoteId > 0L || targetFlashNoteId == INBOX_NOTE_ID) {
             chatViewModel.sendMessageToFlashNote(targetFlashNoteId, message, onSuccess);
         }
-    }
-
-    private String getFileExtension(Uri uri) {
-        ContentResolver resolver = requireContext().getContentResolver();
-        String mimeType = resolver.getType(uri);
-        if (mimeType != null) {
-            switch (mimeType) {
-                case "image/jpeg":
-                    return "jpg";
-                case "image/png":
-                    return "png";
-                case "image/gif":
-                    return "gif";
-                case "video/mp4":
-                    return "mp4";
-                case "video/3gpp":
-                    return "3gp";
-                case "video/webm":
-                    return "webm";
-                case "application/pdf":
-                    return "pdf";
-                case "application/msword":
-                    return "doc";
-                case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                    return "docx";
-                default:
-                    break;
-            }
-        }
-        
-        String path = uri.getPath();
-        if (path != null) {
-            int lastDot = path.lastIndexOf('.');
-            if (lastDot > 0) {
-                return path.substring(lastDot + 1);
-            }
-        }
-        return "bin";
-    }
-
-    private String getOriginalFileName(Uri uri) {
-        String displayName = null;
-        if ("content".equals(uri.getScheme())) {
-            try (android.database.Cursor cursor = requireContext().getContentResolver().query(uri, null, null, null, null)) {
-                if (cursor != null && cursor.moveToFirst()) {
-                    int nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
-                    if (nameIndex >= 0) {
-                        displayName = cursor.getString(nameIndex);
-                    }
-                }
-            }
-        }
-        if (displayName == null) {
-            displayName = uri.getLastPathSegment();
-        }
-        return displayName;
-    }
-
-    interface FileCallback {
-        void onFileReady(File file);
     }
 
     private void showToast(String message) {

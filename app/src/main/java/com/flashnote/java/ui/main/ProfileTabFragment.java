@@ -47,14 +47,16 @@ import java.io.File;
 import java.util.List;
 
 public class ProfileTabFragment extends Fragment {
-    private static final String PREFS_PROFILE = "profile_tab";
-    private static final String PREF_KEY_RECORD_COUNT = "record_count";
     private com.flashnote.java.databinding.FragmentProfileTabBinding binding;
     private UserRepository userRepository;
     private FileRepository fileRepository;
     private TokenManager tokenManager;
     private SyncRepository syncRepository;
     private PendingMessageRepository pendingMessageRepository;
+    private final ProfileStatsHelper statsHelper = new ProfileStatsHelper();
+    private final ProfileSyncUiHelper syncUiHelper = new ProfileSyncUiHelper();
+    private final ProfileEditHelper editHelper = new ProfileEditHelper();
+    private final ProfileAvatarHelper avatarHelper = new ProfileAvatarHelper();
     private UserProfile currentProfile;
     private LiveData<Integer> pendingSyncCountLiveData;
     private boolean syncInProgress;
@@ -167,24 +169,21 @@ public class ProfileTabFragment extends Fragment {
 
     private void loadStats() {
         FlashNoteApp app = FlashNoteApp.getInstance();
-        
-        List<?> notes = app.getFlashNoteRepository().getNotes().getValue();
-        binding.flashNoteCount.setText(String.valueOf(notes != null ? notes.size() : 0));
-        
-        List<?> favorites = app.getFavoriteRepository().getFavorites().getValue();
-        binding.favoriteCount.setText(String.valueOf(favorites != null ? favorites.size() : 0));
-        
-        app.getMessageRepository().countMessages(new MessageRepository.CountCallback() {
+
+        binding.flashNoteCount.setText(String.valueOf(statsHelper.resolveFlashNoteCount(app)));
+        binding.favoriteCount.setText(String.valueOf(statsHelper.resolveFavoriteCount(app)));
+
+        statsHelper.loadRecordCount(app, new ProfileStatsHelper.RecordCountCallback() {
             @Override
-            public void onSuccess(long count) {
+            public void onCountReady(long count) {
                 runIfUiAlive(() -> {
                     binding.recordCount.setText(String.valueOf(count));
-                    persistRecordCount(count);
+                    statsHelper.persistRecordCount(getContext(), count);
                 });
             }
 
             @Override
-            public void onError(String message, int code) {
+            public void onError() {
                 runIfUiAlive(() -> binding.recordCount.setText("0"));
             }
         });
@@ -259,7 +258,7 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         binding.syncPendingBadge.setVisibility(View.VISIBLE);
-        binding.syncPendingBadge.setText(count > 99 ? "99+" : String.valueOf(count));
+        binding.syncPendingBadge.setText(syncUiHelper.buildSyncBadgeText(count));
         refreshSyncHintText();
     }
 
@@ -267,19 +266,7 @@ public class ProfileTabFragment extends Fragment {
         if (binding == null) {
             return;
         }
-        if (syncInProgress) {
-            binding.syncHintText.setText("正在同步中，请稍候...");
-            return;
-        }
-        if (pendingSyncCount <= 0) {
-            binding.syncHintText.setText("已同步，点击可手动刷新");
-            return;
-        }
-        if (pendingSyncCount == 1) {
-            binding.syncHintText.setText("有 1 条待同步记录");
-            return;
-        }
-        binding.syncHintText.setText("有 " + pendingSyncCount + " 条待同步记录");
+        binding.syncHintText.setText(syncUiHelper.buildSyncHintText(syncInProgress, pendingSyncCount));
     }
 
     private void fetchProfile() {
@@ -347,157 +334,62 @@ public class ProfileTabFragment extends Fragment {
         if (!isAdded() || getContext() == null) {
             return;
         }
-
-        android.content.Context context = getContext();
-        EditText editText = new EditText(context);
-        editText.setHint("请输入简介");
-        editText.setMinLines(1);
-        editText.setMaxLines(6);
-        editText.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
-        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        editText.setSingleLine(false);
-        editText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-        editText.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL);
-        editText.setBackgroundResource(R.drawable.bg_input_rounded);
-        int horizontalPadding = (int) (14 * getResources().getDisplayMetrics().density);
-        int verticalPadding = (int) (10 * getResources().getDisplayMetrics().density);
-        editText.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding);
-        editText.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-        editText.setVerticalScrollBarEnabled(false);
-        if (currentProfile != null && currentProfile.getBio() != null) {
-            editText.setText(currentProfile.getBio());
-            editText.setSelection(editText.getText().length());
-        }
-        editText.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                editText.post(() -> {
-                    if (editText.getLayout() == null) {
-                        return;
-                    }
-                    int lineCount = Math.max(1, Math.min(6, editText.getLineCount()));
-                    editText.setLines(lineCount);
-                });
-            }
-        });
-
-        android.widget.FrameLayout container = new android.widget.FrameLayout(context);
-        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        editHelper.showEditBioDialog(
+                requireContext(),
+                getResources(),
+                currentProfile == null ? null : currentProfile.getBio(),
+                this::updateBio
         );
-        int margin = (int) (20 * getResources().getDisplayMetrics().density);
-        params.setMargins(margin, 0, margin, 0);
-        editText.setLayoutParams(params);
-        container.addView(editText);
-
-        TextView title = new TextView(context);
-        int horizontal = (int) (20 * getResources().getDisplayMetrics().density);
-        int top = (int) (18 * getResources().getDisplayMetrics().density);
-        int bottom = (int) (8 * getResources().getDisplayMetrics().density);
-        title.setPadding(horizontal, top, horizontal, bottom);
-        title.setText("编辑简介");
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
-        title.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.NORMAL);
-        title.setTextColor(getResources().getColor(R.color.text_primary, null));
-
-        new AlertDialog.Builder(context)
-            .setCustomTitle(title)
-            .setView(container)
-            .setPositiveButton("保存", (dialog, which) -> {
-                String newBio = editText.getText().toString().trim();
-                updateBio(newBio);
-            })
-            .setNegativeButton("取消", null)
-            .show();
     }
 
     private void showEditProfileDialog() {
         if (!isAdded() || getContext() == null) {
             return;
         }
-        android.content.Context context = getContext();
-        android.widget.LinearLayout container = new android.widget.LinearLayout(context);
-        container.setOrientation(android.widget.LinearLayout.VERTICAL);
-        int padding = (int) (18 * getResources().getDisplayMetrics().density);
-        container.setPadding(padding, padding, padding, padding);
+        editHelper.showEditProfileDialog(
+                requireContext(),
+                getResources(),
+                currentProfile == null ? null : currentProfile.getNickname(),
+                currentProfile == null ? null : currentProfile.getBio(),
+                new ProfileEditHelper.ProfileSaveHandler() {
+                    @Override
+                    public void onSave(@NonNull String nickname, @NonNull String bio) {
+                        if (currentProfile == null) {
+                            currentProfile = new UserProfile();
+                        }
+                        currentProfile.setNickname(nickname);
+                        currentProfile.setBio(bio);
+                        userRepository.updateProfile(currentProfile, new UserRepository.ProfileCallback() {
+                            @Override
+                            public void onSuccess(UserProfile profile) {
+                                runIfUiAlive(() -> {
+                                    currentProfile = profile;
+                                    updateProfileUI(profile);
+                                    android.content.Context ctx = getContext();
+                                    if (ctx != null) {
+                                        Toast.makeText(ctx, "资料已保存", Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                            }
 
-        EditText nicknameInput = new EditText(context);
-        nicknameInput.setHint("昵称");
-        nicknameInput.setSingleLine(true);
-        nicknameInput.setBackgroundResource(R.drawable.bg_input_rounded);
-        String initialNickname = currentProfile == null ? null : currentProfile.getNickname();
-        if (initialNickname != null) {
-            nicknameInput.setText(initialNickname);
-        }
-        container.addView(nicknameInput);
-
-        EditText bioInput = new EditText(context);
-        bioInput.setHint("简介");
-        bioInput.setMinLines(2);
-        bioInput.setMaxLines(5);
-        bioInput.setBackgroundResource(R.drawable.bg_input_rounded);
-        int topMargin = (int) (10 * getResources().getDisplayMetrics().density);
-        android.widget.LinearLayout.LayoutParams bioParams = new android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
-        bioParams.topMargin = topMargin;
-        bioInput.setLayoutParams(bioParams);
-        if (currentProfile != null && currentProfile.getBio() != null) {
-            bioInput.setText(currentProfile.getBio());
-        }
-        container.addView(bioInput);
-
-        TextView avatarAction = new TextView(context);
-        avatarAction.setText("修改头像");
-        avatarAction.setTextColor(getResources().getColor(R.color.primary, null));
-        avatarAction.setPadding(0, topMargin, 0, 0);
-        avatarAction.setOnClickListener(v -> showAvatarPicker());
-        container.addView(avatarAction);
-
-        new AlertDialog.Builder(context)
-                .setTitle("修改个人资料")
-                .setView(container)
-                .setPositiveButton("保存", (dialog, which) -> {
-                    if (currentProfile == null) {
-                        currentProfile = new UserProfile();
+                            @Override
+                            public void onError(String message, int code) {
+                                runIfUiAlive(() -> {
+                                    android.content.Context ctx = getContext();
+                                    if (ctx != null) {
+                                        Toast.makeText(ctx, "保存失败：" + message, Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                            }
+                        });
                     }
-                    currentProfile.setNickname(nicknameInput.getText() == null ? "" : nicknameInput.getText().toString().trim());
-                    currentProfile.setBio(bioInput.getText() == null ? "" : bioInput.getText().toString().trim());
-                    userRepository.updateProfile(currentProfile, new UserRepository.ProfileCallback() {
-                        @Override
-                        public void onSuccess(UserProfile profile) {
-                            runIfUiAlive(() -> {
-                                currentProfile = profile;
-                                updateProfileUI(profile);
-                                android.content.Context ctx = getContext();
-                                if (ctx != null) {
-                                    Toast.makeText(ctx, "资料已保存", Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }
 
-                        @Override
-                        public void onError(String message, int code) {
-                            runIfUiAlive(() -> {
-                                android.content.Context ctx = getContext();
-                                if (ctx != null) {
-                                    Toast.makeText(ctx, "保存失败：" + message, Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }
-                    });
-                })
-                .setNegativeButton("取消", null)
-                .show();
+                    @Override
+                    public void onAvatarRequested() {
+                        showAvatarPicker();
+                    }
+                }
+        );
     }
 
     private void updateBio(String bio) {
@@ -557,123 +449,24 @@ public class ProfileTabFragment extends Fragment {
         if (!isAdded() || getContext() == null) {
             return;
         }
-        
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("image/*");
-        galleryLauncher.launch(intent);
+
+        avatarHelper.openGalleryPicker(galleryLauncher);
     }
 
     private void startCrop(Uri sourceUri) {
         if (!isAdded() || getContext() == null) {
             return;
         }
-        
-        try {
-            File outputDir = getContext().getCacheDir();
-            File outputFile = new File(outputDir, "avatar_crop.jpg");
-            
-            UCrop.Options options = new UCrop.Options();
-            options.setCircleDimmedLayer(true);
-            options.setShowCropFrame(false);
-            options.setShowCropGrid(false);
-            options.setCompressionQuality(90);
-            options.setToolbarTitle("裁剪头像");
-            
-            Intent ucropIntent = UCrop.of(sourceUri, Uri.fromFile(outputFile))
-                    .withAspectRatio(1, 1)
-                    .withMaxResultSize(AVATAR_MAX_SIZE, AVATAR_MAX_SIZE)
-                    .withOptions(options)
-                    .getIntent(getContext());
-            
-            ucropLauncher.launch(ucropIntent);
-        } catch (Exception e) {
-            android.content.Context context = getContext();
-            if (context != null) {
-                Toast.makeText(context, "无法打开图片裁剪", Toast.LENGTH_SHORT).show();
-            }
-        }
+
+        avatarHelper.startCrop(requireContext(), sourceUri, ucropLauncher);
     }
 
     private void handleCropResult(Uri resultUri) {
         if (!isAdded() || getContext() == null) {
             return;
         }
-        
-        android.content.Context context = getContext();
-        
-        try {
-            File avatarFile = new File(context.getFilesDir(), "avatar.jpg");
 
-            try (java.io.InputStream inputStream = context.getContentResolver().openInputStream(resultUri);
-                 java.io.FileOutputStream fos = new java.io.FileOutputStream(avatarFile)) {
-                if (inputStream == null) {
-                    Toast.makeText(context, "裁剪后的图片读取失败", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    fos.write(buffer, 0, bytesRead);
-                }
-            }
-            
-            uploadAvatar(avatarFile);
-            
-        } catch (Exception e) {
-            Toast.makeText(context, "保存头像失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void uploadAvatar(File avatarFile) {
-        if (!isAdded() || getContext() == null || fileRepository == null) {
-            return;
-        }
-
-        fileRepository.upload(avatarFile, new FileRepository.FileCallback() {
-            @Override
-            public void onSuccess(String avatarUrl) {
-                updateAvatarToServer(avatarUrl);
-            }
-
-            @Override
-            public void onError(String message, int code) {
-                runIfUiAlive(() -> {
-                    android.content.Context ctx = getContext();
-                    if (ctx != null) {
-                        Toast.makeText(ctx, "上传头像失败: " + message, Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        });
-    }
-
-    private void updateAvatarToServer(String avatarUrl) {
-        if (userRepository == null || !isAdded()) {
-            return;
-        }
-        
-        userRepository.updateAvatar(avatarUrl, new UserRepository.ProfileCallback() {
-            @Override
-            public void onSuccess(UserProfile profile) {
-                currentProfile = profile;
-                runIfUiAlive(() -> {
-                    if (binding != null) {
-                        loadAvatarImage(avatarUrl);
-                        Toast.makeText(getContext(), "头像已更新", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String message, int code) {
-                runIfUiAlive(() -> {
-                    android.content.Context ctx = getContext();
-                    if (ctx != null) {
-                        Toast.makeText(ctx, "更新头像失败: " + message, Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        });
+        avatarHelper.handleCropResult(requireContext(), resultUri, fileRepository, userRepository, new AvatarUiBridgeImpl(), profile -> currentProfile = profile);
     }
 
     private void loadAvatarImage(String avatarUrl) {
@@ -755,56 +548,36 @@ public class ProfileTabFragment extends Fragment {
     }
 
     private void loadCachedRecordCount() {
-        if (!isAdded() || getContext() == null || binding == null) {
+        if (!isAdded() || binding == null) {
             return;
         }
-        long cached = getContext().getSharedPreferences(PREFS_PROFILE, android.content.Context.MODE_PRIVATE)
-                .getLong(PREF_KEY_RECORD_COUNT, -1L);
-        if (cached >= 0) {
+        Long cached = statsHelper.getCachedRecordCount(getContext());
+        if (cached != null) {
             binding.recordCount.setText(String.valueOf(cached));
         }
     }
 
     private void persistRecordCount(long count) {
-        if (!isAdded() || getContext() == null) {
-            return;
-        }
-        getContext().getSharedPreferences(PREFS_PROFILE, android.content.Context.MODE_PRIVATE)
-                .edit()
-                .putLong(PREF_KEY_RECORD_COUNT, count)
-                .apply();
+        statsHelper.persistRecordCount(getContext(), count);
     }
 
     private void updateAvatarWithEmoji(String emoji) {
         if (userRepository == null || !isAdded()) {
             return;
         }
-        
-        userRepository.updateAvatar(emoji, new UserRepository.ProfileCallback() {
-            @Override
-            public void onSuccess(UserProfile profile) {
-                currentProfile = profile;
-                runIfUiAlive(() -> {
-                    if (binding != null) {
-                        clearLocalAvatarCache();
-                        currentProfile.setAvatar(emoji);
-                        binding.avatarImage.setVisibility(View.GONE);
-                        binding.avatarText.setVisibility(View.VISIBLE);
-                        binding.avatarText.setText(emoji);
-                        Toast.makeText(getContext(), "头像已更新", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
 
-            @Override
-            public void onError(String message, int code) {
-                runIfUiAlive(() -> {
-                    android.content.Context context = getContext();
-                    if (isAdded() && context != null) {
-                        Toast.makeText(context, "更新头像失败：" + message, Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
+        if (currentProfile == null) {
+            currentProfile = new UserProfile();
+        }
+        avatarHelper.updateAvatarWithEmoji(emoji, userRepository, currentProfile, new AvatarUiBridgeImpl(), profile -> {
+            currentProfile = profile;
+            runIfUiAlive(() -> {
+                if (binding != null) {
+                    binding.avatarImage.setVisibility(View.GONE);
+                    binding.avatarText.setVisibility(View.VISIBLE);
+                    binding.avatarText.setText(emoji);
+                }
+            });
         });
     }
 
@@ -828,6 +601,37 @@ public class ProfileTabFragment extends Fragment {
         File avatarFile = new File(getContext().getFilesDir(), "avatar.jpg");
         if (avatarFile.exists()) {
             avatarFile.delete();
+        }
+    }
+
+    private final class AvatarUiBridgeImpl implements ProfileAvatarHelper.AvatarUiBridge {
+        @Override
+        public void runIfUiAlive(@NonNull Runnable action) {
+            ProfileTabFragment.this.runIfUiAlive(action);
+        }
+
+        @Override
+        public void loadAvatarImage(@NonNull String avatarUrl) {
+            ProfileTabFragment.this.loadAvatarImage(avatarUrl);
+        }
+
+        @Override
+        public void showToast(@NonNull String message) {
+            android.content.Context context = getContext();
+            if (context != null) {
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        @Override
+        public void clearLocalAvatarCache() {
+            ProfileTabFragment.this.clearLocalAvatarCache();
+        }
+
+        @NonNull
+        @Override
+        public android.content.Context requireContext() {
+            return ProfileTabFragment.this.requireContext();
         }
     }
 
