@@ -37,6 +37,7 @@ public class SettingsFragment extends Fragment {
         binding.websiteItem.setOnClickListener(v -> openWebsite());
         binding.privacyItem.setOnClickListener(v -> showComingSoon("隐私政策"));
         binding.creditsItem.setOnClickListener(v -> showCredits());
+        binding.debugLogItem.setOnClickListener(v -> openDebugLogViewer());
         binding.feedbackItem.setOnClickListener(v -> showComingSoon("反馈BUG"));
     }
 
@@ -61,6 +62,17 @@ public class SettingsFragment extends Fragment {
         } catch (Exception e) {
             Toast.makeText(getContext(), "无法打开浏览器", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void openDebugLogViewer() {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        getActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.rootFragmentContainer, new DebugLogViewerFragment())
+                .addToBackStack(null)
+                .commit();
     }
 
     private void showComingSoon(String feature) {
