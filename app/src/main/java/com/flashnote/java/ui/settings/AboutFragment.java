@@ -1,5 +1,6 @@
 package com.flashnote.java.ui.settings;
 
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,8 +27,21 @@ public class AboutFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        
+
         binding.backButton.setOnClickListener(v -> navigateBack());
+        bindVersionText();
+    }
+
+    private void bindVersionText() {
+        if (!isAdded()) {
+            return;
+        }
+        try {
+            String versionName = requireContext().getPackageManager()
+                    .getPackageInfo(requireContext().getPackageName(), 0).versionName;
+            binding.versionText.setText(getString(com.flashnote.java.R.string.about_version, versionName));
+        } catch (PackageManager.NameNotFoundException ignored) {
+        }
     }
 
     private void navigateBack() {

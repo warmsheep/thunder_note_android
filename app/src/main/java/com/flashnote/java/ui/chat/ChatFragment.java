@@ -54,9 +54,7 @@ import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.flashnote.java.util.VideoCompressor;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -822,42 +820,6 @@ public class ChatFragment extends Fragment {
                 runIfUiAlive(() -> showToast("准备分享失败: " + errorMessage));
             }
         });
-    }
-
-    @NonNull
-    private File prepareShareFile(@NonNull File sourceFile, @Nullable String originalFileName) {
-        if (TextUtils.isEmpty(originalFileName)) {
-            return sourceFile;
-        }
-        String safeName = sanitizeFileName(originalFileName);
-        if (safeName.equals(sourceFile.getName())) {
-            return sourceFile;
-        }
-        File shareDir = new File(requireContext().getCacheDir(), "share");
-        if (!shareDir.exists()) {
-            shareDir.mkdirs();
-        }
-        File target = new File(shareDir, safeName);
-        try (InputStream inputStream = java.nio.file.Files.newInputStream(sourceFile.toPath());
-             FileOutputStream outputStream = new FileOutputStream(target)) {
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-            return target;
-        } catch (IOException ignored) {
-            return sourceFile;
-        }
-    }
-
-    @NonNull
-    private String sanitizeFileName(@NonNull String fileName) {
-        String sanitized = fileName.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
-        if (sanitized.isEmpty()) {
-            return "shared_file";
-        }
-        return sanitized;
     }
 
     private void handleFavorite(Message message, FavoriteRepository favoriteRepository) {

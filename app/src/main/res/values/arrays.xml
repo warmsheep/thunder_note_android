@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="profile_avatar_emojis">
+        <item>💼</item>
+        <item>📚</item>
+        <item>❤️</item>
+        <item>🌟</item>
+        <item>🎯</item>
+        <item>🚀</item>
+        <item>🎨</item>
+        <item>🎵</item>
+        <item>📷</item>
+        <item>🍕</item>
+        <item>⚽</item>
+        <item>😊</item>
+    </string-array>
+
+    <string-array name="flashnote_icons">
+        <item>💼</item>
+        <item>📚</item>
+        <item>❤️</item>
+        <item>🍀</item>
+        <item>🌟</item>
+        <item>🎯</item>
+        <item>🚀</item>
+        <item>🎨</item>
+        <item>🎵</item>
+        <item>📷</item>
+        <item>📝</item>
+        <item>💡</item>
+    </string-array>
+</resources>

@@ -66,8 +66,6 @@ import java.util.Set;
 
 public class FlashNoteTabFragment extends Fragment {
     private static final long COLLECTION_BOX_NOTE_ID = -1L;
-    private static final String[] NOTE_ICONS = new String[]{"💼", "📚", "❤️", "🍀", "🌟", "🎯", "🚀", "🎨", "🎵", "📷", "📝", "💡"};
-
     private FragmentFlashNoteTabBinding binding;
     private FlashNoteAdapter adapter;
     private SearchResultAdapter searchResultAdapter;
@@ -177,15 +175,15 @@ public class FlashNoteTabFragment extends Fragment {
                     Context ctx = getContext();
                     if (ctx != null) {
                         new AlertDialog.Builder(ctx)
-                                .setTitle("清空收集箱")
-                                .setMessage("确定要清空收集箱所有消息吗？删除后不可恢复。")
-                                .setPositiveButton("清空", (dialog, which) -> viewModel.clearInboxMessages(() -> {
+                                .setTitle(R.string.flashnote_clear_inbox_title)
+                                .setMessage(R.string.flashnote_clear_inbox_message)
+                                .setPositiveButton(R.string.action_clear, (dialog, which) -> viewModel.clearInboxMessages(() -> {
                                     if (!isAdded() || getContext() == null) {
                                         return;
                                     }
-                                    requireActivity().runOnUiThread(() -> Toast.makeText(getContext(), "收集箱已清空", Toast.LENGTH_SHORT).show());
+                                    requireActivity().runOnUiThread(() -> Toast.makeText(getContext(), R.string.flashnote_cleared, Toast.LENGTH_SHORT).show());
                                 }))
-                                .setNegativeButton("取消", null)
+                                .setNegativeButton(R.string.action_cancel, null)
                                 .show();
                     }
                     return;
@@ -194,10 +192,10 @@ public class FlashNoteTabFragment extends Fragment {
                 Context ctx = getContext();
                 if (ctx != null) {
                     new AlertDialog.Builder(ctx)
-                            .setTitle("删除闪记")
-                            .setMessage("确定要删除这条闪记吗？")
-                            .setPositiveButton("删除", (dialog, which) -> viewModel.deleteNote(item.getId()))
-                            .setNegativeButton("取消", null)
+                            .setTitle(R.string.flashnote_delete_title)
+                            .setMessage(R.string.flashnote_delete_message)
+                            .setPositiveButton(R.string.action_delete, (dialog, which) -> viewModel.deleteNote(item.getId()))
+                            .setNegativeButton(R.string.action_cancel, null)
                             .show();
                 }
             }
@@ -366,7 +364,7 @@ public class FlashNoteTabFragment extends Fragment {
             }
             Context context = getContext();
             if (context != null) {
-                Toast.makeText(context, "已保存到收集箱", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.flashnote_saved_to_inbox, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -431,7 +429,7 @@ public class FlashNoteTabFragment extends Fragment {
             popupWindow.setOutsideTouchable(true);
 
             TextView pinText = popupView.findViewById(R.id.actionPinText);
-            pinText.setText(Boolean.TRUE.equals(note.getPinned()) ? "取消置顶" : "置顶");
+            pinText.setText(Boolean.TRUE.equals(note.getPinned()) ? R.string.flashnote_unpin : R.string.flashnote_pin);
 
             popupView.findViewById(R.id.actionEdit).setOnClickListener(v -> {
                 popupWindow.dismiss();
@@ -633,7 +631,7 @@ public class FlashNoteTabFragment extends Fragment {
                 updateDialogPreview(dialogBinding, note, selectedIcon[0]);
             }
         });
-        for (String icon : NOTE_ICONS) {
+        for (String icon : getResources().getStringArray(R.array.flashnote_icons)) {
             Chip chip = new Chip(ctx);
             chip.setText(icon);
             chip.setCheckable(true);
@@ -666,17 +664,17 @@ public class FlashNoteTabFragment extends Fragment {
         }
 
         AlertDialog dialog = new AlertDialog.Builder(ctx)
-                .setTitle(note == null ? "新建闪记" : "编辑闪记")
+                .setTitle(note == null ? R.string.flashnote_new_title : R.string.flashnote_edit_title)
                 .setView(dialogBinding.getRoot())
-                .setPositiveButton(note == null ? "创建" : "保存", null)
-                .setNegativeButton("取消", null)
+                .setPositiveButton(note == null ? R.string.action_create : R.string.action_save, null)
+                .setNegativeButton(R.string.action_cancel, null)
                 .create();
 
         dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String title = dialogBinding.nameInput.getText() == null ? "" : dialogBinding.nameInput.getText().toString().trim();
             String collectionName = dialogBinding.collectionInput.getText() == null ? "" : dialogBinding.collectionInput.getText().toString().trim();
             if (title.isEmpty()) {
-                dialogBinding.nameInput.setError("请输入闪记名称");
+                dialogBinding.nameInput.setError(getString(R.string.flashnote_name_required));
                 return;
             }
             String normalizedCollection = collectionName.isEmpty() ? null : collectionName;
@@ -727,7 +725,8 @@ public class FlashNoteTabFragment extends Fragment {
                 return icon;
             }
         }
-        return NOTE_ICONS[0];
+        String[] icons = getResources().getStringArray(R.array.flashnote_icons);
+        return icons.length == 0 ? "💼" : icons[0];
     }
 
     private void updateDialogPreview(@NonNull DialogFlashNoteEditBinding dialogBinding,
@@ -772,7 +771,7 @@ public class FlashNoteTabFragment extends Fragment {
         ));
 
         TextView openChatBtn = new TextView(ctx);
-        openChatBtn.setText("打开聊天（从头开始）");
+        openChatBtn.setText(R.string.flashnote_open_chat_from_start);
         openChatBtn.setTextColor(ctx.getColor(R.color.primary));
         openChatBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         openChatBtn.setPadding(itemPadding, smallPadding, itemPadding, smallPadding);
@@ -804,7 +803,7 @@ public class FlashNoteTabFragment extends Fragment {
             card.setPadding(itemPadding, smallPadding, itemPadding, smallPadding);
 
             TextView titleView = new TextView(ctx);
-            titleView.setText(info.getSnippet() != null ? info.getSnippet() : "匹配的消息");
+            titleView.setText(info.getSnippet() != null ? info.getSnippet() : getString(R.string.flashnote_matched_message));
             titleView.setTextColor(ctx.getColor(R.color.text_primary));
             titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
             titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
@@ -857,9 +856,9 @@ public class FlashNoteTabFragment extends Fragment {
         }
 
         new AlertDialog.Builder(ctx)
-                .setTitle("\"" + item.getTitle() + "\" 中的匹配")
+                .setTitle(getString(R.string.flashnote_match_dialog_title, item.getTitle()))
                 .setView(scrollView)
-                .setNegativeButton("关闭", null)
+                .setNegativeButton(R.string.action_cancel, null)
                 .show();
     }
 
@@ -916,7 +915,7 @@ public class FlashNoteTabFragment extends Fragment {
         popupView.findViewById(R.id.actionCard).setOnClickListener(v -> {
             popupWindow.dismiss();
             if (getActivity() instanceof ShellNavigator navigator) {
-                navigator.openCardEditor(COLLECTION_BOX_NOTE_ID, 0L, "收集箱卡片");
+                navigator.openCardEditor(COLLECTION_BOX_NOTE_ID, 0L, getString(R.string.flashnote_inbox_card_title));
             }
         });
         popupView.findViewById(R.id.actionCamera).setOnClickListener(v -> {
@@ -991,7 +990,7 @@ public class FlashNoteTabFragment extends Fragment {
         } catch (Exception exception) {
             Context ctx = getContext();
             if (ctx != null) {
-                Toast.makeText(ctx, "无法打开相机", Toast.LENGTH_SHORT).show();
+                Toast.makeText(ctx, R.string.flashnote_open_camera_failed, Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -1004,7 +1003,7 @@ public class FlashNoteTabFragment extends Fragment {
             if (file == null) {
                 Context ctx = getContext();
                 if (ctx != null) {
-                    Toast.makeText(ctx, "文件处理失败", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ctx, R.string.flashnote_file_process_failed, Toast.LENGTH_SHORT).show();
                 }
                 return;
             }
@@ -1021,7 +1020,7 @@ public class FlashNoteTabFragment extends Fragment {
                 if (binding != null) {
                     playCaptureAnimation(binding.fabAdd);
                 }
-                Toast.makeText(requireContext(), "已加入收集箱发送队列", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), R.string.flashnote_added_to_outbox, Toast.LENGTH_SHORT).show();
             }));
         });
     }
@@ -1045,12 +1044,12 @@ public class FlashNoteTabFragment extends Fragment {
     @NonNull
     private String resolveInboxPreviewText(@NonNull String mediaType) {
         if ("VIDEO".equalsIgnoreCase(mediaType)) {
-            return "[视频]";
+            return getString(R.string.chat_media_video_placeholder);
         }
         if ("FILE".equalsIgnoreCase(mediaType)) {
-            return "[文件]";
+            return getString(R.string.chat_media_file_placeholder);
         }
-        return "[图片]";
+        return getString(R.string.chat_media_image_placeholder);
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {

@@ -26,9 +26,9 @@ public class CollectionRepositoryImpl implements CollectionRepository {
     private final CollectionService collectionService;
     private final CollectionLocalDao collectionLocalDao;
     private final TokenManager tokenManager;
+    private final CollectionLocalMapper localMapper = new CollectionLocalMapper();
+    private final RepositoryStateStore stateStore = new RepositoryStateStore();
     private final LiveData<List<Collection>> collectionsLiveData;
-    private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
-    private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
     private final ExecutorService localExecutor = Executors.newSingleThreadExecutor();
 
     public CollectionRepositoryImpl(CollectionService collectionService, CollectionLocalDao collectionLocalDao, TokenManager tokenManager) {
@@ -36,7 +36,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
         this.collectionLocalDao = collectionLocalDao;
         this.tokenManager = tokenManager;
         long currentUserId = requireCurrentUserId();
-        this.collectionsLiveData = Transformations.map(collectionLocalDao.observeAllByUserId(currentUserId), this::toModelList);
+        this.collectionsLiveData = Transformations.map(collectionLocalDao.observeAllByUserId(currentUserId), localMapper::toModelList);
     }
 
     @Override
@@ -46,27 +46,27 @@ public class CollectionRepositoryImpl implements CollectionRepository {
 
     @Override
     public LiveData<Boolean> isLoading() {
-        return isLoading;
+        return stateStore.isLoading();
     }
 
     @Override
     public LiveData<String> getErrorMessage() {
-        return errorMessage;
+        return stateStore.getErrorMessage();
     }
 
     @Override
     public void clearError() {
-        errorMessage.setValue(null);
+        stateStore.clearError();
     }
 
     @Override
     public void refresh() {
-        isLoading.setValue(true);
+        stateStore.setLoading(true);
         collectionService.list().enqueue(new Callback<ApiResponse<List<Collection>>>() {
             @Override
             public void onResponse(Call<ApiResponse<List<Collection>>> call, 
                                  Response<ApiResponse<List<Collection>>> response) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<List<Collection>> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
@@ -75,27 +75,27 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("CollectionRepo", errMsg);
-                        errorMessage.setValue(errMsg);
+                        stateStore.setError(errMsg);
                     }
                 } else {
                     String errMsg = "Failed to load collections: " + response.code();
                     DebugLog.w("CollectionRepo", errMsg);
-                    errorMessage.setValue(errMsg);
+                    stateStore.setError(errMsg);
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<List<Collection>>> call, Throwable t) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 DebugLog.e("CollectionRepo", "refresh failed", t);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                stateStore.setError("Network error: " + t.getMessage());
             }
         });
     }
 
     @Override
     public void createCollection(String name, String description, Runnable onSuccess) {
-        isLoading.setValue(true);
+        stateStore.setLoading(true);
         Collection collection = new Collection();
         collection.setName(name);
         collection.setDescription(description);
@@ -104,7 +104,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
             @Override
             public void onResponse(Call<ApiResponse<Collection>> call, 
                                  Response<ApiResponse<Collection>> response) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Collection> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
@@ -116,27 +116,27 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("CollectionRepo", errMsg);
-                        errorMessage.setValue(errMsg);
+                        stateStore.setError(errMsg);
                     }
                 } else {
                     String errMsg = "Failed to create collection: " + response.code();
                     DebugLog.w("CollectionRepo", errMsg);
-                    errorMessage.setValue(errMsg);
+                    stateStore.setError(errMsg);
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Collection>> call, Throwable t) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 DebugLog.e("CollectionRepo", "create failed", t);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                stateStore.setError("Network error: " + t.getMessage());
             }
         });
     }
 
     @Override
     public void updateCollection(Long id, String name, String description, Runnable onSuccess) {
-        isLoading.setValue(true);
+        stateStore.setLoading(true);
         Collection collection = new Collection();
         collection.setName(name);
         collection.setDescription(description);
@@ -145,7 +145,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
             @Override
             public void onResponse(Call<ApiResponse<Collection>> call, 
                                  Response<ApiResponse<Collection>> response) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Collection> apiResponse = response.body();
                     if (apiResponse.isSuccess() && apiResponse.getData() != null) {
@@ -157,32 +157,32 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("CollectionRepo", errMsg);
-                        errorMessage.setValue(errMsg);
+                        stateStore.setError(errMsg);
                     }
                 } else {
                     String errMsg = "Failed to update collection: " + response.code();
                     DebugLog.w("CollectionRepo", errMsg);
-                    errorMessage.setValue(errMsg);
+                    stateStore.setError(errMsg);
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Collection>> call, Throwable t) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 DebugLog.e("CollectionRepo", "update failed", t);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                stateStore.setError("Network error: " + t.getMessage());
             }
         });
     }
 
     @Override
     public void deleteCollection(Long id, Runnable onSuccess) {
-        isLoading.setValue(true);
+        stateStore.setLoading(true);
         collectionService.delete(id).enqueue(new Callback<ApiResponse<Void>>() {
             @Override
             public void onResponse(Call<ApiResponse<Void>> call, 
                                  Response<ApiResponse<Void>> response) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<Void> apiResponse = response.body();
                     if (apiResponse.isSuccess()) {
@@ -194,26 +194,26 @@ public class CollectionRepositoryImpl implements CollectionRepository {
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("CollectionRepo", errMsg);
-                        errorMessage.setValue(errMsg);
+                        stateStore.setError(errMsg);
                     }
                 } else {
                     String errMsg = "Failed to delete collection: " + response.code();
                     DebugLog.w("CollectionRepo", errMsg);
-                    errorMessage.setValue(errMsg);
+                    stateStore.setError(errMsg);
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 DebugLog.e("CollectionRepo", "delete failed", t);
-                errorMessage.setValue("Network error: " + t.getMessage());
+                stateStore.setError("Network error: " + t.getMessage());
             }
         });
     }
 
     private void persistRemoteCollections(List<Collection> collections) {
-        List<CollectionLocalEntity> entities = toLocalList(collections);
+        List<CollectionLocalEntity> entities = localMapper.toLocalList(collections);
         long currentUserId = requireCurrentUserId();
         localExecutor.execute(() -> {
             collectionLocalDao.clearAllByUserId(currentUserId);
@@ -224,61 +224,11 @@ public class CollectionRepositoryImpl implements CollectionRepository {
     }
 
     private void persistSingleCollection(Collection collection) {
-        CollectionLocalEntity entity = toLocal(collection);
+        CollectionLocalEntity entity = localMapper.toLocal(collection);
         if (entity == null) {
             return;
         }
         localExecutor.execute(() -> collectionLocalDao.upsert(entity));
-    }
-
-    private List<CollectionLocalEntity> toLocalList(List<Collection> collections) {
-        List<CollectionLocalEntity> result = new ArrayList<>();
-        if (collections == null) {
-            return result;
-        }
-        for (Collection collection : collections) {
-            CollectionLocalEntity entity = toLocal(collection);
-            if (entity != null) {
-                result.add(entity);
-            }
-        }
-        return result;
-    }
-
-    private CollectionLocalEntity toLocal(Collection collection) {
-        if (collection == null || collection.getId() == null) {
-            return null;
-        }
-        CollectionLocalEntity entity = new CollectionLocalEntity();
-        entity.setId(collection.getId());
-        entity.setUserId(collection.getUserId());
-        entity.setName(collection.getName());
-        entity.setDescription(collection.getDescription());
-        entity.setCreatedAt(collection.getCreatedAt() == null ? null : collection.getCreatedAt().toString());
-        entity.setUpdatedAt(collection.getUpdatedAt() == null ? null : collection.getUpdatedAt().toString());
-        return entity;
-    }
-
-    private List<Collection> toModelList(List<CollectionLocalEntity> entities) {
-        List<Collection> result = new ArrayList<>();
-        if (entities == null) {
-            return result;
-        }
-        for (CollectionLocalEntity entity : entities) {
-            Collection collection = new Collection();
-            collection.setId(entity.getId());
-            collection.setUserId(entity.getUserId());
-            collection.setName(entity.getName());
-            collection.setDescription(entity.getDescription());
-            if (entity.getCreatedAt() != null && !entity.getCreatedAt().trim().isEmpty()) {
-                collection.setCreatedAt(LocalDateTime.parse(entity.getCreatedAt()));
-            }
-            if (entity.getUpdatedAt() != null && !entity.getUpdatedAt().trim().isEmpty()) {
-                collection.setUpdatedAt(LocalDateTime.parse(entity.getUpdatedAt()));
-            }
-            result.add(collection);
-        }
-        return result;
     }
 
     private long requireCurrentUserId() {

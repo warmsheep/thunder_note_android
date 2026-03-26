@@ -113,7 +113,7 @@ public class ProfileTabFragment extends Fragment {
         if (username != null) {
             binding.usernameText.setText(username);
         } else {
-            binding.usernameText.setText("未知用户");
+            binding.usernameText.setText(R.string.status_unknown_user);
         }
 
         userRepository.getProfile().observe(getViewLifecycleOwner(), profile -> {
@@ -216,7 +216,7 @@ public class ProfileTabFragment extends Fragment {
                     }
                     android.content.Context context = getContext();
                     if (context != null) {
-                        Toast.makeText(context, "同步完成", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, R.string.message_sync_completed, Toast.LENGTH_SHORT).show();
                     }
                     loadStats();
                 });
@@ -229,7 +229,7 @@ public class ProfileTabFragment extends Fragment {
                     updateSyncProgress(false);
                     android.content.Context context = getContext();
                     if (context != null) {
-                        Toast.makeText(context, "同步失败：" + message, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, getString(R.string.message_sync_failed, message), Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -281,7 +281,7 @@ public class ProfileTabFragment extends Fragment {
                 runIfUiAlive(() -> {
                     android.content.Context context = getContext();
                     if (context != null) {
-                        Toast.makeText(context, "获取资料失败：" + message, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, getString(R.string.message_profile_fetch_failed, message), Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -298,11 +298,11 @@ public class ProfileTabFragment extends Fragment {
             binding.usernameText.setText(nickname.trim());
         } else {
             String username = tokenManager.getUsername();
-            binding.usernameText.setText(username == null ? "未知用户" : username);
+            binding.usernameText.setText(username == null ? getString(R.string.status_unknown_user) : username);
         }
         
         String bio = profile.getBio();
-        binding.bioText.setText(bio != null && !bio.isEmpty() ? bio : "暂无简介");
+        binding.bioText.setText(bio != null && !bio.isEmpty() ? bio : getString(R.string.status_empty_bio));
         
         String avatar = profile.getAvatar();
         if (avatar != null && !avatar.isEmpty()) {
@@ -367,7 +367,8 @@ public class ProfileTabFragment extends Fragment {
                                     updateProfileUI(profile);
                                     android.content.Context ctx = getContext();
                                     if (ctx != null) {
-                                        Toast.makeText(ctx, "资料已保存", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(ctx, R.string.message_profile_saved, Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(ctx, R.string.message_profile_saved, Toast.LENGTH_SHORT).show();
                                     }
                                 });
                             }
@@ -377,7 +378,7 @@ public class ProfileTabFragment extends Fragment {
                                 runIfUiAlive(() -> {
                                     android.content.Context ctx = getContext();
                                     if (ctx != null) {
-                                        Toast.makeText(ctx, "保存失败：" + message, Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(ctx, getString(R.string.message_save_failed, message), Toast.LENGTH_SHORT).show();
                                     }
                                 });
                             }
@@ -406,10 +407,10 @@ public class ProfileTabFragment extends Fragment {
             @Override
             public void onSuccess(UserProfile profile) {
                 runIfUiAlive(() -> {
-                    binding.bioText.setText(bio.isEmpty() ? "暂无简介" : bio);
+                    binding.bioText.setText(bio.isEmpty() ? getString(R.string.status_empty_bio) : bio);
                     android.content.Context context = getContext();
                     if (context != null) {
-                        Toast.makeText(context, "简介已更新", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, R.string.message_bio_updated, Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -419,7 +420,7 @@ public class ProfileTabFragment extends Fragment {
                 runIfUiAlive(() -> {
                     android.content.Context context = getContext();
                     if (context != null) {
-                        Toast.makeText(context, "更新失败：" + message, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, getString(R.string.message_update_failed, message), Toast.LENGTH_SHORT).show();
                     }
                 });
             }
@@ -431,9 +432,9 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         
-        String[] options = {"从相册选择图片", "选择emoji头像"};
+        String[] options = {getString(R.string.avatar_picker_gallery), getString(R.string.avatar_picker_emoji)};
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
-        builder.setTitle("选择头像");
+        builder.setTitle(R.string.avatar_picker_title);
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
                 openGalleryPicker();
@@ -441,7 +442,7 @@ public class ProfileTabFragment extends Fragment {
                 showEmojiPicker();
             }
         });
-        builder.setNegativeButton("取消", null);
+        builder.setNegativeButton(R.string.action_cancel, null);
         builder.show();
     }
 
@@ -495,7 +496,7 @@ public class ProfileTabFragment extends Fragment {
         }
         
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
-        builder.setTitle("选择头像");
+        builder.setTitle(R.string.avatar_picker_title);
 
         GridLayout gridLayout = new GridLayout(getContext());
         gridLayout.setColumnCount(4);
@@ -503,7 +504,7 @@ public class ProfileTabFragment extends Fragment {
         final String[] selectedEmoji = {null};
         final TextView[] selectedView = {null};
         
-        for (String emoji : AVATAR_EMOJIS) {
+        for (String emoji : getResources().getStringArray(R.array.profile_avatar_emojis)) {
             TextView textView = new TextView(getContext());
             textView.setText(emoji);
             textView.setTextSize(28f);
@@ -529,17 +530,17 @@ public class ProfileTabFragment extends Fragment {
         }
         
         builder.setView(gridLayout);
-        builder.setPositiveButton("确定", (dialog, which) -> {
+        builder.setPositiveButton(R.string.action_confirm, (dialog, which) -> {
             if (selectedEmoji[0] == null) {
                 android.content.Context context = getContext();
                 if (context != null) {
-                    Toast.makeText(context, "请先选择一个头像", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, R.string.avatar_picker_select_first, Toast.LENGTH_SHORT).show();
                 }
                 return;
             }
             updateAvatarWithEmoji(selectedEmoji[0]);
         });
-        builder.setNegativeButton("取消", null);
+        builder.setNegativeButton(R.string.action_cancel, null);
         builder.show();
     }
 

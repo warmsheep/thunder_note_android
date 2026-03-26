@@ -25,7 +25,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="设置"
+            android:text="@string/settings_title"
             android:textColor="@color/text_primary"
             android:textSize="@dimen/text_size_page_title" />
 
@@ -72,7 +72,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
-                    android:text="关于"
+                    android:text="@string/settings_about"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_body" />
 
@@ -107,7 +107,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
-                    android:text="官网"
+                    android:text="@string/settings_website"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_body" />
 
@@ -142,7 +142,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
-                    android:text="隐私政策"
+                    android:text="@string/settings_privacy"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_body" />
 
@@ -177,7 +177,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
-                    android:text="致谢"
+                    android:text="@string/settings_credits"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_body" />
 
@@ -212,7 +212,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
-                    android:text="反馈BUG"
+                    android:text="@string/settings_feedback_bug"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_body" />
 
@@ -247,7 +247,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
-                    android:text="调试日志"
+                    android:text="@string/settings_debug_log"
                     android:textColor="@color/text_primary"
                     android:textSize="@dimen/text_size_body" />
 

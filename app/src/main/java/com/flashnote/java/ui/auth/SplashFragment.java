@@ -43,7 +43,7 @@ public class SplashFragment extends Fragment {
             String versionName = requireContext().getPackageManager()
                 .getPackageInfo(requireContext().getPackageName(), 0).versionName;
             if (binding.versionText != null) {
-                binding.versionText.setText("v" + versionName);
+                binding.versionText.setText(getString(com.flashnote.java.R.string.splash_version_prefix, versionName));
             }
         } catch (Exception exception) {
             DebugLog.w("SplashFragment", "Failed to resolve version name");

@@ -3,6 +3,7 @@ package com.flashnote.java.ui.media;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
 import android.os.Bundle;
@@ -124,17 +125,23 @@ public class FilePreviewActivity extends AppCompatActivity {
             }
 
             PdfRenderer.Page page = pdfRenderer.openPage(0);
-            int width = Math.max(page.getWidth(), 1);
-            int height = Math.max(page.getHeight(), 1);
-            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+            PdfPreviewRenderSpec.Size renderSize = PdfPreviewRenderSpec.fit(page.getWidth(), page.getHeight());
+            Bitmap bitmap = Bitmap.createBitmap(renderSize.width, renderSize.height, Bitmap.Config.ARGB_8888);
+            Matrix matrix = new Matrix();
+            float scaleX = (float) renderSize.width / (float) Math.max(page.getWidth(), 1);
+            float scaleY = (float) renderSize.height / (float) Math.max(page.getHeight(), 1);
+            matrix.setScale(scaleX, scaleY);
+            page.render(bitmap, null, matrix, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
             page.close();
 
             binding.pdfPreviewImage.setImageBitmap(bitmap);
             binding.textPreviewContainer.setVisibility(android.view.View.GONE);
             binding.pdfPreviewImage.setVisibility(android.view.View.VISIBLE);
             binding.unsupportedText.setVisibility(android.view.View.GONE);
-        } catch (IOException exception) {
+        } catch (IOException | RuntimeException exception) {
+            closePdfRenderer();
+            showUnsupported(getString(R.string.file_preview_pdf_failed));
+        } catch (OutOfMemoryError error) {
             showUnsupported(getString(R.string.file_preview_pdf_failed));
         }
     }

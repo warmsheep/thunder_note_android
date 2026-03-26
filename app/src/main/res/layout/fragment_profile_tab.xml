@@ -54,7 +54,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:text="同步"
+                android:text="@string/action_sync"
                 android:textColor="#D9FFFFFF"
                 android:textSize="12sp" />
 
@@ -64,7 +64,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="加载中..."
+                android:text="@string/status_profile_loading"
                 android:textColor="@color/white"
                 android:textSize="@dimen/text_size_page_title"
                 android:textStyle="bold" />
@@ -75,7 +75,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="暂无简介"
+                android:text="@string/status_empty_bio"
                 android:textColor="#B0FFFFFF"
                 android:textSize="@dimen/text_size_body" />
         </LinearLayout>
@@ -89,7 +89,7 @@
             android:layout_marginEnd="14dp"
             android:background="@android:color/transparent"
             android:clickable="true"
-            android:contentDescription="同步"
+            android:contentDescription="@string/action_sync"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackgroundBorderless"
             android:padding="6dp">
@@ -120,7 +120,7 @@
                 android:layout_marginEnd="-4dp"
                 android:background="@drawable/bg_sync_badge"
                 android:gravity="center"
-                android:text="0"
+                android:text="@string/count_zero"
                 android:textColor="@color/white"
                 android:textSize="10sp"
                 android:textStyle="bold"
@@ -149,7 +149,7 @@
                 android:id="@+id/flashNoteCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0"
+                android:text="@string/count_zero"
                 android:textColor="@color/text_primary"
                 android:textSize="@dimen/text_size_page_title"
                 android:textStyle="bold" />
@@ -157,7 +157,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="闪记"
+                android:text="@string/profile_stat_flashnote"
                 android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_caption" />
         </LinearLayout>
@@ -174,7 +174,7 @@
                 android:id="@+id/favoriteCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0"
+                android:text="@string/count_zero"
                 android:textColor="@color/text_primary"
                 android:textSize="@dimen/text_size_page_title"
                 android:textStyle="bold" />
@@ -182,7 +182,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="收藏"
+                android:text="@string/profile_stat_favorite"
                 android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_caption" />
         </LinearLayout>
@@ -199,7 +199,7 @@
                 android:id="@+id/recordCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0"
+                android:text="@string/count_zero"
                 android:textColor="@color/text_primary"
                 android:textSize="@dimen/text_size_page_title"
                 android:textStyle="bold" />
@@ -207,7 +207,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="记录"
+                android:text="@string/profile_stat_record"
                 android:textColor="@color/text_secondary"
                 android:textSize="@dimen/text_size_caption" />
         </LinearLayout>
@@ -251,14 +251,14 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="14dp"
-                android:text="修改密码"
+                android:text="@string/action_change_password"
                 android:textSize="@dimen/text_size_body"
                 android:textColor="@color/text_primary" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="›"
+                android:text="@string/symbol_chevron"
                 android:textSize="14sp"
                 android:textColor="#CCCCCC" />
         </LinearLayout>
@@ -294,14 +294,14 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="14dp"
-                android:text="设置"
+                android:text="@string/action_settings"
                 android:textSize="@dimen/text_size_body"
                 android:textColor="@color/text_primary" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="›"
+                android:text="@string/symbol_chevron"
                 android:textSize="14sp"
                 android:textColor="#CCCCCC" />
         </LinearLayout>
@@ -337,14 +337,14 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="14dp"
-                android:text="退出登录"
+                android:text="@string/action_logout"
                 android:textSize="@dimen/text_size_body"
                 android:textColor="@color/text_primary" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="›"
+                android:text="@string/symbol_chevron"
                 android:textSize="14sp"
                 android:textColor="#CCCCCC" />
         </LinearLayout>

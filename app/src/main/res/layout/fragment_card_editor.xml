@@ -17,7 +17,7 @@
             android:id="@+id/cancelButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="取消"
+            android:text="@string/action_cancel"
             android:textColor="@color/text_secondary"
             android:textSize="14sp" />
 
@@ -27,7 +27,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="新建卡片"
+            android:text="@string/card_editor_new_title"
             android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -36,7 +36,7 @@
             android:id="@+id/saveButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="保存"
+            android:text="@string/action_save"
             android:textColor="@color/primary"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -62,7 +62,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="标题"
+                android:text="@string/card_editor_section_title"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -73,7 +73,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:background="@drawable/bg_input_rounded"
-                android:hint="请输入卡片标题"
+                android:hint="@string/card_editor_title_hint"
                 android:maxLines="1"
                 android:padding="14dp"
                 android:textColor="@color/text_primary"
@@ -84,7 +84,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
-                android:text="附件"
+                android:text="@string/card_editor_section_attachment"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -109,7 +109,7 @@
                         android:paddingTop="8dp"
                         android:paddingRight="14dp"
                         android:paddingBottom="8dp"
-                        android:text="图片/视频"
+                        android:text="@string/card_editor_add_media"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
 
@@ -123,7 +123,7 @@
                         android:paddingTop="8dp"
                         android:paddingRight="14dp"
                         android:paddingBottom="8dp"
-                        android:text="文件"
+                        android:text="@string/card_editor_add_file"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
 
@@ -137,7 +137,7 @@
                         android:paddingTop="8dp"
                         android:paddingRight="14dp"
                         android:paddingBottom="8dp"
-                        android:text="拍照"
+                        android:text="@string/card_editor_add_camera"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -148,7 +148,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:text="最多添加 9 个同类型附件"
+                android:text="@string/card_editor_attachment_tip"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
 
@@ -160,7 +160,7 @@
                 android:background="@drawable/bg_input_rounded"
                 android:gravity="center"
                 android:padding="18dp"
-                android:text="暂未添加附件"
+                android:text="@string/card_editor_empty_attachment"
                 android:textColor="@color/text_hint"
                 android:textSize="13sp" />
 
@@ -184,7 +184,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="22dp"
-                android:text="文字内容"
+                android:text="@string/card_editor_section_content"
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -196,7 +196,7 @@
                 android:layout_marginTop="8dp"
                 android:background="@drawable/bg_input_rounded"
                 android:gravity="top|start"
-                android:hint="输入卡片说明、补充说明或正文内容..."
+                android:hint="@string/card_editor_content_hint"
                 android:inputType="textMultiLine|textCapSentences"
                 android:padding="14dp"
                 android:textColor="@color/text_primary"
@@ -223,7 +223,7 @@
                         android:paddingTop="6dp"
                         android:paddingRight="12dp"
                         android:paddingBottom="6dp"
-                        android:text="粗体"
+                        android:text="@string/card_editor_format_bold"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
 
@@ -237,7 +237,7 @@
                         android:paddingTop="6dp"
                         android:paddingRight="12dp"
                         android:paddingBottom="6dp"
-                        android:text="斜体"
+                        android:text="@string/card_editor_format_italic"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
 
@@ -251,7 +251,7 @@
                         android:paddingTop="6dp"
                         android:paddingRight="12dp"
                         android:paddingBottom="6dp"
-                        android:text="引用"
+                        android:text="@string/card_editor_format_quote"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
 
@@ -265,7 +265,7 @@
                         android:paddingTop="6dp"
                         android:paddingRight="12dp"
                         android:paddingBottom="6dp"
-                        android:text="待办"
+                        android:text="@string/card_editor_format_todo"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
                 </LinearLayout>

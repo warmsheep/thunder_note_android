@@ -15,38 +15,38 @@ import java.util.List;
 public class FavoriteViewModel extends AndroidViewModel {
     private final FavoriteRepository repository;
     private final LiveData<List<FavoriteItem>> favorites;
-    private final LiveData<Boolean> isLoading;
-    private final LiveData<String> errorMessage;
+    private final RefreshableRepositoryDelegate delegate;
 
     public FavoriteViewModel(@NonNull Application application) {
         super(application);
         repository = ((FlashNoteApp) application).getFavoriteRepository();
         favorites = repository.getFavorites();
-        isLoading = repository.isLoading();
-        errorMessage = repository.getErrorMessage();
-        repository.clearError();
-        repository.refresh();
+        delegate = new RefreshableRepositoryDelegate(
+                repository.isLoading(),
+                repository.getErrorMessage(),
+                repository::clearError,
+                repository::refresh
+        );
+    }
+
+    public LiveData<Boolean> isLoading() {
+        return delegate.isLoading();
+    }
+
+    public LiveData<String> getErrorMessage() {
+        return delegate.getErrorMessage();
     }
 
     public LiveData<List<FavoriteItem>> getFavorites() {
         return favorites;
     }
 
-    public LiveData<Boolean> isLoading() {
-        return isLoading;
-    }
-
-    public LiveData<String> getErrorMessage() {
-        return errorMessage;
-    }
-
     public void clearError() {
-        repository.clearError();
+        delegate.clearError();
     }
 
     public void refresh() {
-        repository.clearError();
-        repository.refresh();
+        delegate.refresh();
     }
 
     public void removeFavorite(Long messageId, FavoriteRepository.ActionCallback callback) {

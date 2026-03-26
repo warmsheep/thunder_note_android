@@ -1,10 +1,13 @@
 package com.flashnote.java.ui.chat;
 
+import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.media.MediaPlayer;
 import android.net.Uri;
+import android.media.MediaPlayer;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
@@ -35,6 +38,7 @@ import com.flashnote.java.ui.media.ImageViewerActivity;
 import com.flashnote.java.ui.media.MediaUrlResolver;
 import com.flashnote.java.ui.media.VideoPlayerActivity;
 import com.flashnote.java.util.MarkdownRenderer;
+import com.flashnote.java.DebugLog;
 
 import java.io.File;
 import java.time.Duration;
@@ -66,6 +70,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private final OnMessageLongClickListener listener;
     @Nullable
     private final OnRetryPendingMessageListener retryListener;
+    private final MessageMediaBinder mediaBinder = new MessageMediaBinder();
+    private final MessageCompositeBinder compositeBinder = new MessageCompositeBinder();
     private final TokenManager tokenManager;
     private final FileRepository fileRepository;
 
@@ -334,250 +340,134 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
     private void showImageMessage(MessageViewHolder holder, Message message, boolean mine) {
-        hideAllMediaContainers(holder, mine);
-        FrameRefs refs = getRefs(holder, mine);
-        Context context = holder.binding.getRoot().getContext();
-        int maxWidthPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_width);
-        int maxHeightPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_max_height);
-
-        refs.imageContainer.setVisibility(View.VISIBLE);
-        refs.playIcon.setVisibility(View.GONE);
-        refs.uploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
-        bindTextForMediaMessage(refs.messageText, message.getContent());
-
-        String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
-        if (!TextUtils.isEmpty(preview)) {
-            Glide.with(context)
-                    .load(resolveMediaModel(preview))
-                    .placeholder(R.drawable.bg_placeholder_card)
-                    .error(R.drawable.bg_placeholder_card)
-                    .fitCenter()
-                    .dontAnimate()
-                    .thumbnail(0.25f)
-                    .override(maxWidthPx, maxHeightPx)
-                    .into(refs.imageView);
-
-            refs.imageContainer.setOnClickListener(v -> {
-                Intent intent = new Intent(v.getContext(), ImageViewerActivity.class);
-                if (isLocalOnlyMediaPath(message.getMediaUrl())) {
-                    String localPath = message.getMediaUrl().startsWith("file://")
-                            ? message.getMediaUrl().substring("file://".length())
-                            : message.getMediaUrl();
-                    intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, localPath);
-                } else {
-                    intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
-                }
-                v.getContext().startActivity(intent);
-            });
-        }
-        bindRetryState(holder, message, mine);
+        mediaBinder.bindImage(holder, message, mine, createMediaActionHandler());
     }
 
     private void showVideoMessage(MessageViewHolder holder, Message message, boolean mine) {
-        hideAllMediaContainers(holder, mine);
-        FrameRefs refs = getRefs(holder, mine);
-        Context context = holder.binding.getRoot().getContext();
-        int maxWidthPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_width);
-        int maxHeightPx = context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_max_height);
-
-        refs.imageContainer.setVisibility(View.VISIBLE);
-        refs.playIcon.setVisibility(View.VISIBLE);
-        refs.uploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
-        bindTextForMediaMessage(refs.messageText, message.getContent());
-
-        String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
-        refs.imageContainer.setOnClickListener(null);
-        if (!message.isUploading() && isLocalOnlyMediaPath(message.getMediaUrl())) {
-            refs.imageContainer.setOnClickListener(v -> Toast.makeText(context, "视频发送失败，请重试", Toast.LENGTH_SHORT).show());
-        }
-        if (!TextUtils.isEmpty(preview)) {
-            Glide.with(context)
-                    .load(resolveMediaModel(preview))
-                    .placeholder(R.drawable.bg_placeholder_card)
-                    .error(R.drawable.bg_placeholder_card)
-                    .fitCenter()
-                    .dontAnimate()
-                    .thumbnail(0.25f)
-                    .override(maxWidthPx, maxHeightPx)
-                    .into(refs.imageView);
-
-            refs.imageContainer.setOnClickListener(v -> {
-                Context clickContext = v.getContext();
-                Intent intent = new Intent(clickContext, VideoPlayerActivity.class);
-                intent.putExtra(VideoPlayerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
-                clickContext.startActivity(intent);
-            });
-        }
-        bindRetryState(holder, message, mine);
+        mediaBinder.bindVideo(holder, message, mine, createMediaActionHandler());
     }
 
     private void showVoiceMessage(MessageViewHolder holder, Message message, boolean mine) {
-        hideAllMediaContainers(holder, mine);
-        FrameRefs refs = getRefs(holder, mine);
-
-        refs.voiceContainer.setVisibility(View.VISIBLE);
-        refs.voiceUploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
-        bindTextForMediaMessage(refs.messageText, message.getContent());
-
-        Integer duration = message.getMediaDuration();
-        refs.voiceDuration.setText((duration == null || duration <= 0 ? 0 : duration) + "s");
-
-        refs.voiceContainer.setOnClickListener(null);
-        if (!message.isUploading()) {
-            refs.voicePlayBtn.setVisibility(View.GONE);
-            if (isLocalOnlyMediaPath(message.getMediaUrl())) {
-                refs.voiceContainer.setOnClickListener(v -> Toast.makeText(v.getContext(), "语音发送失败，请重试", Toast.LENGTH_SHORT).show());
-            } else {
-                refs.voiceContainer.setOnClickListener(v -> toggleVoicePlayback(v.getContext(), message, refs.voiceContainer, refs.voiceWaveform));
-            }
-            
-            boolean isPlayingThis = message.getId() != null
-                    && currentPlayingMessageId != null
-                    && currentPlayingMessageId.equals(message.getId())
-                    && mediaPlayer != null
-                    && mediaPlayer.isPlaying();
-            
-            if (isPlayingThis) {
-                startVoiceWaveAnimation(refs.voiceWaveform);
-            } else {
-                stopVoiceWaveAnimation(refs.voiceWaveform);
-            }
-        }
-        bindRetryState(holder, message, mine);
+        boolean isPlayingThis = message.getId() != null
+                && currentPlayingMessageId != null
+                && currentPlayingMessageId.equals(message.getId())
+                && mediaPlayer != null
+                && mediaPlayer.isPlaying();
+        mediaBinder.bindVoice(holder, message, mine, createMediaActionHandler(), isPlayingThis);
     }
 
     private void showFileMessage(MessageViewHolder holder, Message message, boolean mine) {
-        hideAllMediaContainers(holder, mine);
-        FrameRefs refs = getRefs(holder, mine);
-
-        refs.fileContainer.setVisibility(View.VISIBLE);
-        refs.fileUploadProgress.setVisibility(message.isUploading() ? View.VISIBLE : View.GONE);
-        bindTextForMediaMessage(refs.messageText, message.getContent());
-
-        if (!message.isUploading()) {
-            String fileName = !TextUtils.isEmpty(message.getFileName()) ? message.getFileName() : fallbackFileName(message.getMediaUrl());
-            refs.fileNameText.setText(fileName);
-            refs.fileSizeText.setText(formatFileSize(message.getFileSize()));
-            refs.fileIcon.setImageResource(resolveFileIcon(fileName));
-
-            refs.fileContainer.setOnClickListener(v -> openFileMessage(v.getContext(), message));
-        }
-        bindRetryState(holder, message, mine);
+        String fileName = !TextUtils.isEmpty(message.getFileName()) ? message.getFileName() : fallbackFileName(message.getMediaUrl());
+        mediaBinder.bindFile(holder, message, mine, createMediaActionHandler(), fileName, formatFileSize(message.getFileSize()), resolveFileIcon(fileName));
     }
 
     private void showCompositeMessage(MessageViewHolder holder, Message message, boolean mine) {
-        hideAllMediaContainers(holder, mine);
-        FrameRefs refs = getRefs(holder, mine);
-        Context context = holder.binding.getRoot().getContext();
+        compositeBinder.bind(holder, message, mine, createCompositeActionHandler());
+    }
 
-        refs.compositeContainer.setVisibility(View.VISIBLE);
-        refs.messageText.setVisibility(View.GONE);
-
-        CardPayload payload = message.getPayload();
-        if (payload == null) {
-            refs.compositeTitle.setText("未知的卡片内容");
-            refs.compositeSummary.setVisibility(View.GONE);
-            refs.compositeGrid.setVisibility(View.GONE);
-            bindRetryState(holder, message, mine);
-            return;
-        }
-
-        refs.compositeTitle.setText(TextUtils.isEmpty(payload.getTitle()) ? "闪记" : payload.getTitle());
-
-        StringBuilder summary = new StringBuilder();
-        if (!TextUtils.isEmpty(payload.getSummary())) {
-            summary.append(payload.getSummary());
-        }
-        List<CardItem> items = payload.getItems();
-        if (summary.length() == 0 && items != null && !items.isEmpty()) {
-            for (int i = 0; i < Math.min(items.size(), 3); i++) {
-                CardItem item = items.get(i);
-                if (!TextUtils.isEmpty(item.getContent())) {
-                    if (summary.length() > 0) summary.append("\n");
-                    summary.append(item.getContent());
-                } else if ("IMAGE".equalsIgnoreCase(item.getType())) {
-                    if (summary.length() > 0) summary.append("\n");
-                    summary.append("[图片]");
-                } else if ("VIDEO".equalsIgnoreCase(item.getType())) {
-                    if (summary.length() > 0) summary.append("\n");
-                    summary.append("[视频]");
-                } else if ("FILE".equalsIgnoreCase(item.getType())) {
-                    if (summary.length() > 0) summary.append("\n");
-                    summary.append("[文件]");
-                } else if ("VOICE".equalsIgnoreCase(item.getType())) {
-                    if (summary.length() > 0) summary.append("\n");
-                    summary.append("[语音]");
-                }
+    @NonNull
+    private MessageMediaBinder.MediaActionHandler createMediaActionHandler() {
+        return new MessageMediaBinder.MediaActionHandler() {
+            @Override
+            public void bindRetryState(@NonNull Message message, boolean mine, @NonNull MessageViewHolder holder) {
+                MessageAdapter.this.bindRetryState(holder, message, mine);
             }
-        }
-        
-        if (summary.length() > 0) {
-            refs.compositeSummary.setVisibility(View.VISIBLE);
-            MarkdownRenderer.renderIfMarkdown(refs.compositeSummary, summary.toString());
-        } else {
-            refs.compositeSummary.setVisibility(View.GONE);
-        }
 
-        List<String> mediaUrls = new ArrayList<>();
-        if (items != null) {
-            for (CardItem item : items) {
-                if ("IMAGE".equalsIgnoreCase(item.getType())) {
-                    mediaUrls.add(item.getUrl());
-                } else if ("VIDEO".equalsIgnoreCase(item.getType())) {
-                    mediaUrls.add(TextUtils.isEmpty(item.getThumbnailUrl()) ? item.getUrl() : item.getThumbnailUrl());
-                }
+            @Override
+            public void bindTextForMediaMessage(@NonNull TextView textView, String content) {
+                MessageAdapter.this.bindTextForMediaMessage(textView, content);
             }
-        }
 
-        if (mediaUrls.isEmpty()) {
-            refs.compositeGrid.setVisibility(View.GONE);
-        } else {
-            refs.compositeGrid.setVisibility(View.VISIBLE);
-            refs.compositeGrid.removeAllViews();
-            
-            int count = Math.min(mediaUrls.size(), 9);
-            int cols = count == 1 ? 1 : (count == 4 || count == 2 ? 2 : 3);
-            refs.compositeGrid.setColumnCount(cols);
-            
-            int sizePx = count == 1 ? context.getResources().getDimensionPixelSize(R.dimen.chat_media_preview_width) :
-                    (int) (90 * context.getResources().getDisplayMetrics().density);
-            int marginPx = (int) (2 * context.getResources().getDisplayMetrics().density);
-
-            for (int i = 0; i < count; i++) {
-                ImageView iv = new ImageView(context);
-                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                
-                android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams();
-                params.width = sizePx;
-                params.height = sizePx;
-                params.setMargins(marginPx, marginPx, marginPx, marginPx);
-                iv.setLayoutParams(params);
-                
-                Glide.with(context)
-                        .load(resolveMediaModel(mediaUrls.get(i)))
-                        .placeholder(R.drawable.bg_placeholder_card)
-                        .error(R.drawable.bg_placeholder_card)
-                        .override(sizePx, sizePx)
-                        .into(iv);
-                        
-                refs.compositeGrid.addView(iv);
+            @Override
+            public boolean isLocalOnlyMediaPath(String mediaPathOrUrl) {
+                return MessageAdapter.this.isLocalOnlyMediaPath(mediaPathOrUrl);
             }
-        }
 
-        bindCompositeFiles(refs, items, context);
-
-        refs.compositeContainer.setOnClickListener(v -> {
-            if (selectionMode) {
-                toggleSelection(message);
-                return;
+            @Override
+            public Object resolveMediaModel(String mediaPathOrUrl) {
+                return MessageAdapter.this.resolveMediaModel(mediaPathOrUrl);
             }
-            String detailTitle = payload != null && !TextUtils.isEmpty(payload.getTitle())
-                    ? payload.getTitle()
-                    : message.getContent();
-            String detailPeerAvatar = peerAvatarUrl != null ? peerAvatarUrl : peerAvatar;
-            CardDetailActivity.start(context, detailTitle, payload, userAvatar, userAvatarUrl, detailPeerAvatar);
-        });
-        bindRetryState(holder, message, mine);
+
+            @Override
+            public void hideAllMediaContainers(@NonNull MessageViewHolder holder, boolean mine) {
+                MessageAdapter.this.hideAllMediaContainers(holder, mine);
+            }
+
+            @Override
+            public FrameRefs getRefs(@NonNull MessageViewHolder holder, boolean mine) {
+                return MessageAdapter.this.getRefs(holder, mine);
+            }
+
+            @Override
+            public void toggleVoicePlayback(@NonNull Context context, @NonNull Message message, @NonNull View voiceContainer, @NonNull View voiceWaveform) {
+                MessageAdapter.this.toggleVoicePlayback(context, message, voiceContainer, voiceWaveform);
+            }
+
+            @Override
+            public void openFileMessage(@NonNull Context context, @NonNull Message message) {
+                MessageAdapter.this.openFileMessage(context, message);
+            }
+        };
+    }
+
+    @NonNull
+    private MessageCompositeBinder.CompositeActionHandler createCompositeActionHandler() {
+        return new MessageCompositeBinder.CompositeActionHandler() {
+            @Override
+            public void hideAllMediaContainers(@NonNull MessageViewHolder holder, boolean mine) {
+                MessageAdapter.this.hideAllMediaContainers(holder, mine);
+            }
+
+            @Override
+            public FrameRefs getRefs(@NonNull MessageViewHolder holder, boolean mine) {
+                return MessageAdapter.this.getRefs(holder, mine);
+            }
+
+            @Override
+            public void bindRetryState(@NonNull Message message, boolean mine, @NonNull MessageViewHolder holder) {
+                MessageAdapter.this.bindRetryState(holder, message, mine);
+            }
+
+            @Override
+            public Object resolveMediaModel(String mediaPathOrUrl) {
+                return MessageAdapter.this.resolveMediaModel(mediaPathOrUrl);
+            }
+
+            @Override
+            public void bindCompositeFiles(@NonNull FrameRefs refs, @Nullable List<CardItem> items, @NonNull Context context) {
+                MessageAdapter.this.bindCompositeFiles(refs, items, context);
+            }
+
+            @Override
+            public void toggleSelection(@NonNull Message message) {
+                MessageAdapter.this.toggleSelection(message);
+            }
+
+            @Override
+            public boolean isSelectionMode() {
+                return selectionMode;
+            }
+
+            @Override
+            public String getUserAvatar() {
+                return userAvatar;
+            }
+
+            @Override
+            public String getUserAvatarUrl() {
+                return userAvatarUrl;
+            }
+
+            @Override
+            public String getPeerAvatar() {
+                return peerAvatar;
+            }
+
+            @Override
+            public String getPeerAvatarUrl() {
+                return peerAvatarUrl;
+            }
+        };
     }
 
     private void toggleVoicePlayback(Context context, Message message, View voiceContainer, View voiceWaveform) {
@@ -697,56 +587,99 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
     private void openFileMessage(Context context, Message message) {
+        Context effectiveContext = (context instanceof Activity) ? context : context.getApplicationContext();
         String objectName = message.getMediaUrl();
         if (TextUtils.isEmpty(objectName)) {
-            Toast.makeText(context, "文件地址无效", Toast.LENGTH_SHORT).show();
+            Toast.makeText(effectiveContext, "文件地址无效", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        File cacheFile = new File(context.getCacheDir(), objectName.replace('/', '_'));
+        File cacheFile = new File(effectiveContext.getCacheDir(), objectName.replace('/', '_'));
         if (cacheFile.exists() && cacheFile.length() > 0) {
-            openCachedFile(context, message, cacheFile);
+            openCachedFile(effectiveContext, message, cacheFile);
             return;
         }
 
-        Toast.makeText(context, "正在下载文件...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(effectiveContext, "正在下载文件...", Toast.LENGTH_SHORT).show();
         fileRepository.download(objectName, new FileRepository.FileCallback() {
             @Override
             public void onSuccess(String path) {
-                openCachedFile(context, message, new File(path));
+                Context callbackContext = effectiveContext;
+                File downloadedFile = new File(path);
+                if (!downloadedFile.exists() || downloadedFile.length() == 0) {
+                    if (Looper.myLooper() == Looper.getMainLooper()) {
+                        Toast.makeText(callbackContext, "文件下载异常，请重试", Toast.LENGTH_SHORT).show();
+                    } else {
+                        new Handler(Looper.getMainLooper()).post(() -> 
+                            Toast.makeText(callbackContext, "文件下载异常，请重试", Toast.LENGTH_SHORT).show()
+                        );
+                    }
+                    return;
+                }
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    openCachedFile(callbackContext, message, downloadedFile);
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        openCachedFile(callbackContext, message, downloadedFile)
+                    );
+                }
             }
 
             @Override
             public void onError(String errorMsg, int code) {
-                Toast.makeText(context, "文件下载失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                String errorMessage = "文件下载失败: " + errorMsg;
+                Context callbackContext = effectiveContext;
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    Toast.makeText(callbackContext, errorMessage, Toast.LENGTH_SHORT).show();
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        Toast.makeText(callbackContext, errorMessage, Toast.LENGTH_SHORT).show()
+                    );
+                }
             }
         });
     }
 
     private void openCachedFile(Context context, Message message, File file) {
+        if (file == null || !file.exists() || !file.isFile() || file.length() == 0) {
+            Toast.makeText(context, "文件不存在或已损坏", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String fileName = !TextUtils.isEmpty(message.getFileName())
                 ? message.getFileName()
                 : fallbackFileName(message.getMediaUrl());
         String ext = getFileExtension(fileName);
 
-        if (isImageExtension(ext)) {
-            Intent intent = new Intent(context, ImageViewerActivity.class);
-            intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-            return;
-        }
+        boolean isActivityContext = context instanceof Activity;
 
-        if (isTextPreviewExtension(ext) || "pdf".equals(ext)) {
-            Intent intent = new Intent(context, FilePreviewActivity.class);
-            intent.putExtra(FilePreviewActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
-            intent.putExtra(FilePreviewActivity.EXTRA_FILE_NAME, fileName);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-            return;
-        }
+        try {
+            if (isImageExtension(ext)) {
+                Intent intent = new Intent(context, ImageViewerActivity.class);
+                intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+                if (!isActivityContext) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                }
+                context.startActivity(intent);
+                return;
+            }
 
-        openFileWithExternalApp(context, file);
+            if (isTextPreviewExtension(ext) || "pdf".equals(ext)) {
+                Intent intent = new Intent(context, FilePreviewActivity.class);
+                intent.putExtra(FilePreviewActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+                intent.putExtra(FilePreviewActivity.EXTRA_FILE_NAME, fileName);
+                if (!isActivityContext) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                }
+                context.startActivity(intent);
+                return;
+            }
+
+            openFileWithExternalApp(context, file);
+        } catch (Exception exception) {
+            DebugLog.e("MessageAdapter", "Failed to open cached file", exception);
+            Toast.makeText(context, "文件打开失败", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void openFileWithExternalApp(Context context, File file) {
@@ -1033,7 +966,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
     class MessageViewHolder extends RecyclerView.ViewHolder {
-        private final ItemChatMessageBinding binding;
+        final ItemChatMessageBinding binding;
 
         MessageViewHolder(ItemChatMessageBinding binding) {
             super(binding.getRoot());
@@ -1218,7 +1151,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         return message.getCreatedAt();
     }
 
-    private static final class FrameRefs {
+    static final class FrameRefs {
         final View imageContainer;
         final ImageView imageView;
         final ImageView playIcon;

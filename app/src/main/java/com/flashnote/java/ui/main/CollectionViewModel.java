@@ -15,38 +15,38 @@ import java.util.List;
 public class CollectionViewModel extends AndroidViewModel {
     private final CollectionRepository repository;
     private final LiveData<List<Collection>> collections;
-    private final LiveData<Boolean> isLoading;
-    private final LiveData<String> errorMessage;
+    private final RefreshableRepositoryDelegate delegate;
 
     public CollectionViewModel(@NonNull Application application) {
         super(application);
         repository = ((FlashNoteApp) application).getCollectionRepository();
         collections = repository.getCollections();
-        isLoading = repository.isLoading();
-        errorMessage = repository.getErrorMessage();
-        repository.clearError();
-        repository.refresh();
+        delegate = new RefreshableRepositoryDelegate(
+                repository.isLoading(),
+                repository.getErrorMessage(),
+                repository::clearError,
+                repository::refresh
+        );
+    }
+
+    public LiveData<Boolean> isLoading() {
+        return delegate.isLoading();
+    }
+
+    public LiveData<String> getErrorMessage() {
+        return delegate.getErrorMessage();
     }
 
     public LiveData<List<Collection>> getCollections() {
         return collections;
     }
 
-    public LiveData<Boolean> isLoading() {
-        return isLoading;
-    }
-
-    public LiveData<String> getErrorMessage() {
-        return errorMessage;
-    }
-
     public void clearError() {
-        repository.clearError();
+        delegate.clearError();
     }
 
     public void refresh() {
-        repository.clearError();
-        repository.refresh();
+        delegate.refresh();
     }
 
     public void createCollection(String name, String description, Runnable onSuccess) {

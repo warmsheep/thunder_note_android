@@ -26,9 +26,9 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
     private final FavoriteService favoriteService;
     private final FavoriteLocalDao favoriteLocalDao;
     private final TokenManager tokenManager;
+    private final FavoriteLocalMapper localMapper = new FavoriteLocalMapper();
+    private final RepositoryStateStore stateStore = new RepositoryStateStore();
     private final LiveData<List<FavoriteItem>> favoritesLiveData;
-    private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
-    private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
     private final ExecutorService localExecutor = Executors.newSingleThreadExecutor();
 
     public FavoriteRepositoryImpl(FavoriteService favoriteService, FavoriteLocalDao favoriteLocalDao, TokenManager tokenManager) {
@@ -36,7 +36,11 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
         this.favoriteLocalDao = favoriteLocalDao;
         this.tokenManager = tokenManager;
         long currentUserId = requireCurrentUserId();
-        this.favoritesLiveData = Transformations.map(favoriteLocalDao.observeAllByUserId(currentUserId), this::toModelList);
+        this.favoritesLiveData = Transformations.map(favoriteLocalDao.observeAllByUserId(currentUserId), entities -> {
+            List<FavoriteItem> favorites = localMapper.toModelList(entities);
+            sortFavorites(favorites);
+            return favorites;
+        });
     }
 
     @Override
@@ -46,26 +50,26 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
 
     @Override
     public LiveData<Boolean> isLoading() {
-        return isLoading;
+        return stateStore.isLoading();
     }
 
     @Override
     public LiveData<String> getErrorMessage() {
-        return errorMessage;
+        return stateStore.getErrorMessage();
     }
 
     @Override
     public void clearError() {
-        errorMessage.setValue(null);
+        stateStore.clearError();
     }
 
     @Override
     public void refresh() {
-        isLoading.setValue(true);
+        stateStore.setLoading(true);
         favoriteService.list().enqueue(new Callback<ApiResponse<List<FavoriteItem>>>() {
             @Override
             public void onResponse(Call<ApiResponse<List<FavoriteItem>>> call, Response<ApiResponse<List<FavoriteItem>>> response) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
                     clearError();
                     List<FavoriteItem> data = response.body().getData() == null ? new ArrayList<>() : new ArrayList<>(response.body().getData());
@@ -75,15 +79,15 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
                 }
                 String message = response.body() == null ? "加载收藏失败" : response.body().getMessage();
                 DebugLog.w("FavoriteRepo", message);
-                errorMessage.setValue(message);
+                stateStore.setError(message);
             }
 
             @Override
             public void onFailure(Call<ApiResponse<List<FavoriteItem>>> call, Throwable t) {
-                isLoading.setValue(false);
+                stateStore.setLoading(false);
                 String errMsg = "Network error: " + t.getMessage();
                 DebugLog.w("FavoriteRepo", errMsg);
-                errorMessage.setValue(errMsg);
+                stateStore.setError(errMsg);
             }
         });
     }
@@ -192,8 +196,8 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
     }
 
     private void persistRemoteFavorites(List<FavoriteItem> items) {
-        List<FavoriteLocalEntity> entities = toLocalList(items);
         long currentUserId = requireCurrentUserId();
+        List<FavoriteLocalEntity> entities = localMapper.toLocalList(items, currentUserId);
         localExecutor.execute(() -> {
             favoriteLocalDao.clearAllByUserId(currentUserId);
             if (!entities.isEmpty()) {
@@ -203,79 +207,11 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
     }
 
     private void persistSingleFavorite(FavoriteItem item) {
-        FavoriteLocalEntity entity = toLocal(item);
+        FavoriteLocalEntity entity = localMapper.toLocal(item, requireCurrentUserId());
         if (entity == null) {
             return;
         }
         localExecutor.execute(() -> favoriteLocalDao.upsert(entity));
-    }
-
-    private List<FavoriteLocalEntity> toLocalList(List<FavoriteItem> items) {
-        List<FavoriteLocalEntity> result = new ArrayList<>();
-        if (items == null) {
-            return result;
-        }
-        for (FavoriteItem item : items) {
-            FavoriteLocalEntity entity = toLocal(item);
-            if (entity != null) {
-                result.add(entity);
-            }
-        }
-        return result;
-    }
-
-    private FavoriteLocalEntity toLocal(FavoriteItem item) {
-        if (item == null || item.getId() == null) {
-            return null;
-        }
-        FavoriteLocalEntity entity = new FavoriteLocalEntity();
-        entity.setId(item.getId());
-        entity.setMessageId(item.getMessageId());
-        entity.setUserId(requireCurrentUserId());
-        entity.setFlashNoteId(item.getFlashNoteId());
-        entity.setFlashNoteTitle(item.getFlashNoteTitle());
-        entity.setRole(item.getRole());
-        entity.setContent(item.getContent());
-        entity.setFlashNoteIcon(item.getFlashNoteIcon());
-        entity.setMediaType(item.getMediaType());
-        entity.setMediaUrl(item.getMediaUrl());
-        entity.setFileName(item.getFileName());
-        entity.setFileSize(item.getFileSize());
-        entity.setMediaDuration(item.getMediaDuration());
-        entity.setFavoritedAt(item.getFavoritedAt() == null ? null : item.getFavoritedAt().toString());
-        entity.setMessageCreatedAt(item.getMessageCreatedAt() == null ? null : item.getMessageCreatedAt().toString());
-        return entity;
-    }
-
-    private List<FavoriteItem> toModelList(List<FavoriteLocalEntity> entities) {
-        List<FavoriteItem> result = new ArrayList<>();
-        if (entities == null) {
-            return result;
-        }
-        for (FavoriteLocalEntity entity : entities) {
-            FavoriteItem item = new FavoriteItem();
-            item.setId(entity.getId());
-            item.setMessageId(entity.getMessageId());
-            item.setFlashNoteId(entity.getFlashNoteId());
-            item.setFlashNoteTitle(entity.getFlashNoteTitle());
-            item.setRole(entity.getRole());
-            item.setContent(entity.getContent());
-            item.setFlashNoteIcon(entity.getFlashNoteIcon());
-            item.setMediaType(entity.getMediaType());
-            item.setMediaUrl(entity.getMediaUrl());
-            item.setFileName(entity.getFileName());
-            item.setFileSize(entity.getFileSize());
-            item.setMediaDuration(entity.getMediaDuration());
-            if (entity.getFavoritedAt() != null && !entity.getFavoritedAt().trim().isEmpty()) {
-                item.setFavoritedAt(LocalDateTime.parse(entity.getFavoritedAt()));
-            }
-            if (entity.getMessageCreatedAt() != null && !entity.getMessageCreatedAt().trim().isEmpty()) {
-                item.setMessageCreatedAt(LocalDateTime.parse(entity.getMessageCreatedAt()));
-            }
-            result.add(item);
-        }
-        sortFavorites(result);
-        return result;
     }
 
     private long requireCurrentUserId() {

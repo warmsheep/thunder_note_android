@@ -45,7 +45,7 @@
             android:id="@+id/versionText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="v1.0.0"
+            android:text="@string/splash_version_default"
             android:textColor="#B0FFFFFF"
             android:textSize="@dimen/text_size_tiny" />
 
@@ -53,7 +53,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="© Lin xuan. All rights reserved."
+            android:text="@string/splash_copyright"
             android:textColor="#80FFFFFF"
             android:textSize="@dimen/text_size_tiny" />
 
