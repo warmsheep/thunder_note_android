@@ -8,20 +8,25 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.activity.OnBackPressedCallback;
 import androidx.fragment.app.Fragment;
 
+import com.bumptech.glide.Glide;
 import com.flashnote.java.FlashNoteApp;
+import com.flashnote.java.TokenManager;
 import com.flashnote.java.R;
+import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.AuthRepository;
+import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.databinding.FragmentGestureUnlockPromptBinding;
 import com.flashnote.java.security.GestureLockManager;
+import com.flashnote.java.ui.media.MediaUrlResolver;
 import com.flashnote.java.ui.navigation.ShellNavigator;
+
+import java.io.File;
 
 public class GestureUnlockPromptFragment extends Fragment {
     private static final String ARG_LAUNCH_MAIN_SHELL = "launch_main_shell";
-    private static final int MAX_RETRY_COUNT = 5;
 
     public interface UnlockInteractionListener {
         void onUnlockPatternSubmitted(@NonNull String pattern);
@@ -32,6 +37,8 @@ public class GestureUnlockPromptFragment extends Fragment {
     private FragmentGestureUnlockPromptBinding binding;
     private GestureLockManager gestureLockManager;
     private AuthRepository authRepository;
+    private UserRepository userRepository;
+    private TokenManager tokenManager;
     private int retryCount = 0;
     private OnBackPressedCallback onBackPressedCallback;
 
@@ -55,8 +62,11 @@ public class GestureUnlockPromptFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        gestureLockManager = FlashNoteApp.getInstance().getGestureLockManager();
-        authRepository = FlashNoteApp.getInstance().getAuthRepository();
+        FlashNoteApp app = FlashNoteApp.getInstance();
+        gestureLockManager = app.getGestureLockManager();
+        authRepository = app.getAuthRepository();
+        userRepository = app.getUserRepository();
+        tokenManager = app.getTokenManager();
         onBackPressedCallback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -67,7 +77,6 @@ public class GestureUnlockPromptFragment extends Fragment {
         };
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), onBackPressedCallback);
 
-        binding.backButton.setOnClickListener(v -> navigateBack());
         binding.usePasswordButton.setOnClickListener(v -> openLogin());
         binding.forgotGestureButton.setOnClickListener(v -> handleForgotGesture());
         binding.patternView.setOnPatternListener(new GestureLockPatternView.OnPatternListener() {
@@ -92,7 +101,7 @@ public class GestureUnlockPromptFragment extends Fragment {
             public void onPatternCleared() {
             }
         });
-        renderRetryState();
+        bindCurrentUser();
     }
 
     public void markUnlockSuccess() {
@@ -100,8 +109,6 @@ public class GestureUnlockPromptFragment extends Fragment {
             return;
         }
         retryCount = 0;
-        binding.statusText.setText(R.string.gesture_unlock_status_success);
-        binding.statusText.setTextColor(ContextCompat.getColor(getContext(), R.color.primary));
         binding.patternView.setDisplayMode(GestureLockPatternView.DisplayMode.CORRECT);
         if (gestureLockManager != null) {
             gestureLockManager.markUnlockedNow();
@@ -114,13 +121,6 @@ public class GestureUnlockPromptFragment extends Fragment {
             return;
         }
         retryCount++;
-        String displayMessage = message;
-        if (displayMessage == null || displayMessage.trim().isEmpty()) {
-            displayMessage = getString(R.string.gesture_unlock_status_failure);
-        }
-
-        binding.statusText.setText(displayMessage);
-        binding.statusText.setTextColor(ContextCompat.getColor(getContext(), R.color.danger));
         binding.patternView.setDisplayMode(GestureLockPatternView.DisplayMode.ERROR);
         binding.patternView.postDelayed(() -> {
             if (binding == null) {
@@ -128,7 +128,6 @@ public class GestureUnlockPromptFragment extends Fragment {
             }
             binding.patternView.clearPattern();
         }, 550L);
-        renderRetryState();
     }
 
     private void handlePatternSubmit(@NonNull String pattern) {
@@ -165,15 +164,82 @@ public class GestureUnlockPromptFragment extends Fragment {
         openLogin();
     }
 
-    private void renderRetryState() {
+    private void bindCurrentUser() {
         if (binding == null || getContext() == null) {
             return;
         }
-        int remaining = Math.max(0, MAX_RETRY_COUNT - retryCount);
-        binding.retryHintText.setText(getString(R.string.gesture_unlock_retry_remaining, remaining));
-        if (retryCount == 0) {
-            binding.statusText.setText(getString(R.string.gesture_unlock_status_default));
-            binding.statusText.setTextColor(ContextCompat.getColor(getContext(), R.color.text_secondary));
+        String username = tokenManager == null ? null : tokenManager.getUsername();
+        applyUserName(null, username);
+        applyUserAvatar(null, username);
+
+        if (userRepository != null) {
+            userRepository.getProfile().observe(getViewLifecycleOwner(), profile -> {
+                if (profile == null || binding == null) {
+                    return;
+                }
+                applyUserName(profile, username);
+                applyUserAvatar(profile, username);
+            });
+            userRepository.fetchProfile(null);
+        }
+    }
+
+    private void applyUserName(@Nullable UserProfile profile, @Nullable String username) {
+        if (binding == null) {
+            return;
+        }
+        String nickname = profile == null ? null : profile.getNickname();
+        if (nickname != null && !nickname.trim().isEmpty()) {
+            binding.unlockUserNameText.setText(nickname.trim());
+            return;
+        }
+        if (username != null && !username.trim().isEmpty()) {
+            binding.unlockUserNameText.setText(username.trim());
+            return;
+        }
+        binding.unlockUserNameText.setText(R.string.status_unknown_user);
+    }
+
+    private void applyUserAvatar(@Nullable UserProfile profile, @Nullable String username) {
+        if (binding == null || getContext() == null) {
+            return;
+        }
+        String avatar = profile == null ? null : profile.getAvatar();
+        if (avatar != null && !avatar.isEmpty()) {
+            if (avatar.startsWith("http") || avatar.contains("/")) {
+                binding.unlockAvatarText.setVisibility(View.GONE);
+                binding.unlockAvatarImage.setVisibility(View.VISIBLE);
+                Glide.with(this)
+                        .load(MediaUrlResolver.resolve(avatar))
+                        .placeholder(R.drawable.bg_avatar_circle)
+                        .error(R.drawable.bg_avatar_circle)
+                        .circleCrop()
+                        .into(binding.unlockAvatarImage);
+                return;
+            }
+            binding.unlockAvatarImage.setVisibility(View.GONE);
+            binding.unlockAvatarText.setVisibility(View.VISIBLE);
+            binding.unlockAvatarText.setText(avatar);
+            return;
+        }
+
+        File avatarFile = new File(getContext().getFilesDir(), "avatar.jpg");
+        if (avatarFile.exists()) {
+            binding.unlockAvatarText.setVisibility(View.GONE);
+            binding.unlockAvatarImage.setVisibility(View.VISIBLE);
+            Glide.with(this)
+                    .load(avatarFile)
+                    .circleCrop()
+                    .into(binding.unlockAvatarImage);
+            return;
+        }
+
+        binding.unlockAvatarImage.setVisibility(View.GONE);
+        binding.unlockAvatarText.setVisibility(View.VISIBLE);
+        if (username != null && !username.isEmpty()) {
+            binding.unlockAvatarText.setText(String.valueOf(username.charAt(0)));
+        } else {
+            binding.unlockAvatarText.setText("?");
         }
     }
 
@@ -197,13 +263,6 @@ public class GestureUnlockPromptFragment extends Fragment {
             return;
         }
         getActivity().getSupportFragmentManager().popBackStack();
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().moveTaskToBack(true);
     }
 
     @Override

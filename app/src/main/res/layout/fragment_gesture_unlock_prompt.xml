@@ -13,12 +13,11 @@
         android:orientation="horizontal"
         android:padding="12dp">
 
-        <ImageView
+        <View
             android:id="@+id/backButton"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:padding="6dp"
-            android:src="@drawable/ic_chat_back" />
+            android:visibility="invisible" />
 
         <TextView
             android:layout_width="0dp"
@@ -50,38 +49,52 @@
             android:orientation="vertical"
             android:padding="24dp">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/gesture_unlock_hint"
-                android:textColor="@color/text_secondary"
-                android:textSize="@dimen/text_size_body" />
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/retryHintText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/gesture_unlock_retry_remaining_default"
-                android:textColor="@color/text_hint"
-                android:textSize="@dimen/text_size_caption" />
+                <FrameLayout
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:background="@drawable/bg_avatar_circle">
+
+                    <TextView
+                        android:id="@+id/unlockAvatarText"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:text="?"
+                        android:textColor="@color/text_primary"
+                        android:textSize="30sp" />
+
+                    <ImageView
+                        android:id="@+id/unlockAvatarImage"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/unlockUserNameText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/status_unknown_user"
+                    android:textColor="@color/text_primary"
+                    android:textSize="@dimen/text_size_page_title"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <com.flashnote.java.ui.settings.GestureLockPatternView
                 android:id="@+id/patternView"
                 android:layout_width="match_parent"
                 android:layout_height="320dp"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="24dp"
                 android:background="@drawable/bg_input_rounded"
                 android:padding="20dp" />
-
-            <TextView
-                android:id="@+id/statusText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="@string/gesture_unlock_status_default"
-                android:textColor="@color/text_secondary"
-                android:textSize="@dimen/text_size_error" />
 
             <Button
                 android:id="@+id/usePasswordButton"

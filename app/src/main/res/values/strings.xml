@@ -139,7 +139,7 @@
     <string name="gesture_lock_verify_hint">请绘制当前手势锁以继续。</string>
     <string name="gesture_lock_verify_success">验证成功</string>
     <string name="gesture_lock_verify_placeholder">已提交验证图案（长度：%1$d）</string>
-    <string name="gesture_unlock_title">手势解锁</string>
+    <string name="gesture_unlock_title">手势登录</string>
     <string name="gesture_unlock_hint">请绘制手势解锁进入应用。</string>
     <string name="gesture_unlock_retry_remaining">剩余尝试次数：%1$d</string>
     <string name="gesture_unlock_retry_remaining_default">剩余尝试次数：5</string>

@@ -24,6 +24,7 @@ import androidx.fragment.app.Fragment;
 import com.bumptech.glide.Glide;
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
+import com.flashnote.java.MainActivity;
 import com.flashnote.java.data.model.CardItem;
 import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.Message;
@@ -126,11 +127,18 @@ public class CardEditorFragment extends Fragment {
     }
 
     private void openMediaPicker() {
+        suppressNextGestureUnlockForExternalFlow();
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "video/*"});
         mediaPickerLauncher.launch(intent);
+    }
+
+    private void suppressNextGestureUnlockForExternalFlow() {
+        if (getActivity() instanceof MainActivity mainActivity) {
+            mainActivity.suppressNextGestureUnlockForExternalFlow();
+        }
     }
 
     private void openFilePicker() {

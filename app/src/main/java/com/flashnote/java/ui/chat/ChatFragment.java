@@ -39,6 +39,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
+import com.flashnote.java.MainActivity;
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.Message;
@@ -1169,10 +1170,17 @@ public class ChatFragment extends Fragment {
     }
 
     private void openMediaPicker() {
+        suppressNextGestureUnlockForExternalFlow();
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "video/*"});
         mediaPickerLauncher.launch(intent);
+    }
+
+    private void suppressNextGestureUnlockForExternalFlow() {
+        if (getActivity() instanceof MainActivity mainActivity) {
+            mainActivity.suppressNextGestureUnlockForExternalFlow();
+        }
     }
 
     private void openFilePicker() {

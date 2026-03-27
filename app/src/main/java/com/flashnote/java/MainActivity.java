@@ -8,6 +8,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import com.flashnote.java.databinding.ActivityMainBinding;
+import com.flashnote.java.security.GestureUnlockResumeTracker;
 import com.flashnote.java.ui.auth.LoginFragment;
 import com.flashnote.java.ui.auth.RegisterFragment;
 import com.flashnote.java.ui.auth.SplashFragment;
@@ -27,7 +28,7 @@ import com.flashnote.java.ui.settings.SettingsFragment;
 
 public class MainActivity extends AppCompatActivity implements ShellNavigator {
     private ActivityMainBinding binding;
-    private long backgroundAtElapsed = -1L;
+    private final GestureUnlockResumeTracker gestureUnlockResumeTracker = new GestureUnlockResumeTracker();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -138,7 +139,7 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     @Override
     protected void onStop() {
         super.onStop();
-        backgroundAtElapsed = SystemClock.elapsedRealtime();
+        gestureUnlockResumeTracker.markBackgrounded(SystemClock.elapsedRealtime());
     }
 
     @Override
@@ -155,9 +156,11 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
         if (!app.getTokenManager().isTokenValid()) {
             return;
         }
-        long backgroundDurationMs = backgroundAtElapsed < 0L
-                ? -1L
-                : SystemClock.elapsedRealtime() - backgroundAtElapsed;
+        GestureUnlockResumeTracker.ResumeState resumeState = gestureUnlockResumeTracker.consumeResumeState(SystemClock.elapsedRealtime());
+        if (resumeState.shouldSkipUnlockCheck()) {
+            return;
+        }
+        long backgroundDurationMs = resumeState.getBackgroundDurationMs();
         Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.rootFragmentContainer);
         if (currentFragment instanceof SplashFragment
                 || currentFragment instanceof LoginFragment
@@ -168,7 +171,10 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
         if (app.getGestureLockManager().requiresUnlock(backgroundDurationMs)) {
             openGestureUnlockPrompt(false);
         }
-        backgroundAtElapsed = -1L;
+    }
+
+    public void suppressNextGestureUnlockForExternalFlow() {
+        gestureUnlockResumeTracker.suppressNextUnlockCheck();
     }
 
     private void replaceRootFragment(Fragment fragment, boolean addToBackStack, boolean clearBackStack) {
