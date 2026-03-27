@@ -152,8 +152,8 @@ public class FlashNoteRepositoryImplTest {
             Thread.currentThread().interrupt();
         }
 
-        verify(flashNoteLocalDao).clearAllByUserId(101L);
         verify(flashNoteLocalDao, atLeastOnce()).upsertAll(any());
+        verify(flashNoteLocalDao, never()).clearAllByUserId(101L);
     }
 
     @Test
@@ -205,7 +205,7 @@ public class FlashNoteRepositoryImplTest {
     }
 
     @Test
-    public void refresh_onlyClearsCurrentUserLocalNotes() {
+    public void refresh_doesNotClearLocalNotesBeforeUpsert() {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Callback<ApiResponse<List<FlashNote>>>> callbackCaptor = forClass(Callback.class);
 
@@ -223,6 +223,6 @@ public class FlashNoteRepositoryImplTest {
             Thread.currentThread().interrupt();
         }
 
-        verify(flashNoteLocalDao, times(1)).clearAllByUserId(101L);
+        verify(flashNoteLocalDao, never()).clearAllByUserId(101L);
     }
 }

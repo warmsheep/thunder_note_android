@@ -345,9 +345,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
 
     private void persistRemoteNotes(List<FlashNote> notes) {
         List<FlashNoteLocalEntity> localNotes = toLocalList(notes);
-        long currentUserId = requireCurrentUserId();
         localExecutor.execute(() -> {
-            flashNoteLocalDao.clearAllByUserId(currentUserId);
             if (!localNotes.isEmpty()) {
                 flashNoteLocalDao.upsertAll(localNotes);
             }
