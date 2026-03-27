@@ -71,13 +71,13 @@ public class FlashNoteTabFragment extends Fragment {
     private SearchResultAdapter searchResultAdapter;
     private FlashNoteViewModel viewModel;
     private List<FlashNote> latestNotes = new ArrayList<>();
-    private List<FlashNote> searchedNotes = new ArrayList<>();
     private List<FlashNoteSearchResult> latestSearchResults = new ArrayList<>();
     private List<FlashNoteSearchResult> latestMessageContentResults = new ArrayList<>();
     private String currentQuery = "";
     private final Rect swipeDeleteRect = new Rect();
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingSearch;
+    private boolean suppressSearchWatcher;
     private MessageRepository messageRepository;
     private FileRepository fileRepository;
     private Uri cameraPhotoUri;
@@ -327,6 +327,9 @@ public class FlashNoteTabFragment extends Fragment {
 
             @Override
             public void afterTextChanged(Editable s) {
+                if (suppressSearchWatcher) {
+                    return;
+                }
                 if (pendingSearch != null) {
                     searchHandler.removeCallbacks(pendingSearch);
                 }
@@ -334,7 +337,19 @@ public class FlashNoteTabFragment extends Fragment {
                 searchHandler.postDelayed(pendingSearch, 300);
             }
         });
+        binding.searchInput.setOnEditorActionListener((v, actionId, event) -> {
+            if (FlashNoteSearchInputPolicy.shouldSubmitSearch(actionId, event)) {
+                if (pendingSearch != null) {
+                    searchHandler.removeCallbacks(pendingSearch);
+                    pendingSearch = null;
+                }
+                performSearch(binding.searchInput.getText() == null ? "" : binding.searchInput.getText().toString());
+                return true;
+            }
+            return false;
+        });
         binding.searchCloseButton.setOnClickListener(v -> closeSearchContainer());
+        resetSearchUiState("onViewCreated");
 
         viewModel.getNotes().observe(getViewLifecycleOwner(), notes -> {
             latestNotes = notes == null ? new ArrayList<>() : new ArrayList<>(notes);
@@ -370,7 +385,16 @@ public class FlashNoteTabFragment extends Fragment {
     }
 
     private void renderNotes() {
-        if (!currentQuery.isEmpty()) {
+        String recyclerAdapterName = binding.recyclerView.getAdapter() == null
+                ? "null"
+                : binding.recyclerView.getAdapter().getClass().getSimpleName();
+        boolean searchContainerVisible = binding.searchContainer.getVisibility() == View.VISIBLE;
+        if (FlashNoteSearchAdapterPolicy.shouldRenderSearchPane(searchContainerVisible, currentQuery)) {
+            ensureSearchResultAdapter();
+            boolean isShowingSearchAdapter = binding.recyclerView.getAdapter() == searchResultAdapter;
+            if (FlashNoteSearchAdapterPolicy.shouldEnsureSearchAdapter(true, isShowingSearchAdapter)) {
+                binding.recyclerView.setAdapter(searchResultAdapter);
+            }
             if (searchResultAdapter != null) {
                 searchResultAdapter.submitList(latestSearchResults, latestMessageContentResults);
             }
@@ -379,6 +403,9 @@ public class FlashNoteTabFragment extends Fragment {
             binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
             binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
         } else {
+            if (binding.recyclerView.getAdapter() != adapter) {
+                binding.recyclerView.setAdapter(adapter);
+            }
             List<FlashNote> visible = getVisibleNotes(latestNotes);
             adapter.submitList(visible);
             boolean empty = visible.isEmpty();
@@ -407,7 +434,7 @@ public class FlashNoteTabFragment extends Fragment {
 
     @NonNull
     private List<FlashNote> getDisplayedNotes() {
-        return currentQuery.isEmpty() ? getVisibleNotes(latestNotes) : new ArrayList<>(searchedNotes);
+        return getVisibleNotes(latestNotes);
     }
 
     private void showFlashNoteActions(@NonNull FlashNote note, @NonNull View anchor) {
@@ -456,38 +483,57 @@ public class FlashNoteTabFragment extends Fragment {
         } else {
             binding.searchContainer.setVisibility(View.VISIBLE);
             binding.searchInput.requestFocus();
-            if (searchResultAdapter == null) {
-                searchResultAdapter = new SearchResultAdapter(new SearchResultAdapter.OnSearchResultClickListener() {
-                    @Override
-                    public void onResultClick(FlashNote flashNote, Long messageId) {
-                        if (getActivity() instanceof ShellNavigator navigator) {
-                            if (messageId == null) {
-                                navigator.openChat(flashNote.getId(), flashNote.getTitle());
-                            } else {
-                                navigator.openChat(flashNote.getId(), flashNote.getTitle(), messageId);
-                            }
-                        }
-                    }
-                });
-                Context ctx = getContext();
-                if (ctx != null) {
-                    binding.recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
-                }
+            ensureSearchResultAdapter();
+            boolean isShowingSearchAdapter = binding.recyclerView.getAdapter() == searchResultAdapter;
+            if (FlashNoteSearchAdapterPolicy.shouldAttachSearchAdapter(true, isShowingSearchAdapter)) {
                 binding.recyclerView.setAdapter(searchResultAdapter);
             }
             renderNotes();
         }
     }
 
-    private void closeSearchContainer() {
-        binding.searchContainer.setVisibility(View.GONE);
-        binding.searchInput.setText("");
+    private void resetSearchUiState(@NonNull String reason) {
         currentQuery = "";
         latestSearchResults = new ArrayList<>();
         latestMessageContentResults = new ArrayList<>();
+        if (pendingSearch != null) {
+            searchHandler.removeCallbacks(pendingSearch);
+            pendingSearch = null;
+        }
+        suppressSearchWatcher = true;
+        binding.searchInput.setText("");
+        suppressSearchWatcher = false;
+        binding.searchContainer.setVisibility(View.GONE);
         if (binding.recyclerView.getAdapter() != adapter) {
             binding.recyclerView.setAdapter(adapter);
         }
+    }
+
+    private void ensureSearchResultAdapter() {
+        if (searchResultAdapter != null) {
+            return;
+        }
+        searchResultAdapter = new SearchResultAdapter(new SearchResultAdapter.OnSearchResultClickListener() {
+            @Override
+            public void onResultClick(FlashNote flashNote, Long messageId) {
+                if (getActivity() instanceof ShellNavigator navigator) {
+                    if (messageId == null) {
+                        navigator.openChat(flashNote.getId(), flashNote.getTitle());
+                    } else {
+                        navigator.openChat(flashNote.getId(), flashNote.getTitle(), messageId);
+                    }
+                }
+            }
+        });
+        Context ctx = getContext();
+        if (ctx != null && binding.recyclerView.getLayoutManager() == null) {
+            binding.recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
+        }
+    }
+
+    private void closeSearchContainer() {
+        binding.searchContainer.setVisibility(View.GONE);
+        resetSearchUiState("closeSearchContainer");
         renderNotes();
     }
 
@@ -521,79 +567,6 @@ public class FlashNoteTabFragment extends Fragment {
                 });
             }
         });
-    }
-
-    private void showSearchDialog() {
-        Context ctx = getContext();
-        if (ctx == null) {
-            return;
-        }
-        EditText input = new EditText(ctx);
-        input.setHint(R.string.hint_search_flashnote);
-        input.setText(currentQuery);
-        input.setSelection(input.getText().length());
-        input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        int padding = (int) (10 * ctx.getResources().getDisplayMetrics().density);
-        input.setPadding(padding, padding, padding, padding);
-        input.setBackgroundResource(R.drawable.bg_input_rounded);
-
-        android.widget.FrameLayout container = new android.widget.FrameLayout(ctx);
-        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
-        int horizontalMargin = (int) (20 * ctx.getResources().getDisplayMetrics().density);
-        params.setMargins(horizontalMargin, 0, horizontalMargin, 0);
-        input.setLayoutParams(params);
-        container.addView(input);
-
-        new AlertDialog.Builder(ctx)
-                .setCustomTitle(createDialogTitle(ctx, R.string.dialog_search_flashnote))
-                .setView(container)
-                .setPositiveButton(R.string.action_search, (dialog, which) -> {
-                    String query = normalizeQuery(input.getText() == null ? "" : input.getText().toString());
-                    if (query.isEmpty()) {
-                        currentQuery = "";
-                        searchedNotes = new ArrayList<>();
-                        renderNotes();
-                        return;
-                    }
-                    viewModel.searchNotes(query, new com.flashnote.java.data.repository.FlashNoteRepository.SearchCallback() {
-                        @Override
-                        public void onSuccess(List<FlashNoteSearchResult> noteNameResults, List<FlashNoteSearchResult> messageContentResults) {
-                            runIfUiAlive(() -> {
-                                currentQuery = query;
-                                latestSearchResults = noteNameResults == null ? new ArrayList<>() : new ArrayList<>(noteNameResults);
-                                latestMessageContentResults = messageContentResults == null ? new ArrayList<>() : new ArrayList<>(messageContentResults);
-                                searchedNotes = new ArrayList<>();
-                                for (FlashNoteSearchResult result : latestSearchResults) {
-                                    if (result.getFlashNote() != null) {
-                                        searchedNotes.add(result.getFlashNote());
-                                    }
-                                }
-                                renderNotes();
-                            });
-                        }
-
-                        @Override
-                        public void onError(String message) {
-                            runIfUiAlive(() -> {
-                                Context errorCtx = getContext();
-                                if (errorCtx != null) {
-                                    Toast.makeText(errorCtx, message, Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }
-                    });
-                })
-                .setNeutralButton(R.string.action_clear, (dialog, which) -> {
-                    currentQuery = "";
-                    searchedNotes = new ArrayList<>();
-                    latestSearchResults = new ArrayList<>();
-                    latestMessageContentResults = new ArrayList<>();
-                    renderNotes();
-                })
-                .setNegativeButton(R.string.action_cancel, null)
-                .show();
     }
 
     private void showNoteDialog(@Nullable FlashNote note, @NonNull FlashNoteViewModel viewModel) {
@@ -1156,6 +1129,9 @@ public class FlashNoteTabFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        if (binding != null && binding.searchContainer.getVisibility() != View.VISIBLE) {
+            resetSearchUiState("onResume");
+        }
         if (viewModel != null) {
             viewModel.refreshIfNeeded();
         }
@@ -1164,6 +1140,15 @@ public class FlashNoteTabFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (pendingSearch != null) {
+            searchHandler.removeCallbacks(pendingSearch);
+            pendingSearch = null;
+        }
+        if (binding != null) {
+            binding.recyclerView.setAdapter(null);
+        }
+        searchResultAdapter = null;
+        adapter = null;
         binding = null;
     }
 }
