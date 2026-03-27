@@ -58,6 +58,7 @@ public class ProfileTabFragment extends Fragment {
     private final ProfileSyncUiHelper syncUiHelper = new ProfileSyncUiHelper();
     private final ProfileEditHelper editHelper = new ProfileEditHelper();
     private final ProfileAvatarHelper avatarHelper = new ProfileAvatarHelper();
+    private final ProfileActionHelper actionHelper = new ProfileActionHelper();
     private UserProfile currentProfile;
     private LiveData<Integer> pendingSyncCountLiveData;
     private boolean syncInProgress;
@@ -202,32 +203,30 @@ public class ProfileTabFragment extends Fragment {
         if (syncRepository == null || syncInProgress) {
             return;
         }
-        syncInProgress = true;
-        updateSyncProgress(true);
-        syncRepository.syncAll(new SyncRepository.SyncCallback() {
-            @Override
-            public void onSuccess(java.util.Map<String, Object> data) {
-                runIfUiAlive(() -> {
-                    syncInProgress = false;
-                    updateSyncProgress(false);
-                    if (syncRepository != null) {
-                        syncRepository.getPendingSyncCount(count -> runIfUiAlive(() -> updateSyncBadge(count)));
-                    } else {
-                        updateSyncBadge(0);
+        actionHelper.triggerSync(syncRepository, syncInProgress,
+                () -> syncInProgress = true,
+                () -> syncInProgress = false,
+                new ProfileActionHelper.UiBridge() {
+                    @Override
+                    public void updateSyncProgress(boolean syncing) {
+                        ProfileTabFragment.this.updateSyncProgress(syncing);
                     }
-                    loadStats();
-                });
-            }
 
-            @Override
-            public void onError(String message, int code) {
-                DebugLog.logHandledError("ProfileTab", "Sync failed: " + message);
-                runIfUiAlive(() -> {
-                    syncInProgress = false;
-                    updateSyncProgress(false);
+                    @Override
+                    public void updateSyncBadge(int count) {
+                        ProfileTabFragment.this.runIfUiAlive(() -> ProfileTabFragment.this.updateSyncBadge(count));
+                    }
+
+                    @Override
+                    public void reloadStats() {
+                        ProfileTabFragment.this.loadStats();
+                    }
+
+                    @Override
+                    public void runIfUiAlive(@NonNull Runnable action) {
+                        ProfileTabFragment.this.runIfUiAlive(action);
+                    }
                 });
-            }
-        });
     }
 
     private void updateSyncProgress(boolean syncing) {
@@ -627,7 +626,7 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.openChangePassword();
+            actionHelper.openChangePassword(navigator);
         }
     }
 
@@ -636,7 +635,7 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.openSettings();
+            actionHelper.openSettings(navigator);
         }
     }
 
@@ -645,9 +644,8 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         AuthViewModel authViewModel = new ViewModelProvider(getActivity()).get(AuthViewModel.class);
-        authViewModel.logout();
         if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.logoutToLogin();
+            actionHelper.logout(authViewModel, navigator);
         }
     }
 

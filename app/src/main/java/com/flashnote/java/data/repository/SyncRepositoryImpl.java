@@ -157,16 +157,7 @@ public class SyncRepositoryImpl implements SyncRepository {
             @Override
             public void onSuccess(Map<String, Object> pullData) {
                 syncExecutor.execute(() -> {
-                    List<FlashNote> notes = loadLocalNotes();
-                    List<Collection> collections = loadLocalCollections();
-                    List<FavoriteItem> favorites = loadLocalFavorites();
-                    List<Message> messages = loadLocalMessages();
-
-                    Map<String, Object> payload = new HashMap<>();
-                    payload.put("notes", notes == null ? List.of() : notes);
-                    payload.put("collections", collections == null ? List.of() : collections);
-                    payload.put("messages", messages == null ? List.of() : messages);
-                    payload.put("favorites", favorites == null ? List.of() : favorites);
+                    Map<String, Object> payload = buildLocalStatePayload();
 
                     push(payload, new SyncCallback() {
                         @Override
@@ -210,17 +201,7 @@ public class SyncRepositoryImpl implements SyncRepository {
 
     @Override
     public void pushLocalState(SyncCallback callback) {
-        List<FlashNote> notes = loadLocalNotes();
-        List<Collection> collections = loadLocalCollections();
-        List<FavoriteItem> favorites = loadLocalFavorites();
-        List<Message> messages = loadLocalMessages();
-
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("notes", notes == null ? List.of() : notes);
-        payload.put("collections", collections == null ? List.of() : collections);
-        payload.put("messages", messages == null ? List.of() : messages);
-        payload.put("favorites", favorites == null ? List.of() : favorites);
-        push(payload, callback);
+        push(buildLocalStatePayload(), callback);
     }
 
     @Override
@@ -252,6 +233,15 @@ public class SyncRepositoryImpl implements SyncRepository {
                 callback.onError(errMsg, -1);
             }
         });
+    }
+
+    Map<String, Object> buildLocalStatePayload() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("notes", safeList(loadLocalNotes()));
+        payload.put("collections", safeList(loadLocalCollections()));
+        payload.put("messages", safeList(loadLocalMessages()));
+        payload.put("favorites", safeList(loadLocalFavorites()));
+        return payload;
     }
 
     private List<FlashNote> loadLocalNotes() {
@@ -367,5 +357,9 @@ public class SyncRepositoryImpl implements SyncRepository {
             return null;
         }
         return LocalDateTime.parse(value);
+    }
+
+    private <T> List<T> safeList(List<T> items) {
+        return items == null ? List.of() : items;
     }
 }

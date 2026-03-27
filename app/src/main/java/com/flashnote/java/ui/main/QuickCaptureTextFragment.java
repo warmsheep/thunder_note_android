@@ -61,10 +61,7 @@ public class QuickCaptureTextFragment extends Fragment {
             return;
         }
         messageRepository.sendText(COLLECTION_BOX_NOTE_ID, content, () -> {
-            if (!isAdded() || getActivity() == null) {
-                return;
-            }
-            getActivity().runOnUiThread(() -> {
+            runIfUiAlive(() -> {
                 if (flashNoteViewModel != null) {
                     flashNoteViewModel.updateInboxPreviewLocally(content);
                 }
@@ -121,6 +118,18 @@ public class QuickCaptureTextFragment extends Fragment {
             return;
         }
         Toast.makeText(getContext(), text, Toast.LENGTH_SHORT).show();
+    }
+
+    private void runIfUiAlive(@NonNull Runnable action) {
+        if (!isAdded() || binding == null) {
+            return;
+        }
+        binding.getRoot().post(() -> {
+            if (!isAdded() || binding == null) {
+                return;
+            }
+            action.run();
+        });
     }
 
     @Override

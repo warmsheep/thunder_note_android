@@ -20,21 +20,33 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PendingRecoveryWorker extends Worker {
     public static final String UNIQUE_WORK_NAME = "pending-recovery-sync";
 
+    interface RecoveryDependencies {
+        boolean isTokenValid();
+        void retryAllPendingMessages();
+        void pullAndRefreshLocal(com.flashnote.java.data.repository.SyncRepository.SyncCallback callback);
+    }
+
+    private RecoveryDependencies testDependencies;
+
     public PendingRecoveryWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
+    }
+
+    void setTestDependencies(@NonNull RecoveryDependencies dependencies) {
+        this.testDependencies = dependencies;
     }
 
     @NonNull
     @Override
     public Result doWork() {
-        FlashNoteApp app = FlashNoteApp.getInstance();
-        if (app == null || app.getTokenManager() == null || !app.getTokenManager().isTokenValid()) {
+        RecoveryDependencies dependencies = resolveDependencies();
+        if (dependencies == null || !dependencies.isTokenValid()) {
             return Result.success();
         }
-        app.getMessageRepository().retryAllPendingMessages();
+        dependencies.retryAllPendingMessages();
         CountDownLatch latch = new CountDownLatch(1);
         AtomicBoolean success = new AtomicBoolean(false);
-        app.getSyncRepository().pullAndRefreshLocal(new com.flashnote.java.data.repository.SyncRepository.SyncCallback() {
+        dependencies.pullAndRefreshLocal(new com.flashnote.java.data.repository.SyncRepository.SyncCallback() {
             @Override
             public void onSuccess(java.util.Map<String, Object> data) {
                 success.set(true);
@@ -57,6 +69,32 @@ public class PendingRecoveryWorker extends Worker {
             Thread.currentThread().interrupt();
             return Result.retry();
         }
+    }
+
+    private RecoveryDependencies resolveDependencies() {
+        if (testDependencies != null) {
+            return testDependencies;
+        }
+        FlashNoteApp app = FlashNoteApp.getInstance();
+        if (app == null || app.getTokenManager() == null || app.getMessageRepository() == null || app.getSyncRepository() == null) {
+            return null;
+        }
+        return new RecoveryDependencies() {
+            @Override
+            public boolean isTokenValid() {
+                return app.getTokenManager().isTokenValid();
+            }
+
+            @Override
+            public void retryAllPendingMessages() {
+                app.getMessageRepository().retryAllPendingMessages();
+            }
+
+            @Override
+            public void pullAndRefreshLocal(com.flashnote.java.data.repository.SyncRepository.SyncCallback callback) {
+                app.getSyncRepository().pullAndRefreshLocal(callback);
+            }
+        };
     }
 
     public static void enqueue(@NonNull Context context) {

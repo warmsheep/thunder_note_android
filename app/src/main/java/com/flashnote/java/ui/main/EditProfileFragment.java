@@ -356,10 +356,15 @@ public class EditProfileFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        if (!isAdded() || getActivity() == null) {
+        if (!isAdded() || binding == null) {
             return;
         }
-        getActivity().runOnUiThread(action);
+        binding.getRoot().post(() -> {
+            if (!isAdded() || binding == null) {
+                return;
+            }
+            action.run();
+        });
     }
 
     private void showToast(@NonNull String message) {

@@ -33,6 +33,7 @@ public class MainShellFragment extends Fragment {
 
     private FragmentMainShellBinding binding;
     private int selectedTabId = R.id.tab_flashnote;
+    private Integer pendingTabId;
 
     @Nullable
     @Override
@@ -87,6 +88,11 @@ public class MainShellFragment extends Fragment {
             return;
         }
 
+        if (getChildFragmentManager().isStateSaved()) {
+            pendingTabId = tabId;
+            return;
+        }
+
         androidx.fragment.app.FragmentManager fragmentManager = getChildFragmentManager();
         String targetTag = resolveTabTag(tabId);
         Fragment targetFragment = fragmentManager.findFragmentByTag(targetTag);
@@ -114,10 +120,20 @@ public class MainShellFragment extends Fragment {
             transaction.add(R.id.mainContentContainer, targetFragment, targetTag);
         }
 
-        if (getChildFragmentManager().isStateSaved()) {
-            transaction.commitAllowingStateLoss();
-        } else {
-            transaction.commit();
+        transaction.commit();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (pendingTabId != null) {
+            int deferredTabId = pendingTabId;
+            pendingTabId = null;
+            if (binding != null) {
+                binding.bottomNav.setSelectedItemId(deferredTabId);
+            } else {
+                switchContent(deferredTabId);
+            }
         }
     }
 

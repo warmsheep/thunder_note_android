@@ -1,6 +1,7 @@
 package com.flashnote.java.data.repository;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -184,5 +185,52 @@ public class SyncRepositoryImplTest {
 
         verify(pendingMessageRepository).getPendingSyncCountNow();
         assertEquals(4, result.get());
+    }
+
+    @Test
+    public void buildLocalStatePayload_returnsEmptyListsWhenLocalTablesEmpty() {
+        when(flashNoteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
+        when(collectionLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
+        when(favoriteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
+        when(messageLocalDao.getAllNow()).thenReturn(List.of());
+
+        Map<String, Object> payload = repository.buildLocalStatePayload();
+
+        assertEquals(List.of(), payload.get("notes"));
+        assertEquals(List.of(), payload.get("collections"));
+        assertEquals(List.of(), payload.get("favorites"));
+        assertEquals(List.of(), payload.get("messages"));
+    }
+
+    @Test
+    public void pushLocalState_usesSharedLocalPayloadBuilder() {
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Callback<ApiResponse<Map<String, Object>>>> pushCaptor = ArgumentCaptor.forClass(Callback.class);
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+
+        when(flashNoteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
+        when(collectionLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
+        when(favoriteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
+        when(messageLocalDao.getAllNow()).thenReturn(List.of());
+
+        Map<String, Object> expectedPayload = repository.buildLocalStatePayload();
+
+        repository.pushLocalState(new SyncRepository.SyncCallback() {
+            @Override
+            public void onSuccess(Map<String, Object> data) {
+            }
+
+            @Override
+            public void onError(String message, int code) {
+            }
+        });
+
+        verify(syncService).push(payloadCaptor.capture());
+        verify(pushCall).enqueue(pushCaptor.capture());
+        assertEquals(expectedPayload, payloadCaptor.getValue());
+        assertSame(expectedPayload.get("notes"), payloadCaptor.getValue().get("notes"));
+        assertSame(expectedPayload.get("collections"), payloadCaptor.getValue().get("collections"));
+        assertSame(expectedPayload.get("favorites"), payloadCaptor.getValue().get("favorites"));
+        assertSame(expectedPayload.get("messages"), payloadCaptor.getValue().get("messages"));
     }
 }
