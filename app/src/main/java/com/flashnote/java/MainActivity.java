@@ -116,8 +116,8 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     }
 
     @Override
-    public void openGestureUnlockPrompt() {
-        replaceRootFragment(new GestureUnlockPromptFragment(), true, false);
+    public void openGestureUnlockPrompt(boolean launchMainShellAfterUnlock) {
+        replaceRootFragment(GestureUnlockPromptFragment.newInstance(launchMainShellAfterUnlock), true, false);
     }
 
     @Override
@@ -149,7 +149,7 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
 
     private void maybeRequireGestureUnlockOnResume() {
         FlashNoteApp app = FlashNoteApp.getInstance();
-        if (app == null || app.getGestureLockManager() == null || app.getTokenManager() == null) {
+        if (app == null || app.getGestureLockManager() == null || app.getTokenManager() == null || binding == null) {
             return;
         }
         if (!app.getTokenManager().isTokenValid()) {
@@ -158,7 +158,7 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
         long backgroundDurationMs = backgroundAtElapsed < 0L
                 ? -1L
                 : SystemClock.elapsedRealtime() - backgroundAtElapsed;
-        Fragment currentFragment = getSupportFragmentManager().findFragmentById(binding.rootFragmentContainer.getId());
+        Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.rootFragmentContainer);
         if (currentFragment instanceof SplashFragment
                 || currentFragment instanceof LoginFragment
                 || currentFragment instanceof RegisterFragment
@@ -166,7 +166,7 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
             return;
         }
         if (app.getGestureLockManager().requiresUnlock(backgroundDurationMs)) {
-            openGestureUnlockPrompt();
+            openGestureUnlockPrompt(false);
         }
         backgroundAtElapsed = -1L;
     }

@@ -21,7 +21,7 @@ public class AuthViewModel extends AndroidViewModel {
         ERROR
     }
 
-    private final AuthRepository authRepository;
+    private AuthRepository authRepository;
     
     private final MutableLiveData<AuthState> authState = new MutableLiveData<>(AuthState.IDLE);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
@@ -30,11 +30,11 @@ public class AuthViewModel extends AndroidViewModel {
 
     public AuthViewModel(@NonNull Application application) {
         super(application);
-        FlashNoteApp app = (FlashNoteApp) application;
-        this.authRepository = app.getAuthRepository();
+        refreshAuthRepository();
     }
 
     public void login(String username, String password) {
+        refreshAuthRepository();
         if (username == null || username.trim().isEmpty()) {
             authState.setValue(AuthState.ERROR);
             errorMessage.setValue("Username cannot be empty");
@@ -66,6 +66,7 @@ public class AuthViewModel extends AndroidViewModel {
     }
 
     public void logout() {
+        refreshAuthRepository();
         authRepository.logout();
         authState.setValue(AuthState.IDLE);
         loginResponse.setValue(null);
@@ -73,6 +74,7 @@ public class AuthViewModel extends AndroidViewModel {
     }
 
     public void checkLoginStatus() {
+        refreshAuthRepository();
         if (authRepository.isLoggedIn()) {
             currentUser.setValue(authRepository.getCurrentUser());
             authState.setValue(AuthState.SUCCESS);
@@ -99,5 +101,21 @@ public class AuthViewModel extends AndroidViewModel {
 
     public void clearError() {
         errorMessage.setValue(null);
+    }
+
+    public void resetLoginState() {
+        authState.setValue(AuthState.IDLE);
+        errorMessage.setValue(null);
+        loginResponse.setValue(null);
+        currentUser.setValue(null);
+    }
+
+    public void consumeLoginResponse() {
+        loginResponse.setValue(null);
+    }
+
+    private void refreshAuthRepository() {
+        FlashNoteApp app = (FlashNoteApp) getApplication();
+        this.authRepository = app.getAuthRepository();
     }
 }

@@ -20,6 +20,7 @@ import com.flashnote.java.security.GestureLockManager;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 public class GestureUnlockPromptFragment extends Fragment {
+    private static final String ARG_LAUNCH_MAIN_SHELL = "launch_main_shell";
     private static final int MAX_RETRY_COUNT = 5;
 
     public interface UnlockInteractionListener {
@@ -33,6 +34,14 @@ public class GestureUnlockPromptFragment extends Fragment {
     private AuthRepository authRepository;
     private int retryCount = 0;
     private OnBackPressedCallback onBackPressedCallback;
+
+    public static GestureUnlockPromptFragment newInstance(boolean launchMainShellAfterUnlock) {
+        GestureUnlockPromptFragment fragment = new GestureUnlockPromptFragment();
+        Bundle args = new Bundle();
+        args.putBoolean(ARG_LAUNCH_MAIN_SHELL, launchMainShellAfterUnlock);
+        fragment.setArguments(args);
+        return fragment;
+    }
 
     @Nullable
     @Override
@@ -59,7 +68,7 @@ public class GestureUnlockPromptFragment extends Fragment {
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), onBackPressedCallback);
 
         binding.backButton.setOnClickListener(v -> navigateBack());
-        binding.usePasswordButton.setOnClickListener(v -> openChangeLoginPassword());
+        binding.usePasswordButton.setOnClickListener(v -> openLogin());
         binding.forgotGestureButton.setOnClickListener(v -> handleForgotGesture());
         binding.patternView.setOnPatternListener(new GestureLockPatternView.OnPatternListener() {
             @Override
@@ -97,7 +106,7 @@ public class GestureUnlockPromptFragment extends Fragment {
         if (gestureLockManager != null) {
             gestureLockManager.markUnlockedNow();
         }
-        binding.patternView.postDelayed(this::navigateBack, 350L);
+        binding.patternView.postDelayed(this::handleUnlockNavigation, 350L);
     }
 
     public void markUnlockFailure(@Nullable String message) {
@@ -153,7 +162,7 @@ public class GestureUnlockPromptFragment extends Fragment {
             });
         }
         Toast.makeText(getContext(), getString(R.string.gesture_unlock_forgot_done), Toast.LENGTH_SHORT).show();
-        openChangeLoginPassword();
+        openLogin();
     }
 
     private void renderRetryState() {
@@ -168,13 +177,26 @@ public class GestureUnlockPromptFragment extends Fragment {
         }
     }
 
-    private void openChangeLoginPassword() {
+    private void openLogin() {
         if (!isAdded() || getActivity() == null) {
             return;
         }
         if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.openChangeLoginPassword();
+            navigator.logoutToLogin();
         }
+    }
+
+    private void handleUnlockNavigation() {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        boolean launchMainShellAfterUnlock = getArguments() != null
+                && getArguments().getBoolean(ARG_LAUNCH_MAIN_SHELL, false);
+        if (getActivity() instanceof ShellNavigator navigator && launchMainShellAfterUnlock) {
+            navigator.openMainShell();
+            return;
+        }
+        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     private void navigateBack() {

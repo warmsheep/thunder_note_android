@@ -37,7 +37,6 @@ public class SettingsFragment extends Fragment {
         binding.websiteItem.setOnClickListener(v -> openWebsite());
         binding.privacyItem.setOnClickListener(v -> showComingSoon("隐私政策"));
         binding.creditsItem.setOnClickListener(v -> showCredits());
-        binding.serverItem.setOnClickListener(v -> openServerSettings());
         binding.debugLogItem.setOnClickListener(v -> openDebugLogViewer());
         binding.feedbackItem.setOnClickListener(v -> showComingSoon("反馈BUG"));
     }
@@ -72,17 +71,6 @@ public class SettingsFragment extends Fragment {
         getActivity().getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.rootFragmentContainer, new DebugLogViewerFragment())
-                .addToBackStack(null)
-                .commit();
-    }
-
-    private void openServerSettings() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.rootFragmentContainer, new ServerSettingsFragment())
                 .addToBackStack(null)
                 .commit();
     }

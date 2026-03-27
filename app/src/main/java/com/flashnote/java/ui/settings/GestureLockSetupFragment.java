@@ -55,8 +55,6 @@ public class GestureLockSetupFragment extends Fragment {
         binding.backButton.setOnClickListener(v -> navigateBack());
         binding.resetButton.setOnClickListener(v -> resetSetupFlow());
         binding.saveButton.setOnClickListener(v -> submitSetupResult());
-        binding.openVerifyButton.setOnClickListener(v -> openGestureVerify());
-        binding.openUnlockPromptButton.setOnClickListener(v -> openGestureUnlockPrompt());
         binding.patternView.setOnPatternListener(new GestureLockPatternView.OnPatternListener() {
             @Override
             public void onPatternStart() {
@@ -224,24 +222,6 @@ public class GestureLockSetupFragment extends Fragment {
         binding.statusText.setText(message);
         binding.statusText.setTextColor(ContextCompat.getColor(getContext(), error ? R.color.danger : R.color.text_secondary));
         binding.statusText.setVisibility(View.VISIBLE);
-    }
-
-    private void openGestureVerify() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.openGestureLockVerify();
-        }
-    }
-
-    private void openGestureUnlockPrompt() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.openGestureUnlockPrompt();
-        }
     }
 
     private void navigateBack() {

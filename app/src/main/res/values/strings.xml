@@ -99,7 +99,6 @@
     <string name="settings_title">设置</string>
     <string name="settings_about">关于</string>
     <string name="settings_website">官网</string>
-    <string name="settings_server">服务器地址</string>
     <string name="settings_privacy">隐私政策</string>
     <string name="settings_credits">致谢</string>
     <string name="settings_feedback_bug">反馈BUG</string>
@@ -122,6 +121,8 @@
     <string name="security_gesture_lock">设置/修改手势锁</string>
     <string name="security_gesture_lock_subtitle">用于本机二次解锁，不影响账号密码</string>
     <string name="security_gesture_lock_coming_soon">手势锁正在接入中</string>
+    <string name="security_disable_gesture_lock">关闭手势密码</string>
+    <string name="security_disable_gesture_lock_subtitle">取消本机手势解锁，下次启动不再要求手势验证</string>
     <string name="gesture_lock_setup_title">设置手势锁</string>
     <string name="gesture_lock_setup_step_first_title">绘制新的解锁手势</string>
     <string name="gesture_lock_setup_step_first_hint">请至少连接 4 个点，作为本机手势锁。</string>

@@ -187,6 +187,10 @@ public class FlashNoteApp extends Application {
         initializeDependencies();
     }
 
+    public void reloadSessionScopedDependencies() {
+        initializeDependencies();
+    }
+
     private void clearPendingMessages() {
         if (database == null) {
             return;

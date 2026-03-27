@@ -67,7 +67,7 @@ public class SplashFragment extends Fragment {
         boolean hasValidToken = tokenManager != null && tokenManager.isTokenValid();
         if (hasValidToken) {
             if (gestureLockManager != null && gestureLockManager.isGestureEnabled()) {
-                navigator.openGestureUnlockPrompt();
+                navigator.openGestureUnlockPrompt(true);
             } else {
                 navigator.openMainShell();
             }

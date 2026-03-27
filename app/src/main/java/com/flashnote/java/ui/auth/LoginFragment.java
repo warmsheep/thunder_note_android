@@ -43,6 +43,7 @@ public class LoginFragment extends Fragment {
         serverConfigStore = app.getServerConfigStore();
         if (getActivity() != null) {
             authViewModel = new ViewModelProvider(getActivity()).get(AuthViewModel.class);
+            authViewModel.resetLoginState();
         }
 
         binding.goRegisterText.setOnClickListener(v -> {
@@ -144,6 +145,8 @@ public class LoginFragment extends Fragment {
                 response.getRefreshToken(),
                 response.getExpiresIn()
         );
+        FlashNoteApp.getInstance().reloadSessionScopedDependencies();
+        authViewModel.consumeLoginResponse();
 
         ShellNavigator navigator = getNavigator();
         if (navigator != null) {

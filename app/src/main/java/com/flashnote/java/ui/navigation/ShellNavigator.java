@@ -29,7 +29,7 @@ public interface ShellNavigator {
 
     void openGestureLockVerify();
 
-    void openGestureUnlockPrompt();
+    void openGestureUnlockPrompt(boolean launchMainShellAfterUnlock);
 
     void openSettings();
 

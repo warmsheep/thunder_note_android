@@ -88,6 +88,7 @@ public class RegisterFragment extends Fragment {
                             }
                             setLoading(false);
                             persistToken(response);
+                            FlashNoteApp.getInstance().reloadSessionScopedDependencies();
                             Toast.makeText(requireContext(), "注册成功", Toast.LENGTH_SHORT).show();
                             ShellNavigator navigator = getNavigator();
                             if (navigator != null) {

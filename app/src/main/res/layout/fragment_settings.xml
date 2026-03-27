@@ -155,41 +155,6 @@
                 android:background="@color/divider" />
 
             <LinearLayout
-                android:id="@+id/serverItem"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="14dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🖥️"
-                    android:textSize="@dimen/text_size_body" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:text="@string/settings_server"
-                    android:textColor="@color/text_primary"
-                    android:textSize="@dimen/text_size_body" />
-
-            </LinearLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="0.5dp"
-                android:layout_marginStart="16dp"
-                android:background="@color/divider" />
-
-            <LinearLayout
                 android:id="@+id/creditsItem"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
