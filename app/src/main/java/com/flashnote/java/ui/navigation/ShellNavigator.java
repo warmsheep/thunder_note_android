@@ -23,7 +23,17 @@ public interface ShellNavigator {
 
     void openChangePassword();
 
+    void openChangeLoginPassword();
+
+    void openGestureLockSetup();
+
+    void openGestureLockVerify();
+
+    void openGestureUnlockPrompt();
+
     void openSettings();
+
+    void openServerSettings();
 
     void logoutToLogin();
 }

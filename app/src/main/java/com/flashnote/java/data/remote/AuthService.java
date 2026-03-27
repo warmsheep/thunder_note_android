@@ -8,7 +8,9 @@ import com.flashnote.java.data.model.RegisterRequest;
 import java.util.Map;
 
 import retrofit2.Call;
+import retrofit2.http.DELETE;
 import retrofit2.http.Body;
+import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
 
@@ -27,4 +29,13 @@ public interface AuthService {
 
     @PUT("api/auth/password")
     Call<ApiResponse<Void>> changePassword(@Body Map<String, String> body);
+
+    @PUT("api/auth/gesture-lock")
+    Call<ApiResponse<Void>> saveGestureLockBackup(@Body Map<String, String> body);
+
+    @GET("api/auth/gesture-lock")
+    Call<ApiResponse<Map<String, Object>>> getGestureLockBackup();
+
+    @DELETE("api/auth/gesture-lock")
+    Call<ApiResponse<Void>> clearGestureLockBackup();
 }

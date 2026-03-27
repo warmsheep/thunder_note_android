@@ -16,6 +16,7 @@ import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.databinding.FragmentSplashBinding;
+import com.flashnote.java.security.GestureLockManager;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 public class SplashFragment extends Fragment {
@@ -58,13 +59,18 @@ public class SplashFragment extends Fragment {
             return;
         }
         TokenManager tokenManager = FlashNoteApp.getInstance().getTokenManager();
+        GestureLockManager gestureLockManager = FlashNoteApp.getInstance().getGestureLockManager();
         ShellNavigator navigator = getNavigator();
         if (navigator == null) {
             return;
         }
         boolean hasValidToken = tokenManager != null && tokenManager.isTokenValid();
         if (hasValidToken) {
-            navigator.openMainShell();
+            if (gestureLockManager != null && gestureLockManager.isGestureEnabled()) {
+                navigator.openGestureUnlockPrompt();
+            } else {
+                navigator.openMainShell();
+            }
         } else {
             navigator.openLogin();
         }

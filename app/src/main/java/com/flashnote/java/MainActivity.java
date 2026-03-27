@@ -1,6 +1,7 @@
 package com.flashnote.java;
 
 import android.os.Bundle;
+import android.os.SystemClock;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
@@ -16,11 +17,17 @@ import com.flashnote.java.ui.main.EditProfileFragment;
 import com.flashnote.java.ui.main.MainShellFragment;
 import com.flashnote.java.ui.main.QuickCaptureTextFragment;
 import com.flashnote.java.ui.navigation.ShellNavigator;
+import com.flashnote.java.ui.settings.ChangeLoginPasswordFragment;
 import com.flashnote.java.ui.settings.ChangePasswordFragment;
+import com.flashnote.java.ui.settings.GestureLockSetupFragment;
+import com.flashnote.java.ui.settings.GestureLockVerifyFragment;
+import com.flashnote.java.ui.settings.GestureUnlockPromptFragment;
+import com.flashnote.java.ui.settings.ServerSettingsFragment;
 import com.flashnote.java.ui.settings.SettingsFragment;
 
 public class MainActivity extends AppCompatActivity implements ShellNavigator {
     private ActivityMainBinding binding;
+    private long backgroundAtElapsed = -1L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,13 +101,74 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
     }
 
     @Override
+    public void openChangeLoginPassword() {
+        replaceRootFragment(new ChangeLoginPasswordFragment(), true, false);
+    }
+
+    @Override
+    public void openGestureLockSetup() {
+        replaceRootFragment(new GestureLockSetupFragment(), true, false);
+    }
+
+    @Override
+    public void openGestureLockVerify() {
+        replaceRootFragment(new GestureLockVerifyFragment(), true, false);
+    }
+
+    @Override
+    public void openGestureUnlockPrompt() {
+        replaceRootFragment(new GestureUnlockPromptFragment(), true, false);
+    }
+
+    @Override
     public void openSettings() {
         replaceRootFragment(new SettingsFragment(), true, false);
     }
 
     @Override
+    public void openServerSettings() {
+        replaceRootFragment(new ServerSettingsFragment(), true, false);
+    }
+
+    @Override
     public void logoutToLogin() {
         openLogin();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        backgroundAtElapsed = SystemClock.elapsedRealtime();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        maybeRequireGestureUnlockOnResume();
+    }
+
+    private void maybeRequireGestureUnlockOnResume() {
+        FlashNoteApp app = FlashNoteApp.getInstance();
+        if (app == null || app.getGestureLockManager() == null || app.getTokenManager() == null) {
+            return;
+        }
+        if (!app.getTokenManager().isTokenValid()) {
+            return;
+        }
+        long backgroundDurationMs = backgroundAtElapsed < 0L
+                ? -1L
+                : SystemClock.elapsedRealtime() - backgroundAtElapsed;
+        Fragment currentFragment = getSupportFragmentManager().findFragmentById(binding.rootFragmentContainer.getId());
+        if (currentFragment instanceof SplashFragment
+                || currentFragment instanceof LoginFragment
+                || currentFragment instanceof RegisterFragment
+                || currentFragment instanceof GestureUnlockPromptFragment) {
+            return;
+        }
+        if (app.getGestureLockManager().requiresUnlock(backgroundDurationMs)) {
+            openGestureUnlockPrompt();
+        }
+        backgroundAtElapsed = -1L;
     }
 
     private void replaceRootFragment(Fragment fragment, boolean addToBackStack, boolean clearBackStack) {

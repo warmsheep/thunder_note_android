@@ -22,6 +22,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
     private final TokenManager tokenManager;
+    private final ServerConfigStore serverConfigStore;
     private final OkHttpClient okHttpClient;
     private final Retrofit retrofit;
     private final AuthService authService;
@@ -33,14 +34,15 @@ public class ApiClient {
     private FavoriteService favoriteService;
     private UserService userService;
 
-    public ApiClient(TokenManager tokenManager) {
+    public ApiClient(TokenManager tokenManager, ServerConfigStore serverConfigStore) {
         this.tokenManager = tokenManager;
+        this.serverConfigStore = serverConfigStore;
 
         HttpLoggingInterceptor loggingInterceptor = createLoggingInterceptor(BuildConfig.DEBUG);
 
         okHttpClient = new OkHttpClient.Builder()
                 .addInterceptor(new AuthInterceptor(tokenManager))
-                .authenticator(new TokenAuthenticator(tokenManager))
+                .authenticator(new TokenAuthenticator(tokenManager, serverConfigStore))
                 .addInterceptor(loggingInterceptor)
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
@@ -53,7 +55,7 @@ public class ApiClient {
                 .create();
 
         retrofit = new Retrofit.Builder()
-                .baseUrl(BuildConfig.BASE_URL)
+                .baseUrl(serverConfigStore == null ? BuildConfig.BASE_URL : serverConfigStore.getBaseUrl())
                 .client(okHttpClient)
                 .addConverterFactory(GsonConverterFactory.create(gson))
                 .build();
@@ -116,6 +118,10 @@ public class ApiClient {
 
     public TokenManager getTokenManager() {
         return tokenManager;
+    }
+
+    public ServerConfigStore getServerConfigStore() {
+        return serverConfigStore;
     }
 
     public OkHttpClient getOkHttpClient() {

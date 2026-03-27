@@ -160,4 +160,56 @@ public class AuthRepositoryImpl implements AuthRepository {
             }
         });
     }
+
+    @Override
+    public void saveGestureLockBackup(String ciphertext, String nonce, String kdfParams, String version, GestureLockBackupCallback callback) {
+        Map<String, String> body = new HashMap<>();
+        body.put("ciphertext", ciphertext);
+        body.put("nonce", nonce);
+        body.put("kdfParams", kdfParams);
+        body.put("version", version);
+
+        authService.saveGestureLockBackup(body).enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    callback.onSuccess();
+                    return;
+                }
+                String errMsg = response.body() == null ? "HTTP " + response.code() : response.body().getMessage();
+                DebugLog.w("AuthRepo", errMsg);
+                callback.onError(errMsg, response.code());
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("AuthRepo", errMsg);
+                callback.onError(errMsg, -1);
+            }
+        });
+    }
+
+    @Override
+    public void clearGestureLockBackup(GestureLockBackupCallback callback) {
+        authService.clearGestureLockBackup().enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    callback.onSuccess();
+                    return;
+                }
+                String errMsg = response.body() == null ? "HTTP " + response.code() : response.body().getMessage();
+                DebugLog.w("AuthRepo", errMsg);
+                callback.onError(errMsg, response.code());
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                String errMsg = "Network error: " + t.getMessage();
+                DebugLog.w("AuthRepo", errMsg);
+                callback.onError(errMsg, -1);
+            }
+        });
+    }
 }

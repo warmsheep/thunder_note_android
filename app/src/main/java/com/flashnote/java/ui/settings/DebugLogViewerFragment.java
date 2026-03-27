@@ -31,26 +31,32 @@ public class DebugLogViewerFragment extends Fragment {
         binding.backButton.setOnClickListener(v -> navigateBack());
         binding.clearLogButton.setOnClickListener(v -> DebugLog.clear());
 
-        String persistedLog = DebugLog.readPersistedLog();
-        String persistedHeader = (persistedLog == null || persistedLog.isEmpty())
-                ? ""
-                : "=== 历史日志 (上次运行) ===\n" + persistedLog + "\n=== 当前会话日志 ===\n";
-
-        String currentSessionLog = DebugLog.getCurrentSessionLog();
-        String initialCombinedLog = persistedHeader + (currentSessionLog == null ? "" : currentSessionLog);
-        binding.debugLogText.setText(initialCombinedLog.isEmpty() ? "暂无日志" : initialCombinedLog);
+        renderLogs(DebugLog.getCurrentSessionLog());
 
         DebugLog.getLiveData().observe(getViewLifecycleOwner(), log -> {
             if (binding != null) {
-                String liveSessionLog = (log == null || log.isEmpty()) ? "" : log;
-                String snapshotSessionLog = DebugLog.getCurrentSessionLog();
-                String effectiveSessionLog = (snapshotSessionLog == null || snapshotSessionLog.isEmpty())
-                        ? liveSessionLog
-                        : snapshotSessionLog;
-                String combinedLog = persistedHeader + effectiveSessionLog;
-                binding.debugLogText.setText(combinedLog.isEmpty() ? "暂无日志" : combinedLog);
+                renderLogs(log);
             }
         });
+    }
+
+    private void renderLogs(@Nullable String liveLog) {
+        String previousSessionLog = DebugLog.readPreviousSessionLog();
+        String currentSessionLog = DebugLog.getCurrentSessionLog();
+        String effectiveCurrentLog = (currentSessionLog == null || currentSessionLog.isEmpty())
+                ? (liveLog == null ? "" : liveLog)
+                : currentSessionLog;
+
+        StringBuilder combined = new StringBuilder();
+        if (previousSessionLog != null && !previousSessionLog.isEmpty()) {
+            combined.append("=== 历史日志 (上次运行) ===\n");
+            combined.append(previousSessionLog.trim()).append("\n\n");
+        }
+        if (effectiveCurrentLog != null && !effectiveCurrentLog.isEmpty()) {
+            combined.append("=== 当前会话日志 ===\n");
+            combined.append(effectiveCurrentLog.trim());
+        }
+        binding.debugLogText.setText(combined.length() == 0 ? "暂无日志" : combined.toString());
     }
 
     private void navigateBack() {

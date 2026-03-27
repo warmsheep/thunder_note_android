@@ -22,6 +22,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
@@ -96,13 +97,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         FlashNoteApp app = FlashNoteApp.getInstance();
         this.tokenManager = app.getTokenManager();
         this.fileRepository = app.getFileRepository();
+        setHasStableIds(true);
     }
 
     public void submitList(List<Message> messages) {
+        List<Message> oldItems = new ArrayList<>(items);
+        List<Message> newItems = messages == null ? new ArrayList<>() : new ArrayList<>(messages);
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new MessageDiffCallback(oldItems, newItems));
         items.clear();
-        if (messages != null) {
-            items.addAll(messages);
-        }
+        items.addAll(newItems);
         if (selectionMode) {
             java.util.Set<Long> existingIds = new java.util.LinkedHashSet<>();
             for (Message item : items) {
@@ -113,7 +116,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             selectedIds.retainAll(existingIds);
             dispatchSelectionChanged();
         }
-        notifyDataSetChanged();
+        diffResult.dispatchUpdatesTo(this);
+    }
+
+    @Override
+    public long getItemId(int position) {
+        Message message = items.get(position);
+        return buildStableItemId(message);
     }
 
     public void setOnSelectionChangedListener(@Nullable OnSelectionChangedListener listener) {
@@ -221,6 +230,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
+        holder.bind(items.get(position), position);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull MessageViewHolder holder, int position, @NonNull List<Object> payloads) {
+        if (payloads.isEmpty()) {
+            onBindViewHolder(holder, position);
+            return;
+        }
         holder.bind(items.get(position), position);
     }
 
@@ -558,6 +576,82 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             }
         }
         return RecyclerView.NO_POSITION;
+    }
+
+    private long buildStableItemId(@Nullable Message message) {
+        if (message == null) {
+            return RecyclerView.NO_ID;
+        }
+        if (message.getId() != null) {
+            return message.getId();
+        }
+        String clientRequestId = message.getClientRequestId();
+        if (clientRequestId != null && !clientRequestId.isBlank()) {
+            return clientRequestId.hashCode();
+        }
+        Long localSortTimestamp = message.getLocalSortTimestamp();
+        if (localSortTimestamp != null) {
+            return -Math.abs(localSortTimestamp);
+        }
+        String content = message.getContent();
+        return content == null ? RecyclerView.NO_ID : content.hashCode();
+    }
+
+    private boolean areContentsEquivalent(@Nullable Message oldItem, @Nullable Message newItem) {
+        if (oldItem == newItem) {
+            return true;
+        }
+        if (oldItem == null || newItem == null) {
+            return false;
+        }
+        return java.util.Objects.equals(oldItem.getId(), newItem.getId())
+                && java.util.Objects.equals(oldItem.getClientRequestId(), newItem.getClientRequestId())
+                && java.util.Objects.equals(oldItem.getSenderId(), newItem.getSenderId())
+                && java.util.Objects.equals(oldItem.getReceiverId(), newItem.getReceiverId())
+                && java.util.Objects.equals(oldItem.getContent(), newItem.getContent())
+                && java.util.Objects.equals(oldItem.getReadStatus(), newItem.getReadStatus())
+                && java.util.Objects.equals(oldItem.getFlashNoteId(), newItem.getFlashNoteId())
+                && java.util.Objects.equals(oldItem.getRole(), newItem.getRole())
+                && java.util.Objects.equals(oldItem.getCreatedAt(), newItem.getCreatedAt())
+                && java.util.Objects.equals(oldItem.getMediaType(), newItem.getMediaType())
+                && java.util.Objects.equals(oldItem.getMediaUrl(), newItem.getMediaUrl())
+                && java.util.Objects.equals(oldItem.getMediaDuration(), newItem.getMediaDuration())
+                && java.util.Objects.equals(oldItem.getThumbnailUrl(), newItem.getThumbnailUrl())
+                && java.util.Objects.equals(oldItem.getFileName(), newItem.getFileName())
+                && java.util.Objects.equals(oldItem.getFileSize(), newItem.getFileSize())
+                && java.util.Objects.equals(oldItem.getPayload(), newItem.getPayload())
+                && oldItem.isUploading() == newItem.isUploading()
+                && java.util.Objects.equals(oldItem.getLocalSortTimestamp(), newItem.getLocalSortTimestamp());
+    }
+
+    private final class MessageDiffCallback extends DiffUtil.Callback {
+        private final List<Message> oldItems;
+        private final List<Message> newItems;
+
+        private MessageDiffCallback(List<Message> oldItems, List<Message> newItems) {
+            this.oldItems = oldItems;
+            this.newItems = newItems;
+        }
+
+        @Override
+        public int getOldListSize() {
+            return oldItems.size();
+        }
+
+        @Override
+        public int getNewListSize() {
+            return newItems.size();
+        }
+
+        @Override
+        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+            return buildStableItemId(oldItems.get(oldItemPosition)) == buildStableItemId(newItems.get(newItemPosition));
+        }
+
+        @Override
+        public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+            return areContentsEquivalent(oldItems.get(oldItemPosition), newItems.get(newItemPosition));
+        }
     }
 
     private java.util.Map<View, android.animation.AnimatorSet> waveAnimators = new java.util.WeakHashMap<>();

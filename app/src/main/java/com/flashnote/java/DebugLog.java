@@ -21,6 +21,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class DebugLog {
+    private static final String CURRENT_LOG_FILE_NAME = "debug_log.txt";
+    private static final String PREVIOUS_LOG_FILE_NAME = "debug_log_previous.txt";
     private static final int MAX_ENTRIES = 200;
     private static final MutableLiveData<String> logLiveData = new MutableLiveData<>("");
     private static final StringBuilder buffer = new StringBuilder();
@@ -29,17 +31,22 @@ public final class DebugLog {
     private static final Map<String, Long> toastTimestamps = new HashMap<>();
     private static int entryCount = 0;
     private static volatile File logFile;
+    private static volatile File previousLogFile;
 
     private DebugLog() {}
 
     public static void init(Context context) {
         if (context != null) {
-            logFile = new File(context.getFilesDir(), "debug_log.txt");
+            logFile = new File(context.getFilesDir(), CURRENT_LOG_FILE_NAME);
+            previousLogFile = new File(context.getFilesDir(), PREVIOUS_LOG_FILE_NAME);
+            rotateCurrentSessionLog();
         }
+        resetCurrentSessionBuffer();
         installCrashHandler();
     }
 
     public static void init() {
+        resetCurrentSessionBuffer();
         installCrashHandler();
     }
 
@@ -186,7 +193,15 @@ public final class DebugLog {
     }
 
     public static String readPersistedLog() {
-        File localFile = logFile;
+        return readFileContent(logFile);
+    }
+
+    public static String readPreviousSessionLog() {
+        return readFileContent(previousLogFile);
+    }
+
+    private static String readFileContent(File targetFile) {
+        File localFile = targetFile;
         if (localFile == null || !localFile.exists() || !localFile.isFile()) {
             return "";
         }
@@ -206,6 +221,36 @@ public final class DebugLog {
         File localFile = logFile;
         if (localFile != null && localFile.exists() && !localFile.delete()) {
             appendEntry("WARN [DebugLog]", "Failed to delete persisted debug log file");
+        }
+        File historyFile = previousLogFile;
+        if (historyFile != null && historyFile.exists() && !historyFile.delete()) {
+            appendEntry("WARN [DebugLog]", "Failed to delete previous debug log file");
+        }
+    }
+
+    private static void resetCurrentSessionBuffer() {
+        synchronized (buffer) {
+            buffer.setLength(0);
+            entryCount = 0;
+        }
+        publish("");
+    }
+
+    private static void rotateCurrentSessionLog() {
+        File currentFile = logFile;
+        File historyFile = previousLogFile;
+        if (currentFile == null || historyFile == null || !currentFile.exists() || !currentFile.isFile()) {
+            return;
+        }
+        if (historyFile.exists() && !historyFile.delete()) {
+            return;
+        }
+        if (!currentFile.renameTo(historyFile)) {
+            String snapshot = readFileContent(currentFile);
+            if (!snapshot.isEmpty()) {
+                appendToFile(historyFile, snapshot);
+            }
+            currentFile.delete();
         }
     }
 

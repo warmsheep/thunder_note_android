@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="GestureLockPatternView">
+        <attr name="glpNodeColor" format="color" />
+        <attr name="glpSelectedNodeColor" format="color" />
+        <attr name="glpErrorColor" format="color" />
+        <attr name="glpCorrectColor" format="color" />
+        <attr name="glpNodeRadius" format="dimension" />
+        <attr name="glpSelectedNodeRadius" format="dimension" />
+        <attr name="glpLineWidth" format="dimension" />
+    </declare-styleable>
+</resources>

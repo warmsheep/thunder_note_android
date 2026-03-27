@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.TokenManager;
+import com.flashnote.java.data.remote.ServerConfigStore;
 import com.flashnote.java.data.model.LoginResponse;
 import com.flashnote.java.databinding.FragmentLoginBinding;
 import com.flashnote.java.ui.navigation.ShellNavigator;
@@ -23,6 +24,7 @@ public class LoginFragment extends Fragment {
     private FragmentLoginBinding binding;
     private AuthViewModel authViewModel;
     private TokenManager tokenManager;
+    private ServerConfigStore serverConfigStore;
 
     @Nullable
     @Override
@@ -38,6 +40,7 @@ public class LoginFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         FlashNoteApp app = FlashNoteApp.getInstance();
         tokenManager = app.getTokenManager();
+        serverConfigStore = app.getServerConfigStore();
         if (getActivity() != null) {
             authViewModel = new ViewModelProvider(getActivity()).get(AuthViewModel.class);
         }
@@ -48,7 +51,14 @@ public class LoginFragment extends Fragment {
                 navigator.openRegister();
             }
         });
+        binding.serverText.setOnClickListener(v -> {
+            ShellNavigator navigator = getNavigator();
+            if (navigator != null) {
+                navigator.openServerSettings();
+            }
+        });
         binding.loginButton.setOnClickListener(v -> attemptLogin());
+        updateServerLabel();
 
         if (authViewModel != null) {
             authViewModel.getAuthState().observe(getViewLifecycleOwner(), state -> {
@@ -147,6 +157,19 @@ public class LoginFragment extends Fragment {
                 ? getString(R.string.action_login_loading)
                 : getString(R.string.action_login));
         binding.goRegisterText.setEnabled(!loading);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        updateServerLabel();
+    }
+
+    private void updateServerLabel() {
+        if (binding == null || serverConfigStore == null) {
+            return;
+        }
+        binding.serverText.setText(serverConfigStore.getDisplayLabel() + "  ›");
     }
 
     private void showError(@NonNull String msg) {

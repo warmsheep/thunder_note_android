@@ -27,10 +27,12 @@ public class TokenAuthenticator implements Authenticator {
             .getType();
 
     private final TokenManager tokenManager;
+    private final ServerConfigStore serverConfigStore;
     private final Gson gson = new Gson();
 
-    public TokenAuthenticator(TokenManager tokenManager) {
+    public TokenAuthenticator(TokenManager tokenManager, ServerConfigStore serverConfigStore) {
         this.tokenManager = tokenManager;
+        this.serverConfigStore = serverConfigStore;
     }
 
     @Override
@@ -52,8 +54,9 @@ public class TokenAuthenticator implements Authenticator {
 
         OkHttpClient refreshClient = new OkHttpClient.Builder().build();
         RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest(refreshToken);
+        String baseUrl = serverConfigStore == null ? BuildConfig.BASE_URL : serverConfigStore.getBaseUrl();
         Request refreshRequest = new Request.Builder()
-                .url(BuildConfig.BASE_URL + "api/auth/refresh")
+                .url(baseUrl + "api/auth/refresh")
                 .post(RequestBody.create(gson.toJson(refreshTokenRequest), JSON_MEDIA_TYPE))
                 .build();
 

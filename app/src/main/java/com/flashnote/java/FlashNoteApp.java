@@ -4,10 +4,12 @@ import android.app.Application;
 import android.content.SharedPreferences;
 
 import androidx.room.Room;
+import androidx.work.WorkManager;
 
 import com.bumptech.glide.Glide;
 import com.flashnote.java.data.local.FlashNoteDatabase;
 import com.flashnote.java.data.remote.ApiClient;
+import com.flashnote.java.data.remote.ServerConfigStore;
 import com.flashnote.java.data.repository.AuthRepository;
 import com.flashnote.java.data.repository.AuthRepositoryImpl;
 import com.flashnote.java.data.repository.CollectionRepository;
@@ -28,11 +30,17 @@ import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.data.repository.UserRepositoryImpl;
 import com.flashnote.java.data.repository.VideoPreparationService;
 import com.flashnote.java.data.repository.VideoPreparationServiceImpl;
+import com.flashnote.java.data.sync.PendingRecoveryWorker;
+import com.flashnote.java.security.GestureLockManager;
+
+import java.io.File;
 
 public class FlashNoteApp extends Application {
 
     private static FlashNoteApp instance;
     private TokenManager tokenManager;
+    private ServerConfigStore serverConfigStore;
+    private GestureLockManager gestureLockManager;
     private ApiClient apiClient;
     private AuthRepository authRepository;
     private FlashNoteRepository flashNoteRepository;
@@ -72,8 +80,10 @@ public class FlashNoteApp extends Application {
     }
 
     private void initializeDependencies() {
+        serverConfigStore = new ServerConfigStore(this);
         tokenManager = new TokenManager(this);
-        apiClient = new ApiClient(tokenManager);
+        gestureLockManager = new GestureLockManager(this, tokenManager);
+        apiClient = new ApiClient(tokenManager, serverConfigStore);
         database = Room.databaseBuilder(getApplicationContext(), FlashNoteDatabase.class, "flashnote.db")
                 .fallbackToDestructiveMigration()
                 .build();
@@ -109,6 +119,14 @@ public class FlashNoteApp extends Application {
 
     public TokenManager getTokenManager() {
         return tokenManager;
+    }
+
+    public ServerConfigStore getServerConfigStore() {
+        return serverConfigStore;
+    }
+
+    public GestureLockManager getGestureLockManager() {
+        return gestureLockManager;
     }
 
     public ApiClient getApiClient() {
@@ -153,5 +171,68 @@ public class FlashNoteApp extends Application {
 
     public PendingMessageRepository getPendingMessageRepository() {
         return pendingMessageRepository;
+    }
+
+    public void switchServerEnvironment() {
+        if (tokenManager != null) {
+            tokenManager.clearTokens();
+        }
+        if (pendingMessageRepository != null) {
+            clearPendingMessages();
+        }
+        WorkManager.getInstance(this).cancelUniqueWork(PendingRecoveryWorker.UNIQUE_WORK_NAME);
+        DebugLog.clear();
+        clearAvatarCache();
+        clearAppCache();
+        initializeDependencies();
+    }
+
+    private void clearPendingMessages() {
+        if (database == null) {
+            return;
+        }
+        new Thread(() -> {
+            try {
+                database.clearAllTables();
+            } catch (RuntimeException exception) {
+                DebugLog.e("FlashNoteApp", "Failed to clear local tables for server switch", exception);
+            }
+        }).start();
+    }
+
+    private void clearAvatarCache() {
+        File avatarFile = new File(getFilesDir(), "avatar.jpg");
+        if (avatarFile.exists()) {
+            avatarFile.delete();
+        }
+    }
+
+    private void clearAppCache() {
+        File cacheDir = getCacheDir();
+        if (cacheDir == null || !cacheDir.exists()) {
+            return;
+        }
+        File[] children = cacheDir.listFiles();
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            deleteRecursively(child);
+        }
+    }
+
+    private void deleteRecursively(File target) {
+        if (target == null || !target.exists()) {
+            return;
+        }
+        if (target.isDirectory()) {
+            File[] children = target.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursively(child);
+                }
+            }
+        }
+        target.delete();
     }
 }

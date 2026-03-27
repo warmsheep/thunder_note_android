@@ -21,6 +21,11 @@ public interface AuthRepository {
         void onError(String message, int code);
     }
 
+    interface GestureLockBackupCallback {
+        void onSuccess();
+        void onError(String message, int code);
+    }
+
     void login(String username, String password, AuthCallback callback);
 
     void register(String username, String email, String password, SimpleCallback callback);
@@ -28,6 +33,10 @@ public interface AuthRepository {
     void logout();
 
     void changePassword(String currentPassword, String newPassword, PasswordCallback callback);
+
+    void saveGestureLockBackup(String ciphertext, String nonce, String kdfParams, String version, GestureLockBackupCallback callback);
+
+    void clearGestureLockBackup(GestureLockBackupCallback callback);
 
     User getCurrentUser();
 
