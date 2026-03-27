@@ -98,6 +98,7 @@ public class ChatFragment extends Fragment {
     private int lastRenderedMessageCount = 0;
     private String lastRenderedTailKey = "";
     private boolean lastRenderedTailUploading = false;
+    private String lastPreloadedMediaKey = "";
 
     public static ChatFragment newInstance(long flashNoteId, String title) {
         ChatFragment fragment = new ChatFragment();
@@ -283,7 +284,7 @@ public class ChatFragment extends Fragment {
                 isLoadingMore = false;
                 boolean shouldAutoScroll = shouldAutoScrollOnMessageUpdate(messages, wasLoadingMore, scrollToMessageId);
                 adapter.submitList(messages);
-                if (isAdded()) {
+                if (isAdded() && shouldPreloadRecentMedia(messages)) {
                     adapter.preloadRecentMedia(messages, requireContext());
                 }
                 // Scroll to bottom if not search location scenario
@@ -343,6 +344,38 @@ public class ChatFragment extends Fragment {
         binding.mergeDeleteButton.setOnClickListener(v -> handleBatchDelete());
         binding.mergeConfirmButton.setOnClickListener(v -> handleMergeAction());
         updateMergeSelectionCount(0);
+    }
+
+    private boolean shouldPreloadRecentMedia(@Nullable List<Message> messages) {
+        String mediaKey = buildRecentMediaKey(messages);
+        if (mediaKey.equals(lastPreloadedMediaKey)) {
+            return false;
+        }
+        lastPreloadedMediaKey = mediaKey;
+        return !mediaKey.isEmpty();
+    }
+
+    @NonNull
+    private String buildRecentMediaKey(@Nullable List<Message> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        int start = Math.max(0, messages.size() - 12);
+        for (int i = start; i < messages.size(); i++) {
+            Message message = messages.get(i);
+            if (message == null || message.isUploading()) {
+                continue;
+            }
+            String mediaType = message.getMediaType();
+            if (!"IMAGE".equalsIgnoreCase(mediaType) && !"VIDEO".equalsIgnoreCase(mediaType)) {
+                continue;
+            }
+            builder.append(message.getId()).append(':')
+                    .append(message.getMediaUrl()).append(':')
+                    .append(message.getThumbnailUrl()).append('|');
+        }
+        return builder.toString();
     }
 
     private void setupMessageInput(@NonNull ChatViewModel viewModel) {

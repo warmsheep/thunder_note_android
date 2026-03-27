@@ -17,6 +17,8 @@ import com.flashnote.java.data.local.FlashNoteLocalEntity;
 import com.flashnote.java.data.local.MessageLocalDao;
 import com.flashnote.java.data.local.MessageLocalEntity;
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.PendingMessage;
+import com.flashnote.java.data.model.SyncPullRequest;
 import com.flashnote.java.data.remote.SyncService;
 
 import org.junit.Before;
@@ -28,6 +30,7 @@ import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -59,7 +62,7 @@ public class SyncRepositoryImplTest {
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         when(tokenManager.getUserId()).thenReturn(7L);
-        when(syncService.pull()).thenReturn(pullCall);
+        when(syncService.pull(any())).thenReturn(pullCall);
         when(syncService.push(any())).thenReturn(pushCall);
         repository = new SyncRepositoryImpl(
                 syncService,
@@ -77,7 +80,7 @@ public class SyncRepositoryImplTest {
     }
 
     @Test
-    public void syncAll_pullsThenPushesLocalDatabasePayload() {
+    public void syncAll_pullsThenPushesOnlyPendingMessages() {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Callback<ApiResponse<Map<String, Object>>>> pullCaptor = ArgumentCaptor.forClass(Callback.class);
         @SuppressWarnings("unchecked")
@@ -96,16 +99,24 @@ public class SyncRepositoryImplTest {
         favorite.setId(33L);
         favorite.setUserId(7L);
         favorite.setMessageId(44L);
-        MessageLocalEntity message = new MessageLocalEntity();
-        message.setId(55L);
-        message.setConversationKey(100L);
-        message.setContent("hello");
-        message.setMediaType("IMAGE");
+        PendingMessage pendingMessage = new PendingMessage();
+        pendingMessage.setLocalId(91L);
+        pendingMessage.setConversationKey(100L);
+        pendingMessage.setFlashNoteId(11L);
+        pendingMessage.setClientRequestId("client-91");
+        pendingMessage.setContent("hello");
+        pendingMessage.setStatus(PendingMessageDispatcher.STATUS_FAILED);
+        pendingMessage.setCreatedAt(1_700_000_000_000L);
 
         when(flashNoteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of(note));
         when(collectionLocalDao.getAllNowByUserId(7L)).thenReturn(List.of(collection));
         when(favoriteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of(favorite));
-        when(messageLocalDao.getAllNow()).thenReturn(List.of(message));
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_FAILED)).thenReturn(List.of(pendingMessage));
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_QUEUED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_PROCESSING)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADING)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_SENDING)).thenReturn(List.of());
 
         final java.util.concurrent.atomic.AtomicReference<Map<String, Object>> resultRef = new java.util.concurrent.atomic.AtomicReference<>();
         repository.syncAll(new SyncRepository.SyncCallback() {
@@ -118,6 +129,12 @@ public class SyncRepositoryImplTest {
             public void onError(String message, int code) {
             }
         });
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
 
         verify(pullCall).enqueue(pullCaptor.capture());
         pullCaptor.getValue().onResponse(pullCall, Response.success(new ApiResponse<>(0, "ok", Map.of("serverTime", "1"))));
@@ -135,6 +152,10 @@ public class SyncRepositoryImplTest {
         assertEquals(1, ((List<?>) payload.get("collections")).size());
         assertEquals(1, ((List<?>) payload.get("favorites")).size());
         assertEquals(1, ((List<?>) payload.get("messages")).size());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> pushedMessage = (Map<String, Object>) ((List<?>) payload.get("messages")).get(0);
+        assertEquals("client-91", pushedMessage.get("clientRequestId"));
+        assertEquals(11L, pushedMessage.get("flashNoteId"));
 
         pushCaptor.getValue().onResponse(pushCall, Response.success(new ApiResponse<>(0, "ok", Map.of("accepted", true))));
 
@@ -162,6 +183,12 @@ public class SyncRepositoryImplTest {
                 errorRef.set(message + ":" + code);
             }
         });
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
 
         verify(pullCall).enqueue(pullCaptor.capture());
         pullCaptor.getValue().onResponse(pullCall, Response.success(new ApiResponse<>(500, "pull failed", null)));
@@ -192,7 +219,12 @@ public class SyncRepositoryImplTest {
         when(flashNoteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
         when(collectionLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
         when(favoriteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
-        when(messageLocalDao.getAllNow()).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_FAILED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_QUEUED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_PROCESSING)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADING)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_SENDING)).thenReturn(List.of());
 
         Map<String, Object> payload = repository.buildLocalStatePayload();
 
@@ -211,7 +243,12 @@ public class SyncRepositoryImplTest {
         when(flashNoteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
         when(collectionLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
         when(favoriteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
-        when(messageLocalDao.getAllNow()).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_FAILED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_QUEUED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_PROCESSING)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADING)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_SENDING)).thenReturn(List.of());
 
         Map<String, Object> expectedPayload = repository.buildLocalStatePayload();
 
@@ -225,12 +262,18 @@ public class SyncRepositoryImplTest {
             }
         });
 
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
         verify(syncService).push(payloadCaptor.capture());
         verify(pushCall).enqueue(pushCaptor.capture());
         assertEquals(expectedPayload, payloadCaptor.getValue());
         assertSame(expectedPayload.get("notes"), payloadCaptor.getValue().get("notes"));
         assertSame(expectedPayload.get("collections"), payloadCaptor.getValue().get("collections"));
         assertSame(expectedPayload.get("favorites"), payloadCaptor.getValue().get("favorites"));
-        assertSame(expectedPayload.get("messages"), payloadCaptor.getValue().get("messages"));
+        assertEquals(expectedPayload.get("messages"), payloadCaptor.getValue().get("messages"));
     }
 }

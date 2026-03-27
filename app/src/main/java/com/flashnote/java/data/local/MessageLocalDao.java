@@ -19,6 +19,9 @@ public interface MessageLocalDao {
     @Query("SELECT * FROM messages_local ORDER BY created_at ASC")
     List<MessageLocalEntity> getAllNow();
 
+    @Query("SELECT MAX(created_at) FROM messages_local")
+    String getLatestCreatedAt();
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsert(MessageLocalEntity message);
 

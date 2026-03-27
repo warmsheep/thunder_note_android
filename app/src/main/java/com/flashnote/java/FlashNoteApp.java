@@ -109,7 +109,10 @@ public class FlashNoteApp extends Application {
                 favoriteRepository,
                 messageRepository
         );
-        userRepository = new UserRepositoryImpl(apiClient.getUserService());
+        userRepository = new UserRepositoryImpl(
+                apiClient.getUserService(),
+                getSharedPreferences("flashnote_user_cache", MODE_PRIVATE)
+        );
 
     }
 

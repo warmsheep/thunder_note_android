@@ -52,6 +52,12 @@ import java.util.List;
 import java.util.Locale;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
+    private static final String PAYLOAD_AVATAR_ONLY = "avatar-only";
+    private static final String PAYLOAD_SELECTION_TOGGLE = "selection-toggle";
+    private static final String PAYLOAD_SELECTION_MODE_ON = "selection-mode-on";
+    private static final String PAYLOAD_SELECTION_MODE_OFF = "selection-mode-off";
+    private static final String PAYLOAD_VOICE_STATE = "voice-state";
+
     public interface OnMessageLongClickListener {
         void onLongClick(Message message, View clickedView);
     }
@@ -239,7 +245,22 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             onBindViewHolder(holder, position);
             return;
         }
-        holder.bind(items.get(position), position);
+        Message message = items.get(position);
+        if (payloads.contains(PAYLOAD_AVATAR_ONLY)) {
+            holder.bindAvatar(message);
+            return;
+        }
+        if (payloads.contains(PAYLOAD_SELECTION_TOGGLE)
+                || payloads.contains(PAYLOAD_SELECTION_MODE_ON)
+                || payloads.contains(PAYLOAD_SELECTION_MODE_OFF)) {
+            holder.bindSelectionState(message);
+            return;
+        }
+        if (payloads.contains(PAYLOAD_VOICE_STATE)) {
+            holder.bindVoicePlaybackState(message, position);
+            return;
+        }
+        holder.bind(message, position);
     }
 
     @Override
@@ -1108,48 +1129,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             binding.rightContainer.setVisibility(mine ? View.VISIBLE : View.GONE);
             binding.rightRetryIcon.setVisibility(View.GONE);
             
-            if (!mine) {
-                if (peerAvatarUrl != null) {
-                    binding.avatarImage.setVisibility(View.VISIBLE);
-                    binding.avatarText.setVisibility(View.GONE);
-                    Glide.with(binding.getRoot().getContext())
-                            .load(resolveMediaUrl(peerAvatarUrl))
-                            .placeholder(R.drawable.bg_avatar_circle)
-                            .error(R.drawable.bg_avatar_circle)
-                            .circleCrop()
-                            .into(binding.avatarImage);
-                } else {
-                    binding.avatarImage.setVisibility(View.GONE);
-                    binding.avatarText.setVisibility(View.VISIBLE);
-                    binding.avatarText.setText(peerAvatar == null || peerAvatar.isEmpty() ? "🤖" : peerAvatar);
-                }
-            }
-            
-            if (mine) {
-                if (userAvatarUrl != null) {
-                    binding.rightAvatarText.setVisibility(View.GONE);
-                    binding.rightAvatarImage.setVisibility(View.VISIBLE);
-                    Glide.with(binding.getRoot().getContext())
-                            .load(resolveMediaUrl(userAvatarUrl))
-                            .placeholder(R.drawable.bg_avatar_circle)
-                            .error(R.drawable.bg_avatar_circle)
-                            .circleCrop()
-                            .into(binding.rightAvatarImage);
-                } else if (localAvatarFile != null && localAvatarFile.exists()) {
-                    binding.rightAvatarText.setVisibility(View.GONE);
-                    binding.rightAvatarImage.setVisibility(View.VISIBLE);
-                    Glide.with(binding.getRoot().getContext())
-                            .load(localAvatarFile)
-                            .placeholder(R.drawable.bg_avatar_circle)
-                            .error(R.drawable.bg_avatar_circle)
-                            .circleCrop()
-                            .into(binding.rightAvatarImage);
-                } else {
-                    binding.rightAvatarImage.setVisibility(View.GONE);
-                    binding.rightAvatarText.setVisibility(View.VISIBLE);
-                    binding.rightAvatarText.setText(userAvatar == null || userAvatar.isEmpty() ? "😊" : userAvatar);
-                }
-            }
+            bindAvatar(message);
 
             String mediaType = message.getMediaType();
             if (TextUtils.isEmpty(mediaType) || "TEXT".equalsIgnoreCase(mediaType)) {
@@ -1190,6 +1170,69 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             binding.compositeContainer.setOnLongClickListener(longClickListener);
             binding.rightCompositeContainer.setOnLongClickListener(longClickListener);
 
+            bindSelectionState(message);
+        }
+
+        void bindAvatar(@NonNull Message message) {
+            Long currentUserId = tokenManager.getUserId();
+            boolean mine;
+            if (currentUserId != null && message.getSenderId() != null) {
+                mine = currentUserId.equals(message.getSenderId());
+            } else {
+                mine = !"assistant".equals(message.getRole()) && !"ai".equals(message.getRole());
+            }
+
+            if (!mine) {
+                if (peerAvatarUrl != null) {
+                    binding.avatarImage.setVisibility(View.VISIBLE);
+                    binding.avatarText.setVisibility(View.GONE);
+                    Glide.with(binding.getRoot().getContext())
+                            .load(resolveMediaUrl(peerAvatarUrl))
+                            .placeholder(R.drawable.bg_avatar_circle)
+                            .error(R.drawable.bg_avatar_circle)
+                            .circleCrop()
+                            .into(binding.avatarImage);
+                } else {
+                    binding.avatarImage.setVisibility(View.GONE);
+                    binding.avatarText.setVisibility(View.VISIBLE);
+                    binding.avatarText.setText(peerAvatar == null || peerAvatar.isEmpty() ? "🤖" : peerAvatar);
+                }
+                return;
+            }
+
+            if (userAvatarUrl != null) {
+                binding.rightAvatarText.setVisibility(View.GONE);
+                binding.rightAvatarImage.setVisibility(View.VISIBLE);
+                Glide.with(binding.getRoot().getContext())
+                        .load(resolveMediaUrl(userAvatarUrl))
+                        .placeholder(R.drawable.bg_avatar_circle)
+                        .error(R.drawable.bg_avatar_circle)
+                        .circleCrop()
+                        .into(binding.rightAvatarImage);
+            } else if (localAvatarFile != null && localAvatarFile.exists()) {
+                binding.rightAvatarText.setVisibility(View.GONE);
+                binding.rightAvatarImage.setVisibility(View.VISIBLE);
+                Glide.with(binding.getRoot().getContext())
+                        .load(localAvatarFile)
+                        .placeholder(R.drawable.bg_avatar_circle)
+                        .error(R.drawable.bg_avatar_circle)
+                        .circleCrop()
+                        .into(binding.rightAvatarImage);
+            } else {
+                binding.rightAvatarImage.setVisibility(View.GONE);
+                binding.rightAvatarText.setVisibility(View.VISIBLE);
+                binding.rightAvatarText.setText(userAvatar == null || userAvatar.isEmpty() ? "😊" : userAvatar);
+            }
+        }
+
+        void bindSelectionState(@NonNull Message message) {
+            Long currentUserId = tokenManager.getUserId();
+            boolean mine;
+            if (currentUserId != null && message.getSenderId() != null) {
+                mine = currentUserId.equals(message.getSenderId());
+            } else {
+                mine = !"assistant".equals(message.getRole()) && !"ai".equals(message.getRole());
+            }
             if (selectionMode) {
                 boolean selected = message.getId() != null && selectedIds.contains(message.getId());
                 binding.checkbox.setChecked(selected);
@@ -1202,10 +1245,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                     binding.checkbox.setVisibility(View.VISIBLE);
                     binding.rightCheckbox.setVisibility(View.GONE);
                 }
-                
-                View.OnClickListener selectClickListener = v -> {
-                    toggleSelection(message);
-                };
+
+                View.OnClickListener selectClickListener = v -> toggleSelection(message);
                 binding.getRoot().setOnClickListener(selectClickListener);
                 binding.leftContainer.setOnClickListener(selectClickListener);
                 binding.bubbleCard.setOnClickListener(selectClickListener);
@@ -1222,7 +1263,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 binding.rightCheckbox.setOnClickListener(selectClickListener);
                 binding.rightRetryIcon.setOnClickListener(null);
                 binding.rightRetryIcon.setVisibility(View.GONE);
-                
+
                 binding.bubbleCard.setOnLongClickListener(null);
                 binding.rightContainer.setOnLongClickListener(null);
             } else {
@@ -1235,6 +1276,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 binding.checkbox.setOnClickListener(null);
                 binding.rightCheckbox.setOnClickListener(null);
             }
+        }
+
+        void bindVoicePlaybackState(@NonNull Message message, int position) {
+            Long currentUserId = tokenManager.getUserId();
+            boolean mine;
+            if (currentUserId != null && message.getSenderId() != null) {
+                mine = currentUserId.equals(message.getSenderId());
+            } else {
+                mine = !"assistant".equals(message.getRole()) && !"ai".equals(message.getRole());
+            }
+            showVoiceMessage(this, message, mine);
+            bindSelectionState(message);
         }
     }
 

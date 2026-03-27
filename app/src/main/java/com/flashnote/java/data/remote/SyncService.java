@@ -1,6 +1,7 @@
 package com.flashnote.java.data.remote;
 
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.SyncPullRequest;
 
 import java.util.Map;
 
@@ -13,7 +14,7 @@ public interface SyncService {
     Call<ApiResponse<Map<String, Object>>> bootstrap();
 
     @POST("api/sync/pull")
-    Call<ApiResponse<Map<String, Object>>> pull();
+    Call<ApiResponse<Map<String, Object>>> pull(@Body SyncPullRequest request);
 
     @POST("api/sync/push")
     Call<ApiResponse<Map<String, Object>>> push(@Body Map<String, Object> payload);

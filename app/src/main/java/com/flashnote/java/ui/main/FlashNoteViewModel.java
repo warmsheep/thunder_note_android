@@ -55,6 +55,10 @@ public class FlashNoteViewModel extends AndroidViewModel {
     }
 
     public void refreshIfNeeded() {
+        Boolean loadingValue = isLoading.getValue();
+        if (Boolean.TRUE.equals(loadingValue)) {
+            return;
+        }
         List<FlashNote> currentNotes = notes.getValue();
         List<Collection> currentCollections = collections.getValue();
         boolean hasNotes = currentNotes != null && !currentNotes.isEmpty();

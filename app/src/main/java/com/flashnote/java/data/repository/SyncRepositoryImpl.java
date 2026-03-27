@@ -15,12 +15,17 @@ import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FavoriteItem;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.Message;
+import com.flashnote.java.data.model.PendingMessage;
+import com.flashnote.java.data.model.SyncPullRequest;
 import com.flashnote.java.data.remote.SyncService;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -29,6 +34,15 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class SyncRepositoryImpl implements SyncRepository {
+    private static final List<String> PUSHABLE_PENDING_STATUSES = List.of(
+            PendingMessageDispatcher.STATUS_QUEUED,
+            PendingMessageDispatcher.STATUS_PROCESSING,
+            PendingMessageDispatcher.STATUS_UPLOADING,
+            PendingMessageDispatcher.STATUS_UPLOADED,
+            PendingMessageDispatcher.STATUS_SENDING,
+            PendingMessageDispatcher.STATUS_FAILED
+    );
+
     private final ExecutorService syncExecutor = Executors.newSingleThreadExecutor();
     private final SyncService syncService;
     private final TokenManager tokenManager;
@@ -99,32 +113,36 @@ public class SyncRepositoryImpl implements SyncRepository {
 
     @Override
     public void pull(SyncCallback callback) {
-        syncService.pull().enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<Map<String, Object>>> call, 
-                                 Response<ApiResponse<Map<String, Object>>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    ApiResponse<Map<String, Object>> apiResponse = response.body();
-                    if (apiResponse.isSuccess() && apiResponse.getData() != null) {
-                        callback.onSuccess(apiResponse.getData());
+        syncExecutor.execute(() -> {
+            SyncPullRequest request = buildPullRequest();
+            syncService.pull(request).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
+                @Override
+                public void onResponse(Call<ApiResponse<Map<String, Object>>> call,
+                                       Response<ApiResponse<Map<String, Object>>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        ApiResponse<Map<String, Object>> apiResponse = response.body();
+                        if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                            persistPulledMessages(apiResponse.getData());
+                            callback.onSuccess(apiResponse.getData());
+                        } else {
+                            String errMsg = apiResponse.getMessage();
+                            DebugLog.w("SyncRepo", errMsg);
+                            callback.onError(errMsg, apiResponse.getCode());
+                        }
                     } else {
-                        String errMsg = apiResponse.getMessage();
+                        String errMsg = "Pull failed: " + response.code();
                         DebugLog.w("SyncRepo", errMsg);
-                        callback.onError(errMsg, apiResponse.getCode());
+                        callback.onError(errMsg, response.code());
                     }
-                } else {
-                    String errMsg = "Pull failed: " + response.code();
-                    DebugLog.w("SyncRepo", errMsg);
-                    callback.onError(errMsg, response.code());
                 }
-            }
 
-            @Override
-            public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
-                String errMsg = "Network error: " + t.getMessage();
-                DebugLog.w("SyncRepo", errMsg);
-                callback.onError(errMsg, -1);
-            }
+                @Override
+                public void onFailure(Call<ApiResponse<Map<String, Object>>> call, Throwable t) {
+                    String errMsg = "Network error: " + t.getMessage();
+                    DebugLog.w("SyncRepo", errMsg);
+                    callback.onError(errMsg, -1);
+                }
+            });
         });
     }
 
@@ -201,7 +219,7 @@ public class SyncRepositoryImpl implements SyncRepository {
 
     @Override
     public void pushLocalState(SyncCallback callback) {
-        push(buildLocalStatePayload(), callback);
+        syncExecutor.execute(() -> push(buildLocalStatePayload(), callback));
     }
 
     @Override
@@ -239,7 +257,7 @@ public class SyncRepositoryImpl implements SyncRepository {
         Map<String, Object> payload = new HashMap<>();
         payload.put("notes", safeList(loadLocalNotes()));
         payload.put("collections", safeList(loadLocalCollections()));
-        payload.put("messages", safeList(loadLocalMessages()));
+        payload.put("messages", safeList(loadPendingMessagesForSync()));
         payload.put("favorites", safeList(loadLocalFavorites()));
         return payload;
     }
@@ -319,32 +337,171 @@ public class SyncRepositoryImpl implements SyncRepository {
         return result;
     }
 
-    private List<Message> loadLocalMessages() {
-        List<MessageLocalEntity> entities = messageLocalDao.getAllNow();
-        if (entities == null || entities.isEmpty()) {
-            return List.of();
-        }
-        List<Message> result = new java.util.ArrayList<>();
-        for (MessageLocalEntity entity : entities) {
-            Message message = new Message();
-            message.setId(entity.getId());
-            message.setSenderId(entity.getSenderId());
-            message.setReceiverId(entity.getReceiverId());
-            message.setFlashNoteId(entity.getFlashNoteId());
-            message.setClientRequestId(entity.getClientRequestId());
-            message.setContent(entity.getContent());
-            message.setReadStatus(entity.getReadStatus());
-            message.setRole(entity.getRole());
-            message.setCreatedAt(parseDateTime(entity.getCreatedAt()));
-            message.setMediaType(entity.getMediaType());
-            message.setMediaUrl(entity.getMediaUrl());
-            message.setMediaDuration(entity.getMediaDuration());
-            message.setThumbnailUrl(entity.getThumbnailUrl());
-            message.setFileName(entity.getFileName());
-            message.setFileSize(entity.getFileSize());
-            result.add(message);
+    private List<Map<String, Object>> loadPendingMessagesForSync() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (String status : PUSHABLE_PENDING_STATUSES) {
+            List<PendingMessage> pendingMessages = pendingMessageRepository.getByStatus(status);
+            if (pendingMessages == null || pendingMessages.isEmpty()) {
+                continue;
+            }
+            for (PendingMessage pendingMessage : pendingMessages) {
+                Map<String, Object> payload = toSyncMessagePayload(pendingMessage);
+                if (!payload.isEmpty()) {
+                    result.add(payload);
+                }
+            }
         }
         return result;
+    }
+
+    private Map<String, Object> toSyncMessagePayload(PendingMessage pendingMessage) {
+        Map<String, Object> payload = new HashMap<>();
+        if (pendingMessage == null) {
+            return payload;
+        }
+        Long senderId = tokenManager.getUserId();
+        if (senderId != null) {
+            payload.put("senderId", senderId);
+        }
+        if (pendingMessage.getPeerUserId() != null) {
+            payload.put("receiverId", pendingMessage.getPeerUserId());
+        }
+        if (pendingMessage.getFlashNoteId() != null) {
+            payload.put("flashNoteId", pendingMessage.getFlashNoteId());
+        }
+        if (pendingMessage.getClientRequestId() != null) {
+            payload.put("clientRequestId", pendingMessage.getClientRequestId());
+        }
+        if (pendingMessage.getContent() != null) {
+            payload.put("content", pendingMessage.getContent());
+        }
+        if (pendingMessage.getMediaType() != null) {
+            payload.put("mediaType", pendingMessage.getMediaType());
+        }
+        if (pendingMessage.getRemoteUrl() != null) {
+            payload.put("mediaUrl", pendingMessage.getRemoteUrl());
+        }
+        if (pendingMessage.getMediaDuration() != null) {
+            payload.put("mediaDuration", pendingMessage.getMediaDuration());
+        }
+        if (pendingMessage.getThumbnailUrl() != null) {
+            payload.put("thumbnailUrl", pendingMessage.getThumbnailUrl());
+        }
+        if (pendingMessage.getFileName() != null) {
+            payload.put("fileName", pendingMessage.getFileName());
+        }
+        if (pendingMessage.getFileSize() != null) {
+            payload.put("fileSize", pendingMessage.getFileSize());
+        }
+        if (pendingMessage.getPayloadJson() != null) {
+            payload.put("payloadJson", pendingMessage.getPayloadJson());
+        }
+        payload.put("role", "user");
+        payload.put("readStatus", false);
+        payload.put("createdAt", DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(
+                LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(pendingMessage.getCreatedAt()),
+                        ZoneId.systemDefault()
+                )
+        ));
+        return payload;
+    }
+
+    private SyncPullRequest buildPullRequest() {
+        SyncPullRequest request = new SyncPullRequest();
+        request.setLastMessageCreatedAt(messageLocalDao.getLatestCreatedAt());
+        return request;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void persistPulledMessages(Map<String, Object> data) {
+        if (data == null) {
+            return;
+        }
+        Object messagesRaw = data.get("messages");
+        if (!(messagesRaw instanceof List<?> messageMaps) || messageMaps.isEmpty()) {
+            return;
+        }
+        List<MessageLocalEntity> entities = new ArrayList<>();
+        for (Object rawItem : messageMaps) {
+            if (!(rawItem instanceof Map<?, ?> map)) {
+                continue;
+            }
+            MessageLocalEntity entity = toMessageLocalEntity((Map<String, Object>) map);
+            if (entity != null) {
+                entities.add(entity);
+            }
+        }
+        if (!entities.isEmpty()) {
+            syncExecutor.execute(() -> messageLocalDao.upsertAll(entities));
+        }
+    }
+
+    private MessageLocalEntity toMessageLocalEntity(Map<String, Object> raw) {
+        Object idValue = raw.get("id");
+        if (!(idValue instanceof Number idNumber)) {
+            return null;
+        }
+        MessageLocalEntity entity = new MessageLocalEntity();
+        entity.setId(idNumber.longValue());
+        Object senderIdValue = raw.get("senderId");
+        if (senderIdValue instanceof Number senderId) {
+            entity.setSenderId(senderId.longValue());
+        }
+        Object receiverIdValue = raw.get("receiverId");
+        if (receiverIdValue instanceof Number receiverId) {
+            entity.setReceiverId(receiverId.longValue());
+        }
+        Object flashNoteIdValue = raw.get("flashNoteId");
+        if (flashNoteIdValue instanceof Number flashNoteId) {
+            entity.setFlashNoteId(flashNoteId.longValue());
+        }
+        if (raw.get("clientRequestId") != null) {
+            entity.setClientRequestId(String.valueOf(raw.get("clientRequestId")));
+        }
+        if (raw.get("content") != null) {
+            entity.setContent(String.valueOf(raw.get("content")));
+        }
+        if (raw.get("readStatus") instanceof Boolean readStatus) {
+            entity.setReadStatus(readStatus);
+        }
+        if (raw.get("role") != null) {
+            entity.setRole(String.valueOf(raw.get("role")));
+        }
+        if (raw.get("createdAt") != null) {
+            entity.setCreatedAt(String.valueOf(raw.get("createdAt")));
+        }
+        if (raw.get("mediaType") != null) {
+            entity.setMediaType(String.valueOf(raw.get("mediaType")));
+        }
+        if (raw.get("mediaUrl") != null) {
+            entity.setMediaUrl(String.valueOf(raw.get("mediaUrl")));
+        }
+        if (raw.get("mediaDuration") instanceof Number mediaDuration) {
+            entity.setMediaDuration(mediaDuration.intValue());
+        }
+        if (raw.get("thumbnailUrl") != null) {
+            entity.setThumbnailUrl(String.valueOf(raw.get("thumbnailUrl")));
+        }
+        if (raw.get("fileName") != null) {
+            entity.setFileName(String.valueOf(raw.get("fileName")));
+        }
+        if (raw.get("fileSize") instanceof Number fileSize) {
+            entity.setFileSize(fileSize.longValue());
+        }
+        if (raw.get("payload") != null) {
+            entity.setPayloadJson(new com.google.gson.Gson().toJson(raw.get("payload")));
+        }
+        Long conversationKey = com.flashnote.java.util.ConversationKeyUtil.resolve(entity.getFlashNoteId(), entity.getReceiverId());
+        if (conversationKey == null && entity.getSenderId() != null && entity.getReceiverId() != null) {
+            Long currentUserId = tokenManager.getUserId();
+            if (currentUserId != null) {
+                Long peerUserId = currentUserId.equals(entity.getSenderId()) ? entity.getReceiverId() : entity.getSenderId();
+                conversationKey = com.flashnote.java.util.ConversationKeyUtil.resolve(null, peerUserId);
+            }
+        }
+        entity.setConversationKey(conversationKey == null ? 0L : conversationKey);
+        return entity;
     }
 
     private long requireCurrentUserId() {
