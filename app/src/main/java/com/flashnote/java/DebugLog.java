@@ -72,6 +72,12 @@ public final class DebugLog {
         return logLiveData;
     }
 
+    public static String getCurrentSessionLog() {
+        synchronized (buffer) {
+            return buffer.toString();
+        }
+    }
+
     public static boolean isLikelyNetworkIssue(String message) {
         if (TextUtils.isEmpty(message)) {
             return false;
@@ -125,7 +131,11 @@ public final class DebugLog {
     private static void appendEntry(String level, String message) {
         String entry = buildEntry(level, message);
         appendEntryInternal(entry);
-        appendToFileAsync(entry);
+        if (BuildConfig.DEBUG) {
+            appendToFileSync(entry);
+        } else {
+            appendToFileAsync(entry);
+        }
     }
 
     private static String buildEntry(String level, String message) {

@@ -27,6 +27,7 @@ public class DebugLogViewerFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        DebugLog.i("DebugLogViewer", "open debug log page");
         binding.backButton.setOnClickListener(v -> navigateBack());
         binding.clearLogButton.setOnClickListener(v -> DebugLog.clear());
 
@@ -35,10 +36,18 @@ public class DebugLogViewerFragment extends Fragment {
                 ? ""
                 : "=== 历史日志 (上次运行) ===\n" + persistedLog + "\n=== 当前会话日志 ===\n";
 
+        String currentSessionLog = DebugLog.getCurrentSessionLog();
+        String initialCombinedLog = persistedHeader + (currentSessionLog == null ? "" : currentSessionLog);
+        binding.debugLogText.setText(initialCombinedLog.isEmpty() ? "暂无日志" : initialCombinedLog);
+
         DebugLog.getLiveData().observe(getViewLifecycleOwner(), log -> {
             if (binding != null) {
-                String currentSessionLog = (log == null || log.isEmpty()) ? "" : log;
-                String combinedLog = persistedHeader + currentSessionLog;
+                String liveSessionLog = (log == null || log.isEmpty()) ? "" : log;
+                String snapshotSessionLog = DebugLog.getCurrentSessionLog();
+                String effectiveSessionLog = (snapshotSessionLog == null || snapshotSessionLog.isEmpty())
+                        ? liveSessionLog
+                        : snapshotSessionLog;
+                String combinedLog = persistedHeader + effectiveSessionLog;
                 binding.debugLogText.setText(combinedLog.isEmpty() ? "暂无日志" : combinedLog);
             }
         });
