@@ -2,31 +2,21 @@ package com.flashnote.java.ui.chat;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ActivityNotFoundException;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.inputmethod.EditorInfo;
-import android.widget.PopupWindow;
 import android.widget.Toast;
-import android.text.Editable;
-import android.text.TextUtils;
-import android.text.TextWatcher;
-import android.webkit.MimeTypeMap;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
-import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -35,15 +25,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
-import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.FavoriteRepository;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.UserRepository;
-import com.flashnote.java.databinding.DialogMergeCardTitleBinding;
 import com.flashnote.java.databinding.FragmentChatBinding;
-import com.flashnote.java.databinding.PopupMessageActionsBinding;
 import com.flashnote.java.ui.main.FlashNoteViewModel;
 import com.flashnote.java.ui.ExternalFlowGestureUnlockHelper;
 import com.flashnote.java.ui.FragmentUiSafe;
@@ -51,7 +38,6 @@ import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.flashnote.java.util.VideoCompressor;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 
 public class ChatFragment extends Fragment {
@@ -67,15 +53,16 @@ public class ChatFragment extends Fragment {
     private MessageAdapter adapter;
     private LinearLayoutManager layoutManager;
     private ChatScrollController scrollController;
+    private ChatInputHelper inputHelper;
     private final ChatMediaHelper mediaHelper = new ChatMediaHelper();
     private final ChatShareHelper shareHelper = new ChatShareHelper();
+    private ChatMessageActionsHelper messageActionsHelper;
     private ChatRecordingHelper recordingHelper;
-    private boolean isToolsPanelVisible = false;
-    private Uri cameraPhotoUri;
+    private ChatMultiSelectHelper multiSelectHelper;
+    private ChatAttachmentFlowHelper attachmentHelper;
     private long currentFlashNoteId = 0L;
     private boolean isLoadingMore = false;
     private boolean hasMoreMessages = true;
-    private boolean isMultiSelectMode = false;
     private boolean skipNextScroll = false;
 
     public static ChatFragment newInstance(long flashNoteId, String title) {
@@ -111,8 +98,8 @@ public class ChatFragment extends Fragment {
             result -> {
                 if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                     Uri uri = result.getData().getData();
-                    if (uri != null) {
-                        handleMediaPicked(uri);
+                    if (uri != null && attachmentHelper != null) {
+                        attachmentHelper.onMediaPicked(uri);
                     }
                 }
             }
@@ -123,8 +110,8 @@ public class ChatFragment extends Fragment {
             result -> {
                 if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                     Uri uri = result.getData().getData();
-                    if (uri != null) {
-                        handleFilePicked(uri);
+                    if (uri != null && attachmentHelper != null) {
+                        attachmentHelper.onFilePicked(uri);
                     }
                 }
             }
@@ -133,8 +120,11 @@ public class ChatFragment extends Fragment {
     private final ActivityResultLauncher<Intent> cameraLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
-                if (result.getResultCode() == Activity.RESULT_OK && cameraPhotoUri != null) {
-                    handleCameraPhoto(cameraPhotoUri);
+                if (result.getResultCode() == Activity.RESULT_OK && attachmentHelper != null) {
+                    Uri cameraUri = attachmentHelper.getCameraPhotoUri();
+                    if (cameraUri != null) {
+                        attachmentHelper.onCameraPhoto(cameraUri);
+                    }
                 }
             }
     );
@@ -180,8 +170,8 @@ public class ChatFragment extends Fragment {
             if (!isAdded()) {
                 return;
             }
-            if (isMultiSelectMode) {
-                exitMultiSelectMode();
+            if (multiSelectHelper != null && multiSelectHelper.isMultiSelectMode()) {
+                multiSelectHelper.exitMultiSelectMode();
                 return;
             }
             getParentFragmentManager().popBackStack();
@@ -191,11 +181,111 @@ public class ChatFragment extends Fragment {
         fileRepository = FlashNoteApp.getInstance().getFileRepository();
         chatViewModel = new ViewModelProvider(this).get(ChatViewModel.class);
         FlashNoteViewModel flashNoteViewModel = new ViewModelProvider(this).get(FlashNoteViewModel.class);
+        messageActionsHelper = new ChatMessageActionsHelper(
+                binding,
+                fileRepository,
+                shareHelper,
+                chatViewModel,
+                flashNoteViewModel,
+                favoriteRepository,
+                new ChatMessageActionsHelper.ActionsUiBridge() {
+                    @Override
+                    public boolean isAdded() {
+                        return ChatFragment.this.isAdded();
+                    }
+
+                    @Nullable
+                    @Override
+                    public Context getContext() {
+                        return ChatFragment.this.getContext();
+                    }
+
+                    @NonNull
+                    @Override
+                    public Context requireContext() {
+                        return ChatFragment.this.requireContext();
+                    }
+
+                    @Nullable
+                    @Override
+                    public Activity getActivity() {
+                        return ChatFragment.this.getActivity();
+                    }
+
+                    @NonNull
+                    @Override
+                    public LayoutInflater getLayoutInflater() {
+                        return ChatFragment.this.getLayoutInflater();
+                    }
+
+                    @Override
+                    public void showToast(@NonNull String message) {
+                        ChatFragment.this.showToast(message);
+                    }
+
+                    @Override
+                    public void runIfUiAlive(@NonNull Runnable action) {
+                        ChatFragment.this.runIfUiAlive(action);
+                    }
+
+                    @Override
+                    public void enterMultiSelectMode(@Nullable Message firstSelected) {
+                        if (multiSelectHelper != null) {
+                            multiSelectHelper.enterMultiSelectMode(firstSelected);
+                        }
+                    }
+
+                    @Override
+                    public void markSkipNextScroll() {
+                        skipNextScroll = true;
+                    }
+                }
+        );
         adapter = new MessageAdapter(
-                (message, clickedView) -> showMessageActions(message, flashNoteId, favoriteRepository, chatViewModel, flashNoteViewModel, clickedView),
+                (message, clickedView) -> messageActionsHelper.showMessageActions(message, flashNoteId, clickedView),
                 localId -> chatViewModel.retryPendingMessage(localId)
         );
-        adapter.setOnSelectionChangedListener(this::updateMergeSelectionCount);
+        multiSelectHelper = new ChatMultiSelectHelper(binding, adapter, chatViewModel, new ChatMultiSelectHelper.MultiSelectUiBridge() {
+            @Override
+            public void runOnUiThread(@NonNull Runnable action) {
+                runIfUiAlive(action);
+            }
+
+            @Override
+            public void showToast(@NonNull String message) {
+                ChatFragment.this.showToast(message);
+            }
+
+            @Override
+            public void exitMultiSelectModeOnUi() {
+                if (multiSelectHelper != null) {
+                    multiSelectHelper.exitMultiSelectMode();
+                }
+            }
+
+            @Override
+            public boolean isUiReady() {
+                return isAdded();
+            }
+
+            @NonNull
+            @Override
+            public Context requireContext() {
+                return ChatFragment.this.requireContext();
+            }
+
+            @NonNull
+            @Override
+            public LayoutInflater getLayoutInflater() {
+                return ChatFragment.this.getLayoutInflater();
+            }
+
+            @Override
+            public void markSkipNextScroll() {
+                skipNextScroll = true;
+            }
+        });
+        adapter.setOnSelectionChangedListener(multiSelectHelper::updateMergeSelectionCount);
         layoutManager = new LinearLayoutManager(requireContext());
         binding.recyclerView.setLayoutManager(layoutManager);
         binding.recyclerView.setAdapter(adapter);
@@ -337,10 +427,78 @@ public class ChatFragment extends Fragment {
             }
         });
 
-        setupMessageInput(chatViewModel);
-        restoreDraft();
-        binding.sendButton.setOnClickListener(v -> sendMessage(chatViewModel));
-        setupToolsPanel();
+        inputHelper = new ChatInputHelper(binding, chatViewModel, new ChatInputHelper.InputCallbacks() {
+            @Override
+            public void runOnUiThread(@NonNull Runnable action) {
+                runIfUiAlive(action);
+            }
+
+            @Override
+            public void scrollToBottomAfterLayout() {
+                if (scrollController != null) {
+                    scrollController.setAutoScrollEnabled(true);
+                    scrollController.scrollToBottomAfterLayout(null);
+                }
+            }
+        });
+        inputHelper.setupMessageInput();
+        inputHelper.restoreDraft();
+        attachmentHelper = new ChatAttachmentFlowHelper(
+                binding,
+                chatViewModel,
+                mediaHelper,
+                new ChatAttachmentFlowHelper.AttachmentUiBridge() {
+                    @NonNull
+                    @Override
+                    public Context requireContext() {
+                        return ChatFragment.this.requireContext();
+                    }
+
+                    @Override
+                    public void runOnUiThread(@NonNull Runnable action) {
+                        ChatFragment.this.runIfUiAlive(action);
+                    }
+
+                    @Override
+                    public void showToast(@NonNull String message) {
+                        ChatFragment.this.showToast(message);
+                    }
+
+                    @Override
+                    public void scrollToBottomAfterLayout() {
+                        if (scrollController != null) {
+                            scrollController.scrollToBottomAfterLayout(null);
+                        }
+                    }
+
+                    @Override
+                    public void suppressGestureUnlockForExternalFlow() {
+                        ExternalFlowGestureUnlockHelper.registerExternalFlow(ChatFragment.this);
+                    }
+                },
+                new ChatAttachmentFlowHelper.LauncherBridge() {
+                    @Override
+                    public void openMediaPicker(@NonNull Intent intent) {
+                        mediaPickerLauncher.launch(intent);
+                    }
+
+                    @Override
+                    public void openFilePicker(@NonNull Intent intent) {
+                        filePickerLauncher.launch(intent);
+                    }
+
+                    @Override
+                    public void openCamera(@NonNull Intent intent) {
+                        cameraLauncher.launch(intent);
+                    }
+
+                    @Override
+                    public void openCardEditor() {
+                        ChatFragment.this.openCardEditor();
+                    }
+                }
+        );
+        attachmentHelper.setupToolsPanel();
         recordingHelper = new ChatRecordingHelper(
                 new ChatRecordingHelper.UiCallback() {
                     @Override
@@ -365,57 +523,10 @@ public class ChatFragment extends Fragment {
                 permissionLauncher
         );
         setupMicButton();
-        binding.mergeCancelButton.setOnClickListener(v -> exitMultiSelectMode());
-        binding.mergeDeleteButton.setOnClickListener(v -> handleBatchDelete());
-        binding.mergeConfirmButton.setOnClickListener(v -> handleMergeAction());
-        updateMergeSelectionCount(0);
-    }
-
-    private void setupMessageInput(@NonNull ChatViewModel viewModel) {
-        int maxHeight = getResources().getDisplayMetrics().heightPixels / 3;
-        binding.messageInput.setMaxHeight(maxHeight);
-        binding.messageInput.setHorizontallyScrolling(false);
-        binding.messageInput.setVerticalScrollBarEnabled(true);
-        binding.messageInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                viewModel.saveDraft(s == null ? "" : s.toString());
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-            }
-        });
-        binding.messageInput.setOnEditorActionListener((textView, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_DONE) {
-                sendMessage(viewModel);
-                return true;
-            }
-            return false;
-        });
-    }
-
-    private void sendMessage(@NonNull ChatViewModel viewModel) {
-        if (binding == null) {
-            return;
-        }
-        String text = binding.messageInput.getText() == null ? "" : binding.messageInput.getText().toString();
-        viewModel.sendTextToCurrentConversation(text, () -> {
-            runIfUiAlive(() -> {
-                if (binding != null) {
-                    binding.messageInput.setText(null);
-                    viewModel.clearDraft();
-                }
-                if (scrollController != null) {
-                    scrollController.setAutoScrollEnabled(true);
-                    scrollController.scrollToBottomAfterLayout(null);
-                }
-            });
-        });
+        binding.mergeCancelButton.setOnClickListener(v -> multiSelectHelper.exitMultiSelectMode());
+        binding.mergeDeleteButton.setOnClickListener(v -> multiSelectHelper.handleBatchDelete());
+        binding.mergeConfirmButton.setOnClickListener(v -> multiSelectHelper.handleMergeAction());
+        multiSelectHelper.updateMergeSelectionCount(0);
     }
 
     private void highlightMessage(int position) {
@@ -450,421 +561,6 @@ public class ChatFragment extends Fragment {
             animator.start();
         }
     }
-
-
-    private void showMessageActions(Message message,
-                                    long currentFlashNoteId,
-                                    FavoriteRepository favoriteRepository,
-                                    ChatViewModel chatViewModel,
-                                    FlashNoteViewModel flashNoteViewModel,
-                                    View clickedView) {
-        if (!isAdded() || binding == null) {
-            return;
-        }
-
-        PopupMessageActionsBinding popupBinding = PopupMessageActionsBinding.inflate(getLayoutInflater());
-        
-        PopupWindow popupWindow = new PopupWindow(
-                popupBinding.getRoot(),
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                true
-        );
-        popupWindow.setBackgroundDrawable(null);
-        popupWindow.setOutsideTouchable(true);
-
-        popupBinding.actionForward.setOnClickListener(v -> {
-            popupWindow.dismiss();
-            showForwardDialog(message, currentFlashNoteId, chatViewModel, flashNoteViewModel);
-        });
-
-        popupBinding.actionCopy.setOnClickListener(v -> {
-            popupWindow.dismiss();
-            String textToCopy = message.getContent();
-            if (textToCopy == null || textToCopy.isEmpty()) {
-                if (message.getFileName() != null && !message.getFileName().isEmpty()) {
-                    textToCopy = message.getFileName();
-                } else {
-                    textToCopy = "";
-                }
-            }
-            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) 
-                requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-            android.content.ClipData clip = android.content.ClipData.newPlainText("message", textToCopy);
-            clipboard.setPrimaryClip(clip);
-            if (isAdded() && getContext() != null) {
-                Toast.makeText(getContext(), "已复制", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        popupBinding.actionShare.setOnClickListener(v -> {
-            popupWindow.dismiss();
-            shareMessageToExternalApp(message);
-        });
-
-        popupBinding.actionFavorite.setOnClickListener(v -> {
-            popupWindow.dismiss();
-            handleFavorite(message, favoriteRepository);
-        });
-
-        popupBinding.actionDelete.setOnClickListener(v -> {
-            popupWindow.dismiss();
-            handleDelete(message, chatViewModel);
-        });
-
-        popupBinding.actionSelect.setOnClickListener(v -> {
-            popupWindow.dismiss();
-            enterMultiSelectMode(message);
-        });
-
-        popupBinding.getRoot().measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        int popupWidth = popupBinding.getRoot().getMeasuredWidth();
-        int popupHeight = popupBinding.getRoot().getMeasuredHeight();
-
-        int[] location = new int[2];
-        clickedView.getLocationOnScreen(location);
-        int viewX = location[0];
-        int viewY = location[1];
-        int viewWidth = clickedView.getWidth();
-        int viewHeight = clickedView.getHeight();
-
-        float density = getResources().getDisplayMetrics().density;
-        int gap = (int) (4 * density);
-
-        int screenHeight = getResources().getDisplayMetrics().heightPixels;
-        boolean showAbove = viewY > screenHeight / 2;
-
-        int popupX = viewX + viewWidth / 2 - popupWidth / 2;
-        int popupY = showAbove ? viewY - popupHeight - gap : viewY + viewHeight + gap;
-
-        // Ensure popup stays within screen bounds
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        if (popupX < 0) popupX = 0;
-        if (popupX + popupWidth > screenWidth) popupX = screenWidth - popupWidth;
-        if (popupY < 0) popupY = 0;
-
-        popupWindow.showAtLocation(binding.getRoot(), Gravity.NO_GRAVITY, popupX, popupY);
-    }
-
-    private void enterMultiSelectMode(@Nullable Message firstSelectedMessage) {
-        if (adapter == null || binding == null) return;
-        isMultiSelectMode = true;
-        adapter.setSelectionMode(true);
-        if (firstSelectedMessage != null) {
-            adapter.toggleSelection(firstSelectedMessage);
-        }
-        binding.inputContainer.setVisibility(View.GONE);
-        binding.toolsPanel.setVisibility(View.GONE);
-        binding.mergePanel.setVisibility(View.VISIBLE);
-        updateMergeSelectionCount(adapter.getSelectedCount());
-    }
-
-    private void exitMultiSelectMode() {
-        if (adapter == null || binding == null) return;
-        isMultiSelectMode = false;
-        adapter.setSelectionMode(false);
-        binding.inputContainer.setVisibility(View.VISIBLE);
-        binding.mergePanel.setVisibility(View.GONE);
-        updateMergeSelectionCount(0);
-    }
-
-    private void handleMergeAction() {
-        if (adapter == null || chatViewModel == null || !isAdded()) return;
-        List<Long> selectedIds = new ArrayList<>(adapter.getSelectedIds());
-        int selectedCount = selectedIds.size();
-        if (selectedCount <= 0) {
-            showToast("请先选择消息");
-            return;
-        }
-
-        if (selectedCount < 2) {
-            showToast("请至少选择 2 条消息进行合并");
-            return;
-        }
-
-        DialogMergeCardTitleBinding dialogBinding = DialogMergeCardTitleBinding.inflate(getLayoutInflater());
-        dialogBinding.mergeHintText.setText("将 " + selectedCount + " 条消息整理为一张可分享的卡片");
-        dialogBinding.titleInput.setText("闪记卡片消息（" + selectedCount + "条）");
-        if (dialogBinding.titleInput.getText() != null) {
-            dialogBinding.titleInput.setSelection(dialogBinding.titleInput.getText().length());
-        }
-
-        new android.app.AlertDialog.Builder(requireContext())
-                .setView(dialogBinding.getRoot())
-                .setNegativeButton("取消", null)
-                .setPositiveButton("合并", (dialog, which) -> submitMerge(selectedIds, dialogBinding.titleInput.getText() == null ? "" : dialogBinding.titleInput.getText().toString().trim()))
-                .show();
-    }
-
-    private void submitMerge(List<Long> selectedIds, String title) {
-        if (chatViewModel == null) {
-            return;
-        }
-        if (title.isEmpty()) {
-            showToast("请输入卡片标题");
-            return;
-        }
-
-        chatViewModel.mergeMessages(selectedIds, title, new com.flashnote.java.data.repository.MessageRepository.MergeCallback() {
-            @Override
-            public void onSuccess(Message mergedMessage) {
-                runIfUiAlive(() -> {
-                    chatViewModel.addLocalMessage(mergedMessage);
-                    exitMultiSelectMode();
-                });
-            }
-
-            @Override
-            public void onError(String errorMessage) {
-                runIfUiAlive(() -> showToast("合并失败: " + errorMessage));
-            }
-        });
-    }
-
-    private void handleBatchDelete() {
-        if (adapter == null || chatViewModel == null || !isAdded()) {
-            return;
-        }
-        List<Long> selectedIds = new ArrayList<>(adapter.getSelectedIds());
-        if (selectedIds.isEmpty()) {
-            showToast("请先选择消息");
-            return;
-        }
-        new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("批量删除消息")
-                .setMessage("确定要删除选中的 " + selectedIds.size() + " 条消息吗？")
-                .setNegativeButton("取消", null)
-                .setPositiveButton("删除", (dialog, which) -> {
-                    skipNextScroll = true;
-                    chatViewModel.deleteMessages(selectedIds, () -> {
-                        runIfUiAlive(() -> {
-                            exitMultiSelectMode();
-                        });
-                    });
-                })
-                .show();
-    }
-
-    private void updateMergeSelectionCount(int selectedCount) {
-        if (binding == null) {
-            return;
-        }
-        binding.mergeTitleText.setText("已选择 " + selectedCount + " 条消息");
-    }
-
-    private void handleDelete(Message message, ChatViewModel chatViewModel) {
-        if (message.getId() == null) {
-            android.content.Context context = getContext();
-            if (context != null) {
-                Toast.makeText(context, "消息尚未保存，无法删除", Toast.LENGTH_SHORT).show();
-            }
-            return;
-        }
-
-        new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("删除消息")
-                .setMessage("确定要删除这条消息吗？")
-                .setPositiveButton("删除", (dialog, which) -> {
-                    skipNextScroll = true;
-                    chatViewModel.deleteMessage(message.getId(), () -> { });
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    private void shareMessageToExternalApp(Message message) {
-        if (!isAdded() || getContext() == null || message == null) {
-            return;
-        }
-        Context context = requireContext();
-        String mediaType = message.getMediaType();
-        if (TextUtils.isEmpty(mediaType)
-                || "TEXT".equalsIgnoreCase(mediaType)
-                || TextUtils.isEmpty(message.getMediaUrl())) {
-            showToast("仅支持分享图片/视频/语音/文件");
-            return;
-        }
-
-        File localFile = shareHelper.tryResolveLocalFile(context, message.getMediaUrl());
-        if (localFile != null && localFile.exists()) {
-            try {
-                shareHelper.shareFileByIntent(context, localFile, message);
-            } catch (ActivityNotFoundException e) {
-                showToast("未找到可分享的应用");
-            }
-            return;
-        }
-
-        String objectName = shareHelper.extractObjectNameForDownload(message.getMediaUrl());
-        if (TextUtils.isEmpty(objectName)) {
-            showToast("文件地址无效，无法分享");
-            return;
-        }
-        fileRepository.download(objectName, new FileRepository.FileCallback() {
-            @Override
-            public void onSuccess(String path) {
-                runIfUiAlive(() -> {
-                    File file = new File(path);
-                    if (!file.exists()) {
-                        showToast("分享文件不存在");
-                        return;
-                    }
-                    try {
-                        shareHelper.shareFileByIntent(context, file, message);
-                    } catch (ActivityNotFoundException e) {
-                        showToast("未找到可分享的应用");
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String errorMessage, int code) {
-                runIfUiAlive(() -> showToast("准备分享失败: " + errorMessage));
-            }
-        });
-    }
-
-    private void handleFavorite(Message message, FavoriteRepository favoriteRepository) {
-        if (message.getId() == null) {
-            android.content.Context context = getContext();
-            if (context != null) {
-                Toast.makeText(context, "消息尚未保存，无法收藏", Toast.LENGTH_SHORT).show();
-            }
-            return;
-        }
-        favoriteRepository.addFavorite(message.getId(), new FavoriteRepository.ActionCallback() {
-            @Override
-            public void onSuccess(String messageText) {
-                runIfUiAlive(() -> {
-                    android.content.Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, messageText, Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String messageText, int code) {
-                runIfUiAlive(() -> {
-                    android.content.Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, messageText, Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        });
-    }
-
-    private void showForwardDialog(Message message,
-                                   long currentFlashNoteId,
-                                   ChatViewModel chatViewModel,
-                                   FlashNoteViewModel flashNoteViewModel) {
-        List<FlashNote> notes = flashNoteViewModel.getNotes().getValue();
-        if (notes == null || notes.isEmpty()) {
-            android.content.Context context = getContext();
-            if (context != null) {
-                Toast.makeText(context, "暂无可转发的闪记会话", Toast.LENGTH_SHORT).show();
-            }
-            return;
-        }
-
-        List<FlashNote> targets = new ArrayList<>();
-        List<String> titles = new ArrayList<>();
-        for (FlashNote note : notes) {
-            if (note.getId() == null || note.getId() == currentFlashNoteId) {
-                continue;
-            }
-            targets.add(note);
-            titles.add(note.getTitle());
-        }
-
-        if (targets.isEmpty()) {
-            android.content.Context context = getContext();
-            if (context != null) {
-                Toast.makeText(context, "暂无其他闪记会话可转发", Toast.LENGTH_SHORT).show();
-            }
-            return;
-        }
-
-        new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("转发到闪记")
-                .setItems(titles.toArray(new String[0]), (dialog, which) -> {
-                    FlashNote target = targets.get(which);
-                    String mediaType = message.getMediaType();
-                    if (mediaType != null && !mediaType.isEmpty() && !"TEXT".equalsIgnoreCase(mediaType)) {
-                        Message forwardMsg = new Message();
-                        forwardMsg.setMediaType(message.getMediaType());
-                        forwardMsg.setMediaUrl(message.getMediaUrl());
-                        forwardMsg.setFileName(message.getFileName());
-                        forwardMsg.setFileSize(message.getFileSize());
-                        forwardMsg.setMediaDuration(message.getMediaDuration());
-                        forwardMsg.setThumbnailUrl(message.getThumbnailUrl());
-                        forwardMsg.setContent(message.getContent());
-                        forwardMsg.setPayload(message.getPayload());
-                        forwardMsg.setFlashNoteId(target.getId());
-                        forwardMsg.setRole("user");
-                        chatViewModel.sendMessageToFlashNote(target.getId(), forwardMsg, () -> {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> {
-                                android.content.Context context = getContext();
-                                if (isAdded() && context != null) {
-                                    Toast.makeText(context, "已转发到 " + target.getTitle(), Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        });
-                    } else {
-                        chatViewModel.sendTextToFlashNote(target.getId(), message.getContent(), () -> {
-                            if (!isAdded() || getActivity() == null) {
-                                return;
-                            }
-                            getActivity().runOnUiThread(() -> {
-                                android.content.Context context = getContext();
-                                if (isAdded() && context != null) {
-                                    Toast.makeText(context, "已转发到 " + target.getTitle(), Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        });
-                    }
-                })
-                .show();
-    }
-
-    private void setupToolsPanel() {
-        binding.addButton.setOnClickListener(v -> toggleToolsPanel());
-
-        binding.toolImageVideo.setOnClickListener(v -> {
-            hideToolsPanel();
-            openMediaPicker();
-        });
-
-        binding.toolFile.setOnClickListener(v -> {
-            hideToolsPanel();
-            openFilePicker();
-        });
-
-        binding.toolCamera.setOnClickListener(v -> {
-            hideToolsPanel();
-            openCamera();
-        });
-
-        binding.toolCard.setOnClickListener(v -> {
-            hideToolsPanel();
-            openCardEditor();
-        });
-    }
-
-    private void toggleToolsPanel() {
-        isToolsPanelVisible = !isToolsPanelVisible;
-        binding.toolsPanel.setVisibility(isToolsPanelVisible ? View.VISIBLE : View.GONE);
-    }
-
-    private void hideToolsPanel() {
-        isToolsPanelVisible = false;
-        binding.toolsPanel.setVisibility(View.GONE);
-    }
-
     private void openCardEditor() {
         if (!isAdded() || getActivity() == null) {
             return;
@@ -883,153 +579,6 @@ public class ChatFragment extends Fragment {
         if (recordingHelper != null) {
             recordingHelper.setupMicButton();
         }
-    }
-
-    private void openMediaPicker() {
-        ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("*/*");
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "video/*"});
-        mediaPickerLauncher.launch(intent);
-    }
-
-    private void openFilePicker() {
-        ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("*/*");
-        filePickerLauncher.launch(intent);
-    }
-
-    private void openCamera() {
-        Context context = requireContext();
-        if (!mediaHelper.hasCamera(context)) {
-            showToast("设备没有相机");
-            return;
-        }
-
-        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        File photoFile = mediaHelper.prepareCameraPhotoFile(context);
-
-        if (photoFile != null) {
-            ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
-            cameraPhotoUri = mediaHelper.buildCameraUri(context, photoFile);
-            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
-            takePictureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            try {
-                cameraLauncher.launch(takePictureIntent);
-            } catch (ActivityNotFoundException e) {
-                showToast("无法打开相机");
-            }
-        }
-    }
-
-    private void handleMediaPicked(Uri uri) {
-        String mimeType = mediaHelper.resolveMimeType(requireContext(), uri);
-        if (mimeType == null) {
-            showToast("无法识别文件类型");
-            return;
-        }
-
-        if (mimeType.startsWith("image/")) {
-            handleImagePicked(uri);
-        } else if (mimeType.startsWith("video/")) {
-            handleVideoPicked(uri);
-        } else {
-            showToast("请选择图片或视频");
-        }
-    }
-
-    private void handleImagePicked(Uri uri) {
-        String originalFileName = mediaHelper.getOriginalFileName(requireContext(), uri);
-        mediaHelper.copyUriToTempFile(requireContext().getApplicationContext(), this::runIfUiAlive, uri, "image", file -> {
-            if (file == null) {
-                showToast("文件处理失败");
-                return;
-            }
-
-            chatViewModel.enqueueMedia(
-                    "IMAGE",
-                    file,
-                    originalFileName != null ? originalFileName : file.getName(),
-                    file.length(),
-                    null,
-                    () -> runIfUiAlive(() -> {
-                        if (scrollController != null) {
-                            scrollController.scrollToBottomAfterLayout(null);
-                        }
-                    })
-            );
-        });
-    }
-
-    private void handleVideoPicked(Uri uri) {
-        String originalFileName = mediaHelper.getOriginalFileName(requireContext(), uri);
-
-        mediaHelper.copyUriToTempFile(requireContext().getApplicationContext(), this::runIfUiAlive, uri, "video", file -> {
-            if (file == null) {
-                showToast("文件处理失败");
-                return;
-            }
-
-            chatViewModel.enqueueMedia(
-                    "VIDEO",
-                    file,
-                    originalFileName != null ? originalFileName : file.getName(),
-                    file.length(),
-                    null,
-                    () -> runIfUiAlive(() -> {
-                        if (scrollController != null) {
-                            scrollController.scrollToBottomAfterLayout(null);
-                        }
-                    })
-            );
-        });
-    }
-
-    private void handleFilePicked(Uri uri) {
-        String originalFileName = mediaHelper.getOriginalFileName(requireContext(), uri);
-        mediaHelper.copyUriToTempFile(requireContext().getApplicationContext(), this::runIfUiAlive, uri, "file", file -> {
-            if (file == null) {
-                showToast("文件处理失败");
-                return;
-            }
-
-            chatViewModel.enqueueMedia(
-                    "FILE",
-                    file,
-                    originalFileName != null ? originalFileName : file.getName(),
-                    file.length(),
-                    null,
-                    () -> runIfUiAlive(() -> {
-                        if (scrollController != null) {
-                            scrollController.scrollToBottomAfterLayout(null);
-                        }
-                    })
-            );
-        });
-    }
-
-    private void handleCameraPhoto(Uri uri) {
-        String originalFileName = mediaHelper.getOriginalFileName(requireContext(), uri);
-        mediaHelper.copyUriToTempFile(requireContext().getApplicationContext(), this::runIfUiAlive, uri, "image", file -> {
-            if (file == null) {
-                showToast("文件处理失败");
-                return;
-            }
-
-            chatViewModel.enqueueMedia(
-                    "IMAGE",
-                    file,
-                    originalFileName != null ? originalFileName : file.getName(),
-                    file.length(),
-                    null,
-                    () -> runIfUiAlive(() -> {
-                        if (scrollController != null) {
-                            scrollController.scrollToBottomAfterLayout(null);
-                        }
-                    })
-            );
-        });
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
@@ -1053,15 +602,6 @@ public class ChatFragment extends Fragment {
         if (isAdded() && getContext() != null) {
             Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void restoreDraft() {
-        String draft = chatViewModel.getCurrentDraft();
-        if (draft.isEmpty()) {
-            return;
-        }
-        binding.messageInput.setText(draft);
-        binding.messageInput.setSelection(draft.length());
     }
 
     @Override
