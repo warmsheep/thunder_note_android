@@ -13,7 +13,9 @@ import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.anyString;
 
+import com.flashnote.java.data.local.FlashNoteLocalDao;
 import com.flashnote.java.data.local.MessageLocalDao;
 import com.flashnote.java.data.local.MessageLocalEntity;
 import com.flashnote.java.data.model.CardItem;
@@ -66,6 +68,9 @@ public class MessageRepositoryImplTest {
 
     @Mock
     MessageLocalDao messageLocalDao;
+
+    @Mock
+    FlashNoteLocalDao flashNoteLocalDao;
 
     @Before
     public void setUp() {
@@ -396,6 +401,24 @@ public class MessageRepositoryImplTest {
     }
 
     @Test
+    public void applyPendingMetadataToServerMessage_backfillsFlashNoteIdFromPendingMessage() {
+        PendingMessage pending = new PendingMessage();
+        pending.setFlashNoteId(7L);
+        pending.setCreatedAt(1000L);
+        pending.setMediaType("TEXT");
+        pending.setContent("hello");
+
+        Message confirmed = new Message();
+        confirmed.setId(701L);
+        confirmed.setContent("hello");
+        confirmed.setMediaType("TEXT");
+
+        MessageRepositoryImpl.applyPendingMetadataToServerMessage(confirmed, pending);
+
+        assertEquals(Long.valueOf(7L), confirmed.getFlashNoteId());
+    }
+
+    @Test
     public void enqueueMedia_staysOnPendingPipelineEvenWhenTextPendingFeatureDisabled() throws Exception {
         File tempFile = File.createTempFile("pending-media", ".jpg");
         tempFile.deleteOnExit();
@@ -551,6 +574,50 @@ public class MessageRepositoryImplTest {
         }
 
         verify(messageLocalDao, atLeastOnce()).upsert(any(MessageLocalEntity.class));
+    }
+
+    @Test
+    public void sendMessage_success_updatesFlashNoteLatestMessagePreviewLocally() {
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<Callback<ApiResponse<Message>>> callbackCaptor = org.mockito.ArgumentCaptor.forClass(Callback.class);
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                messageLocalDao,
+                flashNoteLocalDao,
+                true
+        );
+
+        Message outbound = new Message();
+        outbound.setContent("最新一条消息");
+        outbound.setMediaType("TEXT");
+
+        Message confirmed = new Message();
+        confirmed.setId(601L);
+        confirmed.setFlashNoteId(77L);
+        confirmed.setContent("最新一条消息");
+        confirmed.setCreatedAt(java.time.LocalDateTime.parse("2026-03-28T14:30:00"));
+
+        when(messageService.send(any())).thenReturn(mockSendCall);
+
+        repository.sendMessage(77L, outbound, (Runnable) null);
+
+        verify(mockSendCall).enqueue(callbackCaptor.capture());
+        callbackCaptor.getValue().onResponse(
+                mockSendCall,
+                retrofit2.Response.success(new ApiResponse<>(0, "ok", confirmed))
+        );
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(messageLocalDao, atLeastOnce()).upsert(any(MessageLocalEntity.class));
+        verify(flashNoteLocalDao).updateLatestMessage(eq(77L), eq("最新一条消息"), anyString());
     }
 
     @Test

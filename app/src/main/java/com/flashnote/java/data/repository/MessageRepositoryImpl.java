@@ -6,6 +6,7 @@ import androidx.lifecycle.Observer;
 import android.os.Looper;
 
 import com.flashnote.java.DebugLog;
+import com.flashnote.java.data.local.FlashNoteLocalDao;
 import com.flashnote.java.data.local.MessageLocalDao;
 import com.flashnote.java.data.local.MessageLocalEntity;
 import com.flashnote.java.data.model.CardItem;
@@ -35,6 +36,7 @@ import java.time.ZoneId;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.time.format.DateTimeFormatter;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -52,6 +54,7 @@ public class MessageRepositoryImpl implements MessageRepository {
     private final FileRepository fileRepository;
     private final VideoPreparationService videoPreparationService;
     private final MessageLocalDao messageLocalDao;
+    private final FlashNoteLocalDao flashNoteLocalDao;
     private final PendingMessageDispatcher pendingMessageDispatcher;
     private final MessageRepositoryDeleteHelper deleteHelper = new MessageRepositoryDeleteHelper();
     private final MessageRepositoryLoadHelper loadHelper = new MessageRepositoryLoadHelper();
@@ -76,21 +79,43 @@ public class MessageRepositoryImpl implements MessageRepository {
                                  FileRepository fileRepository,
                                  VideoPreparationService videoPreparationService,
                                  MessageLocalDao messageLocalDao) {
-        this(messageService, pendingMessageRepository, fileRepository, videoPreparationService, messageLocalDao,
+        this(messageService, pendingMessageRepository, fileRepository, videoPreparationService, messageLocalDao, null,
                 MessageFeatureFlags.ENABLE_TEXT_PENDING_PIPELINE);
     }
 
     MessageRepositoryImpl(MessageService messageService,
-                         PendingMessageRepository pendingMessageRepository,
-                         FileRepository fileRepository,
-                         VideoPreparationService videoPreparationService,
-                         MessageLocalDao messageLocalDao,
-                         boolean enableTextPendingPipeline) {
+                          PendingMessageRepository pendingMessageRepository,
+                          FileRepository fileRepository,
+                          VideoPreparationService videoPreparationService,
+                          MessageLocalDao messageLocalDao,
+                          boolean enableTextPendingPipeline) {
+        this(messageService, pendingMessageRepository, fileRepository, videoPreparationService, messageLocalDao, null,
+                enableTextPendingPipeline);
+    }
+
+    public MessageRepositoryImpl(MessageService messageService,
+                                 PendingMessageRepository pendingMessageRepository,
+                                 FileRepository fileRepository,
+                                 VideoPreparationService videoPreparationService,
+                                 MessageLocalDao messageLocalDao,
+                                 FlashNoteLocalDao flashNoteLocalDao) {
+        this(messageService, pendingMessageRepository, fileRepository, videoPreparationService, messageLocalDao, flashNoteLocalDao,
+                MessageFeatureFlags.ENABLE_TEXT_PENDING_PIPELINE);
+    }
+
+    MessageRepositoryImpl(MessageService messageService,
+                          PendingMessageRepository pendingMessageRepository,
+                          FileRepository fileRepository,
+                          VideoPreparationService videoPreparationService,
+                          MessageLocalDao messageLocalDao,
+                          FlashNoteLocalDao flashNoteLocalDao,
+                          boolean enableTextPendingPipeline) {
         this.messageService = messageService;
         this.pendingMessageRepository = pendingMessageRepository;
         this.fileRepository = fileRepository;
         this.videoPreparationService = videoPreparationService;
         this.messageLocalDao = messageLocalDao;
+        this.flashNoteLocalDao = flashNoteLocalDao;
         this.enableTextPendingPipeline = enableTextPendingPipeline;
         this.pendingMessageDispatcher = new PendingMessageDispatcher(pendingMessageRepository, messageService, fileRepository, videoPreparationService, this::onPendingUpdated);
     }
@@ -696,6 +721,9 @@ public class MessageRepositoryImpl implements MessageRepository {
         if (serverMessage == null || pendingMessage == null) {
             return;
         }
+        if (serverMessage.getFlashNoteId() == null) {
+            serverMessage.setFlashNoteId(pendingMessage.getFlashNoteId());
+        }
         serverMessage.setLocalSortTimestamp(pendingMessage.getCreatedAt());
         if (pendingMessage.getCreatedAt() > 0L) {
             serverMessage.setCreatedAt(LocalDateTime.ofInstant(Instant.ofEpochMilli(pendingMessage.getCreatedAt()), ZoneId.systemDefault()));
@@ -806,7 +834,55 @@ public class MessageRepositoryImpl implements MessageRepository {
         if (entity == null) {
             return;
         }
-        pendingStorageExecutor.execute(() -> messageLocalDao.upsert(entity));
+        pendingStorageExecutor.execute(() -> {
+            messageLocalDao.upsert(entity);
+            updateFlashNotePreviewLocally(message);
+        });
+    }
+
+    private void updateFlashNotePreviewLocally(Message message) {
+        if (flashNoteLocalDao == null || message == null || message.getFlashNoteId() == null) {
+            return;
+        }
+        String preview = buildLatestMessagePreview(message);
+        if (preview == null || preview.trim().isEmpty()) {
+            return;
+        }
+        String updatedAt = message.getCreatedAt() == null
+                ? LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                : message.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        flashNoteLocalDao.updateLatestMessage(message.getFlashNoteId(), preview, updatedAt);
+    }
+
+    private String buildLatestMessagePreview(Message message) {
+        if (message == null) {
+            return null;
+        }
+        String content = message.getContent();
+        if (content != null) {
+            String trimmed = content.trim();
+            if (!trimmed.isEmpty()) {
+                return trimmed;
+            }
+        }
+        String mediaType = message.getMediaType();
+        if (mediaType == null) {
+            return null;
+        }
+        switch (mediaType) {
+            case "IMAGE":
+                return "[图片]";
+            case "VIDEO":
+                return "[视频]";
+            case "VOICE":
+                return "[语音]";
+            case "FILE":
+                return "[文件]";
+            case "COMPOSITE":
+                return "[卡片]";
+            default:
+                return null;
+        }
     }
 
     private List<MessageLocalEntity> toLocalMessageList(long conversationKey, List<Message> messages) {
