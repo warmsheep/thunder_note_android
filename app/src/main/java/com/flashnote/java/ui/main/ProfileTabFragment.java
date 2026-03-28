@@ -1,6 +1,7 @@
 package com.flashnote.java.ui.main;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -41,6 +42,7 @@ import com.flashnote.java.ui.media.MediaUrlResolver;
 import com.flashnote.java.ui.auth.AuthViewModel;
 import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
+import com.flashnote.java.databinding.FragmentProfileTabBinding;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.yalantis.ucrop.UCrop;
@@ -49,7 +51,7 @@ import java.io.File;
 import java.util.List;
 
 public class ProfileTabFragment extends Fragment {
-    private com.flashnote.java.databinding.FragmentProfileTabBinding binding;
+    private FragmentProfileTabBinding binding;
     private UserRepository userRepository;
     private FileRepository fileRepository;
     private TokenManager tokenManager;
@@ -362,7 +364,7 @@ public class ProfileTabFragment extends Fragment {
                             @Override
                             public void onError(String message, int code) {
                                 runIfUiAlive(() -> {
-                                    android.content.Context ctx = getContext();
+                                    Context ctx = getContext();
                                     if (ctx != null) {
                                         Toast.makeText(ctx, getString(R.string.message_save_failed, message), Toast.LENGTH_SHORT).show();
                                     }
@@ -400,7 +402,7 @@ public class ProfileTabFragment extends Fragment {
             @Override
             public void onError(String message, int code) {
                 runIfUiAlive(() -> {
-                    android.content.Context context = getContext();
+                    Context context = getContext();
                     if (context != null) {
                         Toast.makeText(context, getString(R.string.message_update_failed, message), Toast.LENGTH_SHORT).show();
                     }
@@ -514,7 +516,7 @@ public class ProfileTabFragment extends Fragment {
         builder.setView(gridLayout);
         builder.setPositiveButton(R.string.action_confirm, (dialog, which) -> {
             if (selectedEmoji[0] == null) {
-                android.content.Context context = getContext();
+                Context context = getContext();
                 if (context != null) {
                     Toast.makeText(context, R.string.avatar_picker_select_first, Toast.LENGTH_SHORT).show();
                 }
@@ -595,7 +597,7 @@ public class ProfileTabFragment extends Fragment {
                 DebugLog.logHandledError("ProfileTab", message);
                 return;
             }
-            android.content.Context context = getContext();
+            Context context = getContext();
             if (context != null && DebugLog.shouldShowToast("ProfileTab:" + message, 2000L)) {
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
             }
@@ -608,7 +610,7 @@ public class ProfileTabFragment extends Fragment {
 
         @NonNull
         @Override
-        public android.content.Context requireContext() {
+        public Context requireContext() {
             return ProfileTabFragment.this.requireContext();
         }
     }

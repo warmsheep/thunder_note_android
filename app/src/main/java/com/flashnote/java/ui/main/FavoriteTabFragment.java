@@ -20,11 +20,12 @@ import com.flashnote.java.databinding.FragmentFavoriteTabBinding;
 import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FavoriteTabFragment extends Fragment {
     private FragmentFavoriteTabBinding binding;
-    private java.util.List<FavoriteItem> latestFavorites = new java.util.ArrayList<>();
+    private List<FavoriteItem> latestFavorites = new ArrayList<>();
 
     @Nullable
     @Override
@@ -100,7 +101,7 @@ public class FavoriteTabFragment extends Fragment {
         }
 
         viewModel.getFavorites().observe(getViewLifecycleOwner(), favorites -> {
-            latestFavorites = favorites == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(favorites);
+            latestFavorites = favorites == null ? new ArrayList<>() : new ArrayList<>(favorites);
             renderFavorites(adapter);
         });
 
@@ -118,7 +119,7 @@ public class FavoriteTabFragment extends Fragment {
     }
 
     private void renderFavorites(@NonNull FavoriteAdapter adapter) {
-        adapter.submitList(new java.util.ArrayList<>(latestFavorites));
+        adapter.submitList(new ArrayList<>(latestFavorites));
         boolean empty = latestFavorites.isEmpty();
         binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
         binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
