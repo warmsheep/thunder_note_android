@@ -38,6 +38,9 @@ public interface PendingMessageDao {
     @Query("SELECT COUNT(*) FROM pending_messages WHERE status IN (:statuses)")
     int countByStatuses(List<String> statuses);
 
+    @Query("SELECT * FROM pending_messages WHERE status IN (:statuses) ORDER BY created_at DESC")
+    LiveData<List<PendingMessage>> observeByStatuses(List<String> statuses);
+
     @Query("SELECT * FROM pending_messages WHERE conversation_key = :conversationKey AND status = :status ORDER BY created_at ASC")
     List<PendingMessage> getByConversationKeyAndStatus(long conversationKey, String status);
 

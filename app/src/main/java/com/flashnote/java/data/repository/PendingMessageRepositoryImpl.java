@@ -63,6 +63,11 @@ public class PendingMessageRepositoryImpl implements PendingMessageRepository {
     }
 
     @Override
+    public LiveData<List<PendingMessage>> observePendingSyncMessages() {
+        return pendingMessageDao.observeByStatuses(PENDING_SYNC_STATUSES);
+    }
+
+    @Override
     public List<PendingMessage> getByStatus(String status) {
         return pendingMessageDao.getByStatus(status);
     }

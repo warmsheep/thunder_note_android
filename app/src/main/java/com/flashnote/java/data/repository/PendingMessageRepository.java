@@ -23,6 +23,8 @@ public interface PendingMessageRepository {
 
     LiveData<Integer> observePendingSyncCount();
 
+    LiveData<List<PendingMessage>> observePendingSyncMessages();
+
     List<PendingMessage> getByStatus(String status);
 
     int getPendingSyncCountNow();

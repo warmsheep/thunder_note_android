@@ -69,4 +69,22 @@ public class PendingMessageRepositoryImplTest {
                 PendingMessageDispatcher.STATUS_FAILED
         ));
     }
+
+    @Test
+    public void observePendingSyncMessages_delegatesToDaoWithSyncStatuses() {
+        MutableLiveData<java.util.List<com.flashnote.java.data.model.PendingMessage>> liveData = new MutableLiveData<>(List.of());
+        when(pendingMessageDao.observeByStatuses(org.mockito.ArgumentMatchers.anyList())).thenReturn(liveData);
+
+        LiveData<java.util.List<com.flashnote.java.data.model.PendingMessage>> result = repository.observePendingSyncMessages();
+
+        assertSame(liveData, result);
+        verify(pendingMessageDao).observeByStatuses(List.of(
+                PendingMessageDispatcher.STATUS_QUEUED,
+                PendingMessageDispatcher.STATUS_PROCESSING,
+                PendingMessageDispatcher.STATUS_UPLOADING,
+                PendingMessageDispatcher.STATUS_UPLOADED,
+                PendingMessageDispatcher.STATUS_SENDING,
+                PendingMessageDispatcher.STATUS_FAILED
+        ));
+    }
 }

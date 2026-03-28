@@ -32,6 +32,7 @@ public class SettingsFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         
         binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.pendingSyncItem.setOnClickListener(v -> openPendingSyncList());
         
         binding.aboutItem.setOnClickListener(v -> openAbout());
         binding.websiteItem.setOnClickListener(v -> openWebsite());
@@ -71,6 +72,17 @@ public class SettingsFragment extends Fragment {
         getActivity().getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.rootFragmentContainer, new DebugLogViewerFragment())
+                .addToBackStack(null)
+                .commit();
+    }
+
+    private void openPendingSyncList() {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        getActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.rootFragmentContainer, new PendingSyncListFragment())
                 .addToBackStack(null)
                 .commit();
     }
