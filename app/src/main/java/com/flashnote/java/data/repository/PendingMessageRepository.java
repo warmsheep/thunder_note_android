@@ -32,4 +32,6 @@ public interface PendingMessageRepository {
     List<PendingMessage> getFailedByConversationKey(long conversationKey);
 
     void clearConversation(long conversationKey);
+
+    void recoverInterruptedMessages();
 }

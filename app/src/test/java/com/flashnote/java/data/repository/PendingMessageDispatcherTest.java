@@ -266,6 +266,8 @@ public class PendingMessageDispatcherTest {
         assertEquals(PendingMessageDispatcher.STATUS_FAILED, textPending.getStatus());
         assertEquals("服务器拒绝: forbidden", textPending.getErrorMessage());
         assertEquals(1, textPending.getAttemptCount());
+        verify(pendingMessageRepository, never()).getByStatus(PendingMessageDispatcher.STATUS_QUEUED);
+        verify(pendingMessageRepository, never()).getByStatus(PendingMessageDispatcher.STATUS_FAILED);
     }
 
     private PendingMessage buildPending(long localId, long conversationKey, String status) {

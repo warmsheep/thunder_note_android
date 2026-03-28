@@ -2,6 +2,7 @@ package com.flashnote.java.data.repository;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -151,11 +152,7 @@ public class SyncRepositoryImplTest {
         assertEquals(1, ((List<?>) payload.get("notes")).size());
         assertEquals(1, ((List<?>) payload.get("collections")).size());
         assertEquals(1, ((List<?>) payload.get("favorites")).size());
-        assertEquals(1, ((List<?>) payload.get("messages")).size());
-        @SuppressWarnings("unchecked")
-        Map<String, Object> pushedMessage = (Map<String, Object>) ((List<?>) payload.get("messages")).get(0);
-        assertEquals("client-91", pushedMessage.get("clientRequestId"));
-        assertEquals(11L, pushedMessage.get("flashNoteId"));
+        assertEquals(List.of(), payload.get("messages"));
 
         pushCaptor.getValue().onResponse(pushCall, Response.success(new ApiResponse<>(0, "ok", Map.of("accepted", true))));
 
@@ -275,5 +272,104 @@ public class SyncRepositoryImplTest {
         assertSame(expectedPayload.get("collections"), payloadCaptor.getValue().get("collections"));
         assertSame(expectedPayload.get("favorites"), payloadCaptor.getValue().get("favorites"));
         assertEquals(expectedPayload.get("messages"), payloadCaptor.getValue().get("messages"));
+    }
+
+    @Test
+    public void syncAll_reusesMessageRetryPipelineInsteadOfSyncMessagePayload() {
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Callback<ApiResponse<Map<String, Object>>>> pullCaptor = ArgumentCaptor.forClass(Callback.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Callback<ApiResponse<Map<String, Object>>>> pushCaptor = ArgumentCaptor.forClass(Callback.class);
+
+        when(flashNoteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
+        when(collectionLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
+        when(favoriteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_FAILED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_QUEUED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_PROCESSING)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADING)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADED)).thenReturn(List.of());
+        when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_SENDING)).thenReturn(List.of());
+
+        repository.syncAll(new SyncRepository.SyncCallback() {
+            @Override
+            public void onSuccess(Map<String, Object> data) {
+            }
+
+            @Override
+            public void onError(String message, int code) {
+            }
+        });
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(pullCall).enqueue(pullCaptor.capture());
+        pullCaptor.getValue().onResponse(pullCall, Response.success(new ApiResponse<>(0, "ok", Map.of("messages", List.of()))));
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(pushCall).enqueue(pushCaptor.capture());
+        verify(messageRepository).retryAllPendingMessages();
+
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(syncService).push(payloadCaptor.capture());
+        assertEquals(List.of(), payloadCaptor.getValue().get("messages"));
+    }
+
+    @Test
+    public void pull_persistsPayloadJsonWhenServerReturnsPayloadJsonField() {
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Callback<ApiResponse<Map<String, Object>>>> pullCaptor = ArgumentCaptor.forClass(Callback.class);
+
+        repository.pull(new SyncRepository.SyncCallback() {
+            @Override
+            public void onSuccess(Map<String, Object> data) {
+            }
+
+            @Override
+            public void onError(String message, int code) {
+            }
+        });
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        verify(pullCall).enqueue(pullCaptor.capture());
+        String payloadJson = "{\"title\":\"卡片标题\",\"summary\":\"正文\",\"items\":[{\"type\":\"TEXT\",\"content\":\"正文\"}]}";
+        Map<String, Object> rawMessage = Map.of(
+                "id", 301L,
+                "senderId", 7L,
+                "flashNoteId", 11L,
+                "content", "[卡片消息]",
+                "mediaType", "COMPOSITE",
+                "payloadJson", payloadJson,
+                "createdAt", "2026-03-28T12:00:00"
+        );
+        pullCaptor.getValue().onResponse(pullCall, Response.success(new ApiResponse<>(0, "ok", Map.of("messages", List.of(rawMessage)))));
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+
+        ArgumentCaptor<List<MessageLocalEntity>> entitiesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(messageLocalDao).upsertAll(entitiesCaptor.capture());
+        List<MessageLocalEntity> entities = entitiesCaptor.getValue();
+        assertEquals(1, entities.size());
+        assertEquals("COMPOSITE", entities.get(0).getMediaType());
+        assertEquals(payloadJson, entities.get(0).getPayloadJson());
+        assertTrue(entities.get(0).getConversationKey() != 0L);
     }
 }

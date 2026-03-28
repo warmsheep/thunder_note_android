@@ -87,4 +87,19 @@ public class PendingMessageRepositoryImplTest {
                 PendingMessageDispatcher.STATUS_FAILED
         ));
     }
+
+    @Test
+    public void recoverInterruptedMessages_movesInFlightStatusesBackToQueued() {
+        repository.recoverInterruptedMessages();
+
+        verify(pendingMessageDao).resetStatuses(
+                List.of(
+                        PendingMessageDispatcher.STATUS_PROCESSING,
+                        PendingMessageDispatcher.STATUS_UPLOADING,
+                        PendingMessageDispatcher.STATUS_UPLOADED,
+                        PendingMessageDispatcher.STATUS_SENDING
+                ),
+                PendingMessageDispatcher.STATUS_QUEUED
+        );
+    }
 }

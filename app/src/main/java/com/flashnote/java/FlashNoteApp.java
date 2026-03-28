@@ -60,7 +60,7 @@ public class FlashNoteApp extends Application {
         instance = this;
         DebugLog.init(this);
         clearStaleCacheOnUpgrade();
-        initializeDependencies();
+        initializeDependencies(false);
     }
 
     private void clearStaleCacheOnUpgrade() {
@@ -79,7 +79,7 @@ public class FlashNoteApp extends Application {
         }
     }
 
-    private void initializeDependencies() {
+    private void initializeDependencies(boolean recoverPendingMessages) {
         serverConfigStore = new ServerConfigStore(this);
         tokenManager = new TokenManager(this);
         gestureLockManager = new GestureLockManager(this, tokenManager);
@@ -114,6 +114,23 @@ public class FlashNoteApp extends Application {
                 getSharedPreferences("flashnote_user_cache", MODE_PRIVATE)
         );
 
+        if (recoverPendingMessages) {
+            recoverInterruptedPendingMessages();
+        }
+
+    }
+
+    private void recoverInterruptedPendingMessages() {
+        if (pendingMessageRepository == null) {
+            return;
+        }
+        new Thread(() -> {
+            try {
+                pendingMessageRepository.recoverInterruptedMessages();
+            } catch (RuntimeException exception) {
+                DebugLog.e("FlashNoteApp", "Failed to recover interrupted pending messages", exception);
+            }
+        }).start();
     }
 
     public static FlashNoteApp getInstance() {
@@ -187,11 +204,11 @@ public class FlashNoteApp extends Application {
         DebugLog.clear();
         clearAvatarCache();
         clearAppCache();
-        initializeDependencies();
+        initializeDependencies(false);
     }
 
     public void reloadSessionScopedDependencies() {
-        initializeDependencies();
+        initializeDependencies(false);
     }
 
     private void clearPendingMessages() {

@@ -23,7 +23,12 @@ public class PendingSyncAdapter extends RecyclerView.Adapter<PendingSyncAdapter.
     private final List<PendingMessage> items = new ArrayList<>();
 
     public void submitList(List<PendingMessage> pendingMessages) {
-        List<PendingMessage> newItems = pendingMessages == null ? new ArrayList<>() : new ArrayList<>(pendingMessages);
+        List<PendingMessage> newItems = new ArrayList<>();
+        if (pendingMessages != null) {
+            for (PendingMessage pendingMessage : pendingMessages) {
+                newItems.add(copyOf(pendingMessage));
+            }
+        }
         DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
             @Override
             public int getOldListSize() {
@@ -49,6 +54,7 @@ public class PendingSyncAdapter extends RecyclerView.Adapter<PendingSyncAdapter.
                         && equalsNullable(oldItem.getContent(), newItem.getContent())
                         && equalsNullable(oldItem.getMediaType(), newItem.getMediaType())
                         && equalsNullable(oldItem.getFileName(), newItem.getFileName())
+                        && equalsNullable(oldItem.getPayloadJson(), newItem.getPayloadJson())
                         && equalsNullable(oldItem.getErrorMessage(), newItem.getErrorMessage())
                         && oldItem.getAttemptCount() == newItem.getAttemptCount()
                         && oldItem.getCreatedAt() == newItem.getCreatedAt()
@@ -63,6 +69,34 @@ public class PendingSyncAdapter extends RecyclerView.Adapter<PendingSyncAdapter.
 
     private boolean equalsNullable(Object left, Object right) {
         return left == null ? right == null : left.equals(right);
+    }
+
+    private PendingMessage copyOf(PendingMessage source) {
+        if (source == null) {
+            return new PendingMessage();
+        }
+        PendingMessage copy = new PendingMessage();
+        copy.setLocalId(source.getLocalId());
+        copy.setConversationKey(source.getConversationKey());
+        copy.setFlashNoteId(source.getFlashNoteId());
+        copy.setPeerUserId(source.getPeerUserId());
+        copy.setClientRequestId(source.getClientRequestId());
+        copy.setMediaType(source.getMediaType());
+        copy.setContent(source.getContent());
+        copy.setLocalFilePath(source.getLocalFilePath());
+        copy.setRemoteUrl(source.getRemoteUrl());
+        copy.setFileName(source.getFileName());
+        copy.setFileSize(source.getFileSize());
+        copy.setMediaDuration(source.getMediaDuration());
+        copy.setProcessedFilePath(source.getProcessedFilePath());
+        copy.setThumbnailUrl(source.getThumbnailUrl());
+        copy.setPayloadJson(source.getPayloadJson());
+        copy.setStatus(source.getStatus());
+        copy.setCreatedAt(source.getCreatedAt());
+        copy.setErrorMessage(source.getErrorMessage());
+        copy.setAttemptCount(source.getAttemptCount());
+        copy.setServerMessageId(source.getServerMessageId());
+        return copy;
     }
 
     @NonNull

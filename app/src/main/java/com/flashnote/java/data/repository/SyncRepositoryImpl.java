@@ -154,7 +154,6 @@ public class SyncRepositoryImpl implements SyncRepository {
                 flashNoteRepository.refresh();
                 collectionRepository.refresh();
                 favoriteRepository.refresh();
-                messageRepository.retryAllPendingMessages();
                 if (callback != null) {
                     callback.onSuccess(data);
                 }
@@ -171,6 +170,7 @@ public class SyncRepositoryImpl implements SyncRepository {
 
     @Override
     public void syncAll(SyncCallback callback) {
+        messageRepository.retryAllPendingMessages();
         pullAndRefreshLocal(new SyncCallback() {
             @Override
             public void onSuccess(Map<String, Object> pullData) {
@@ -257,7 +257,7 @@ public class SyncRepositoryImpl implements SyncRepository {
         Map<String, Object> payload = new HashMap<>();
         payload.put("notes", safeList(loadLocalNotes()));
         payload.put("collections", safeList(loadLocalCollections()));
-        payload.put("messages", safeList(loadPendingMessagesForSync()));
+        payload.put("messages", List.of());
         payload.put("favorites", safeList(loadLocalFavorites()));
         return payload;
     }
@@ -491,6 +491,8 @@ public class SyncRepositoryImpl implements SyncRepository {
         }
         if (raw.get("payload") != null) {
             entity.setPayloadJson(new com.google.gson.Gson().toJson(raw.get("payload")));
+        } else if (raw.get("payloadJson") != null) {
+            entity.setPayloadJson(String.valueOf(raw.get("payloadJson")));
         }
         Long conversationKey = com.flashnote.java.util.ConversationKeyUtil.resolve(entity.getFlashNoteId(), entity.getReceiverId());
         if (conversationKey == null && entity.getSenderId() != null && entity.getReceiverId() != null) {

@@ -20,6 +20,13 @@ public class PendingMessageRepositoryImpl implements PendingMessageRepository {
             PendingMessageDispatcher.STATUS_FAILED
     );
 
+    private static final List<String> INTERRUPTED_IN_FLIGHT_STATUSES = Arrays.asList(
+            PendingMessageDispatcher.STATUS_PROCESSING,
+            PendingMessageDispatcher.STATUS_UPLOADING,
+            PendingMessageDispatcher.STATUS_UPLOADED,
+            PendingMessageDispatcher.STATUS_SENDING
+    );
+
     private final PendingMessageDao pendingMessageDao;
 
     public PendingMessageRepositoryImpl(PendingMessageDao pendingMessageDao) {
@@ -85,5 +92,10 @@ public class PendingMessageRepositoryImpl implements PendingMessageRepository {
     @Override
     public void clearConversation(long conversationKey) {
         pendingMessageDao.clearConversation(conversationKey);
+    }
+
+    @Override
+    public void recoverInterruptedMessages() {
+        pendingMessageDao.resetStatuses(INTERRUPTED_IN_FLIGHT_STATUSES, PendingMessageDispatcher.STATUS_QUEUED);
     }
 }

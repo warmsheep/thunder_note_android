@@ -276,7 +276,15 @@ public class PendingMessageDispatcher {
             return;
         }
         CardItem item = payload.getItems().get(index);
-        if (item == null || item.getLocalPath() == null || item.getLocalPath().trim().isEmpty() || "TEXT".equalsIgnoreCase(item.getType())) {
+        if (item == null || "TEXT".equalsIgnoreCase(item.getType())) {
+            uploadCompositeItemAt(localId, payload, index + 1);
+            return;
+        }
+        if (item.getUrl() != null && !item.getUrl().trim().isEmpty() && !isLocalReference(item.getUrl())) {
+            uploadCompositeItemAt(localId, payload, index + 1);
+            return;
+        }
+        if (item.getLocalPath() == null || item.getLocalPath().trim().isEmpty()) {
             uploadCompositeItemAt(localId, payload, index + 1);
             return;
         }
@@ -290,7 +298,6 @@ public class PendingMessageDispatcher {
             public void onSuccess(String value) {
                 executor.execute(() -> {
                     item.setUrl(value);
-                    item.setLocalPath(null);
                     PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
                     if (latest != null) {
                         latest.setPayloadJson(GSON.toJson(payload));
@@ -481,7 +488,10 @@ public class PendingMessageDispatcher {
             return false;
         }
         for (CardItem item : payload.getItems()) {
-            if (item != null && item.getLocalPath() != null && !item.getLocalPath().trim().isEmpty()) {
+            if (item != null
+                    && item.getLocalPath() != null
+                    && !item.getLocalPath().trim().isEmpty()
+                    && (item.getUrl() == null || item.getUrl().trim().isEmpty() || isLocalReference(item.getUrl()))) {
                 return true;
             }
         }
@@ -544,7 +554,6 @@ public class PendingMessageDispatcher {
         PendingMessage latest = pendingMessageRepository.findByLocalId(localId);
         if (latest == null) {
             dispatchInProgress = false;
-            dispatchAllPendingNow();
             return;
         }
         latest.setStatus(STATUS_FAILED);
@@ -553,7 +562,6 @@ public class PendingMessageDispatcher {
         pendingMessageRepository.update(latest);
         notifyListener(latest, null);
         dispatchInProgress = false;
-        dispatchAllPendingNow();
     }
 
     private String classifyThrowable(Throwable throwable) {

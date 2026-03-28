@@ -49,4 +49,7 @@ public interface PendingMessageDao {
 
     @Query("DELETE FROM pending_messages WHERE conversation_key = :conversationKey")
     void clearConversation(long conversationKey);
+
+    @Query("UPDATE pending_messages SET status = :targetStatus, error_message = NULL WHERE status IN (:sourceStatuses)")
+    void resetStatuses(List<String> sourceStatuses, String targetStatus);
 }

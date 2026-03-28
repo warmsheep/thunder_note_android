@@ -16,6 +16,8 @@ import static org.mockito.Mockito.mock;
 
 import com.flashnote.java.data.local.MessageLocalDao;
 import com.flashnote.java.data.local.MessageLocalEntity;
+import com.flashnote.java.data.model.CardItem;
+import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.PendingMessage;
@@ -32,6 +34,7 @@ import org.robolectric.annotation.Config;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
 
@@ -220,6 +223,57 @@ public class MessageRepositoryImplTest {
         assertEquals("voice.m4a", server.getFileName());
         assertEquals(Long.valueOf(1234L), server.getFileSize());
         assertEquals("voice/object.m4a", server.getMediaUrl());
+    }
+
+    @Test
+    public void buildMergedMessages_keepsCompositePayloadForPendingCardMessage() {
+        PendingMessage pending = new PendingMessage();
+        pending.setLocalId(15L);
+        pending.setConversationKey(9L);
+        pending.setContent("卡片标题");
+        pending.setMediaType("COMPOSITE");
+        pending.setStatus(PendingMessageDispatcher.STATUS_QUEUED);
+        pending.setCreatedAt(25_000L);
+        pending.setPayloadJson(buildCompositePayloadJson());
+
+        List<Message> merged = MessageRepositoryMergeHelper.buildMergedMessages(
+                List.of(),
+                List.of(pending),
+                java.util.Comparator.<Message>comparingLong(MessageRepositoryMergeHelper::messageSortTimestamp)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageSourceOrder)
+                        .thenComparingLong(MessageRepositoryMergeHelper::messageStableTieBreaker)
+        );
+
+        assertEquals(1, merged.size());
+        Message message = merged.get(0);
+        assertEquals("COMPOSITE", message.getMediaType());
+        assertEquals("卡片标题", message.getContent());
+        assertEquals("卡片标题", message.getPayload().getTitle());
+        assertEquals(2, message.getPayload().getItems().size());
+        assertEquals("TEXT", message.getPayload().getItems().get(0).getType());
+        assertEquals("正文", message.getPayload().getItems().get(0).getContent());
+    }
+
+    private String buildCompositePayloadJson() {
+        CardPayload payload = new CardPayload();
+        payload.setCardType("COMPOSITE_CARD");
+        payload.setTitle("卡片标题");
+        payload.setSummary("正文");
+        List<CardItem> items = new ArrayList<>();
+
+        CardItem text = new CardItem();
+        text.setType("TEXT");
+        text.setContent("正文");
+        items.add(text);
+
+        CardItem image = new CardItem();
+        image.setType("IMAGE");
+        image.setLocalPath("/tmp/demo.jpg");
+        image.setThumbnailUrl("/tmp/demo-thumb.jpg");
+        items.add(image);
+
+        payload.setItems(items);
+        return new com.google.gson.Gson().toJson(payload);
     }
 
     @Test
