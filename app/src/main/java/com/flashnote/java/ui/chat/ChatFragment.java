@@ -50,6 +50,7 @@ import com.flashnote.java.databinding.DialogMergeCardTitleBinding;
 import com.flashnote.java.databinding.FragmentChatBinding;
 import com.flashnote.java.databinding.PopupMessageActionsBinding;
 import com.flashnote.java.ui.main.FlashNoteViewModel;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.flashnote.java.util.VideoCompressor;
 
@@ -1339,16 +1340,7 @@ public class ChatFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        androidx.fragment.app.FragmentActivity activity = getActivity();
-        if (!isAdded() || activity == null || binding == null) {
-            return;
-        }
-        activity.runOnUiThread(() -> {
-            if (!isAdded() || binding == null) {
-                return;
-            }
-            action.run();
-        });
+        FragmentUiSafe.runIfUiAlive(this, binding, action);
     }
 
     private void sendMediaToCapturedConversation(@NonNull Message message,

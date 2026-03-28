@@ -15,6 +15,7 @@ import androidx.fragment.app.Fragment;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.ui.main.FlashNoteViewModel;
 import com.flashnote.java.databinding.FragmentQuickCaptureTextBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.data.repository.MessageRepository;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -121,15 +122,7 @@ public class QuickCaptureTextFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        if (!isAdded() || binding == null) {
-            return;
-        }
-        binding.getRoot().post(() -> {
-            if (!isAdded() || binding == null) {
-                return;
-            }
-            action.run();
-        });
+        FragmentUiSafe.runIfUiAlive(this, binding, action);
     }
 
     @Override

@@ -26,6 +26,12 @@
 - `ProfileTabFragment` 已接 `UserRepositoryImpl`，并提供 bio 编辑、手动 sync/file/logout 入口，但仍不是完整个人中心。
 - `SyncRepositoryImpl`、`FileRepositoryImpl` 已进入 Java 主链，当前定位是 MVP 最小闭环，不是完整离线体系。
 
+## 重构记录
+- `ui/FragmentUiSafe.java`：统一 Fragment UI 线程安全执行逻辑，所有 Tab Fragment 的 `runIfUiAlive` 已委托至此工具类，消除重复代码。
+- `AuthViewModel.register()`：`RegisterFragment` 已接入 ViewModel，auth 模块内部消除回调嵌套模式，与 `LoginFragment` 保持一致。
+- `BaseTabPlaceholderFragment`、`PlaceholderTabFragment`、`fragment_tab_placeholder.xml`：已删除，属于迁移历史残余。
+- `FlashNoteTabFragment` popup：两处 `LayoutInflater.inflate + findViewById` 已升级为 ViewBinding。
+
 ## 反模式
 - 不要把 Java 页面存在直接当成后端已接通的证据。
 

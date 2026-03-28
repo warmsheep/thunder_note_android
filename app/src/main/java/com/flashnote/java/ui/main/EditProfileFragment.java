@@ -28,6 +28,7 @@ import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.databinding.FragmentEditProfileBinding;
 import com.flashnote.java.ui.media.MediaUrlResolver;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.yalantis.ucrop.UCrop;
 
@@ -365,15 +366,7 @@ public class EditProfileFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        if (!isAdded() || binding == null) {
-            return;
-        }
-        binding.getRoot().post(() -> {
-            if (!isAdded() || binding == null) {
-                return;
-            }
-            action.run();
-        });
+        FragmentUiSafe.runIfUiAlive(this, binding, action);
     }
 
     private void showToast(@NonNull String message) {

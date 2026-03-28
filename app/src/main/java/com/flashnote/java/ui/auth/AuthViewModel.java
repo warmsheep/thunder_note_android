@@ -65,6 +65,55 @@ public class AuthViewModel extends AndroidViewModel {
         });
     }
 
+    public void register(String username, String email, String password) {
+        refreshAuthRepository();
+        if (username == null || username.trim().isEmpty()) {
+            authState.setValue(AuthState.ERROR);
+            errorMessage.setValue("Username cannot be empty");
+            return;
+        }
+        if (email == null || email.trim().isEmpty()) {
+            authState.setValue(AuthState.ERROR);
+            errorMessage.setValue("Email cannot be empty");
+            return;
+        }
+        if (password == null || password.isEmpty()) {
+            authState.setValue(AuthState.ERROR);
+            errorMessage.setValue("Password cannot be empty");
+            return;
+        }
+
+        authState.setValue(AuthState.LOADING);
+
+        authRepository.register(username.trim(), email.trim(), password, new AuthRepository.SimpleCallback() {
+            @Override
+            public void onSuccess() {
+                authRepository.login(username.trim(), password, new AuthRepository.AuthCallback() {
+                    @Override
+                    public void onSuccess(LoginResponse response) {
+                        PendingRecoveryWorker.enqueue(getApplication());
+                        authState.postValue(AuthState.SUCCESS);
+                        loginResponse.postValue(response);
+                        currentUser.postValue(response.getUser());
+                    }
+
+                    @Override
+                    public void onError(String message, int code) {
+                        errorMessage.postValue(message != null && !message.isEmpty()
+                                ? message : "Registration succeeded but login failed");
+                        authState.postValue(AuthState.ERROR);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String message, int code) {
+                errorMessage.postValue(message);
+                authState.postValue(AuthState.ERROR);
+            }
+        });
+    }
+
     public void logout() {
         refreshAuthRepository();
         authRepository.logout();

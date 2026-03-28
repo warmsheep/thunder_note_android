@@ -39,6 +39,7 @@ import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.R;
 import com.flashnote.java.ui.media.MediaUrlResolver;
 import com.flashnote.java.ui.auth.AuthViewModel;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -564,16 +565,7 @@ public class ProfileTabFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        androidx.fragment.app.FragmentActivity activity = getActivity();
-        if (!isAdded() || activity == null || binding == null) {
-            return;
-        }
-        activity.runOnUiThread(() -> {
-            if (!isAdded() || binding == null) {
-                return;
-            }
-            action.run();
-        });
+        FragmentUiSafe.runIfUiAlive(this, binding, action);
     }
 
     private void clearLocalAvatarCache() {

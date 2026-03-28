@@ -31,6 +31,7 @@ import com.flashnote.java.data.repository.MessageRepository;
 import com.flashnote.java.databinding.FragmentCardEditorBinding;
 import com.flashnote.java.databinding.ItemCardEditorFileBinding;
 import com.flashnote.java.databinding.ItemCardEditorMediaBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.flashnote.java.util.VideoCompressor;
 
@@ -602,10 +603,7 @@ public class CardEditorFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().runOnUiThread(action);
+        FragmentUiSafe.runIfUiAlive(this, action);
     }
 
     private void showToast(@NonNull String text) {

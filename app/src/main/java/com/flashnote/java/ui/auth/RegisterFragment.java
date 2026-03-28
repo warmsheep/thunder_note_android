@@ -5,24 +5,25 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.LoginResponse;
-import com.flashnote.java.data.repository.AuthRepository;
+import com.flashnote.java.data.remote.ServerConfigStore;
 import com.flashnote.java.databinding.FragmentRegisterBinding;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 public class RegisterFragment extends Fragment {
     private FragmentRegisterBinding binding;
-    private AuthRepository authRepository;
+    private AuthViewModel authViewModel;
     private TokenManager tokenManager;
+    private ServerConfigStore serverConfigStore;
 
     @Nullable
     @Override
@@ -38,8 +39,12 @@ public class RegisterFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         FlashNoteApp app = FlashNoteApp.getInstance();
-        authRepository = app.getAuthRepository();
         tokenManager = app.getTokenManager();
+        serverConfigStore = app.getServerConfigStore();
+        if (getActivity() != null) {
+            authViewModel = new ViewModelProvider(getActivity()).get(AuthViewModel.class);
+            authViewModel.resetLoginState();
+        }
 
         binding.registerButton.setOnClickListener(v -> submitRegister());
         binding.goLoginText.setOnClickListener(v -> {
@@ -48,93 +53,71 @@ public class RegisterFragment extends Fragment {
                 navigator.openLogin();
             }
         });
+
+        if (authViewModel != null) {
+            authViewModel.getAuthState().observe(getViewLifecycleOwner(), state -> {
+                if (state == null || binding == null) {
+                    return;
+                }
+                switch (state) {
+                    case LOADING:
+                        setLoading(true);
+                        break;
+                    case SUCCESS:
+                        setLoading(false);
+                        break;
+                    case ERROR:
+                    case IDLE:
+                    default:
+                        setLoading(false);
+                        break;
+                }
+            });
+
+            authViewModel.getErrorMessage().observe(getViewLifecycleOwner(), this::handleErrorFromViewModel);
+            authViewModel.getLoginResponse().observe(getViewLifecycleOwner(), this::handleLoginResponse);
+        }
     }
 
     private void submitRegister() {
         clearError();
-        String username = getTrimmed(binding.usernameInput.getText());
-        String email = getTrimmed(binding.emailInput.getText());
-        String password = getTrimmed(binding.passwordInput.getText());
+        String username = binding.usernameInput.getText() == null
+                ? "" : binding.usernameInput.getText().toString().trim();
+        String email = binding.emailInput.getText() == null
+                ? "" : binding.emailInput.getText().toString().trim();
+        String password = binding.passwordInput.getText() == null
+                ? "" : binding.passwordInput.getText().toString();
 
         if (TextUtils.isEmpty(username)) {
-            renderError(getString(R.string.error_username_required));
+            showError(getString(R.string.error_username_required));
             return;
         }
         if (TextUtils.isEmpty(email)) {
-            renderError(getString(R.string.error_email_required));
+            showError(getString(R.string.error_email_required));
             return;
         }
         if (TextUtils.isEmpty(password)) {
-            renderError(getString(R.string.error_password_required));
+            showError(getString(R.string.error_password_required));
             return;
         }
 
-        setLoading(true);
-        authRepository.register(username, email, password, new AuthRepository.SimpleCallback() {
-            @Override
-            public void onSuccess() {
-                if (!isAdded()) {
-                    return;
-                }
-                authRepository.login(username, password, new AuthRepository.AuthCallback() {
-                    @Override
-                    public void onSuccess(LoginResponse response) {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
-                            if (!isAdded()) {
-                                return;
-                            }
-                            setLoading(false);
-                            persistToken(response);
-                            FlashNoteApp.getInstance().reloadSessionScopedDependencies();
-                            Toast.makeText(requireContext(), "注册成功", Toast.LENGTH_SHORT).show();
-                            ShellNavigator navigator = getNavigator();
-                            if (navigator != null) {
-                                navigator.openMainShell();
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onError(String message, int code) {
-                        if (!isAdded() || getActivity() == null) {
-                            return;
-                        }
-                        getActivity().runOnUiThread(() -> {
-                            if (!isAdded()) {
-                                return;
-                            }
-                            setLoading(false);
-                            renderError(getString(R.string.error_login_default));
-                        });
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String message, int code) {
-                if (!isAdded() || getActivity() == null) {
-                    return;
-                }
-                getActivity().runOnUiThread(() -> {
-                    if (!isAdded()) {
-                        return;
-                    }
-                    setLoading(false);
-                    if (message == null || message.trim().isEmpty()) {
-                        renderError(getString(R.string.error_register_unavailable));
-                    } else {
-                        renderError(message);
-                    }
-                });
-            }
-        });
+        authViewModel.clearError();
+        authViewModel.register(username, email, password);
     }
 
-    private void persistToken(@Nullable LoginResponse response) {
-        if (response == null || tokenManager == null) {
+    private void handleErrorFromViewModel(@Nullable String message) {
+        if (message == null || message.trim().isEmpty()) {
+            return;
+        }
+        if (message.startsWith("Network error:")) {
+            showError(getString(R.string.error_network_prefix, message.replace("Network error:", "").trim()));
+            return;
+        }
+        showError(message);
+    }
+
+    private void handleLoginResponse(@Nullable LoginResponse response) {
+        if (response == null || tokenManager == null || !isAdded()) {
             return;
         }
         String accessToken = response.getToken();
@@ -146,6 +129,13 @@ public class RegisterFragment extends Fragment {
                 response.getRefreshToken(),
                 response.getExpiresIn()
         );
+        FlashNoteApp.getInstance().reloadSessionScopedDependencies();
+        authViewModel.consumeLoginResponse();
+
+        ShellNavigator navigator = getNavigator();
+        if (navigator != null) {
+            navigator.openMainShell();
+        }
     }
 
     private void setLoading(boolean loading) {
@@ -156,9 +146,9 @@ public class RegisterFragment extends Fragment {
         binding.goLoginText.setEnabled(!loading);
     }
 
-    private void renderError(String message) {
+    private void showError(@NonNull String msg) {
         binding.errorText.setVisibility(View.VISIBLE);
-        binding.errorText.setText(message);
+        binding.errorText.setText(msg);
     }
 
     private void clearError() {
@@ -172,11 +162,6 @@ public class RegisterFragment extends Fragment {
             return navigator;
         }
         return null;
-    }
-
-    @NonNull
-    private String getTrimmed(@Nullable CharSequence text) {
-        return text == null ? "" : text.toString().trim();
     }
 
     @Override

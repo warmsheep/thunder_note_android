@@ -52,6 +52,9 @@ import com.flashnote.java.data.repository.MessageRepository;
 import android.widget.PopupMenu;
 import com.flashnote.java.databinding.DialogFlashNoteEditBinding;
 import com.flashnote.java.databinding.FragmentFlashNoteTabBinding;
+import com.flashnote.java.databinding.PopupFlashnoteActionsBinding;
+import com.flashnote.java.databinding.PopupQuickCaptureActionsBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.google.android.material.chip.Chip;
 
@@ -443,9 +446,10 @@ public class FlashNoteTabFragment extends Fragment {
         }
         boolean isInbox = Boolean.TRUE.equals(note.getInbox()) || (note.getId() != null && note.getId() == COLLECTION_BOX_NOTE_ID);
         if (!isInbox) {
-            View popupView = LayoutInflater.from(requireContext()).inflate(R.layout.popup_flashnote_actions, null, false);
+            PopupFlashnoteActionsBinding popupBinding = PopupFlashnoteActionsBinding.inflate(
+                    LayoutInflater.from(requireContext()));
             PopupWindow popupWindow = new PopupWindow(
-                    popupView,
+                    popupBinding.getRoot(),
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     true
@@ -453,26 +457,26 @@ public class FlashNoteTabFragment extends Fragment {
             popupWindow.setBackgroundDrawable(null);
             popupWindow.setOutsideTouchable(true);
 
-            TextView pinText = popupView.findViewById(R.id.actionPinText);
-            pinText.setText(Boolean.TRUE.equals(note.getPinned()) ? R.string.flashnote_unpin : R.string.flashnote_pin);
+            popupBinding.actionPinText.setText(
+                    Boolean.TRUE.equals(note.getPinned()) ? R.string.flashnote_unpin : R.string.flashnote_pin);
 
-            popupView.findViewById(R.id.actionEdit).setOnClickListener(v -> {
+            popupBinding.actionEdit.setOnClickListener(v -> {
                 popupWindow.dismiss();
                 showNoteDialog(note, viewModel);
             });
-            popupView.findViewById(R.id.actionHide).setOnClickListener(v -> {
+            popupBinding.actionHide.setOnClickListener(v -> {
                 popupWindow.dismiss();
                 if (note.getId() != null && note.getId() > 0L) {
                     viewModel.setHidden(note.getId(), true);
                 }
             });
-            popupView.findViewById(R.id.actionPin).setOnClickListener(v -> {
+            popupBinding.actionPin.setOnClickListener(v -> {
                 popupWindow.dismiss();
                 if (note.getId() != null && note.getId() > 0L) {
                     viewModel.setPinned(note.getId(), !Boolean.TRUE.equals(note.getPinned()));
                 }
             });
-            showPopupNearAnchor(anchor, popupWindow, popupView);
+            showPopupNearAnchor(anchor, popupWindow, popupBinding.getRoot());
         }
     }
 
@@ -859,9 +863,10 @@ public class FlashNoteTabFragment extends Fragment {
         if (!isAdded()) {
             return;
         }
-        View popupView = LayoutInflater.from(requireContext()).inflate(R.layout.popup_quick_capture_actions, null, false);
+        PopupQuickCaptureActionsBinding popupBinding = PopupQuickCaptureActionsBinding.inflate(
+                LayoutInflater.from(requireContext()));
         PopupWindow popupWindow = new PopupWindow(
-                popupView,
+                popupBinding.getRoot(),
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 true
@@ -869,32 +874,32 @@ public class FlashNoteTabFragment extends Fragment {
         popupWindow.setBackgroundDrawable(null);
         popupWindow.setOutsideTouchable(true);
 
-        popupView.findViewById(R.id.actionText).setOnClickListener(v -> {
+        popupBinding.actionText.setOnClickListener(v -> {
             popupWindow.dismiss();
             if (getActivity() instanceof ShellNavigator navigator) {
                 navigator.openQuickCaptureTextEditor();
             }
         });
-        popupView.findViewById(R.id.actionImage).setOnClickListener(v -> {
+        popupBinding.actionImage.setOnClickListener(v -> {
             popupWindow.dismiss();
             openImagePicker();
         });
-        popupView.findViewById(R.id.actionFile).setOnClickListener(v -> {
+        popupBinding.actionFile.setOnClickListener(v -> {
             popupWindow.dismiss();
             openFilePicker();
         });
-        popupView.findViewById(R.id.actionCard).setOnClickListener(v -> {
+        popupBinding.actionCard.setOnClickListener(v -> {
             popupWindow.dismiss();
             if (getActivity() instanceof ShellNavigator navigator) {
                 navigator.openCardEditor(COLLECTION_BOX_NOTE_ID, 0L, getString(R.string.flashnote_inbox_card_title));
             }
         });
-        popupView.findViewById(R.id.actionCamera).setOnClickListener(v -> {
+        popupBinding.actionCamera.setOnClickListener(v -> {
             popupWindow.dismiss();
             openCamera();
         });
 
-        showPopupNearAnchor(anchor, popupWindow, popupView);
+        showPopupNearAnchor(anchor, popupWindow, popupBinding.getRoot());
     }
 
     private void showPopupNearAnchor(@NonNull View anchor, @NonNull PopupWindow popupWindow, @NonNull View popupView) {
@@ -1026,16 +1031,7 @@ public class FlashNoteTabFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        androidx.fragment.app.FragmentActivity activity = getActivity();
-        if (!isAdded() || activity == null || binding == null) {
-            return;
-        }
-        activity.runOnUiThread(() -> {
-            if (!isAdded() || binding == null) {
-                return;
-            }
-            action.run();
-        });
+        FragmentUiSafe.runIfUiAlive(this, binding, action);
     }
 
     private void registerExternalFlowForGestureUnlockSkip() {

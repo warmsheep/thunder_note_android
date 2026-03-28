@@ -20,6 +20,7 @@ import com.flashnote.java.R;
 import com.flashnote.java.data.model.Collection;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.databinding.FragmentCollectionTabBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 import java.util.ArrayList;
@@ -259,16 +260,7 @@ public class CollectionTabFragment extends Fragment {
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {
-        androidx.fragment.app.FragmentActivity activity = getActivity();
-        if (!isAdded() || activity == null || binding == null) {
-            return;
-        }
-        activity.runOnUiThread(() -> {
-            if (!isAdded() || binding == null) {
-                return;
-            }
-            action.run();
-        });
+        FragmentUiSafe.runIfUiAlive(this, binding, action);
     }
 
     @Nullable
