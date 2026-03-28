@@ -174,7 +174,7 @@ public class ChatFragment extends Fragment {
                 multiSelectHelper.exitMultiSelectMode();
                 return;
             }
-            getParentFragmentManager().popBackStack();
+            FragmentUiSafe.navigateBack(this);
         });
 
         FavoriteRepository favoriteRepository = FlashNoteApp.getInstance().getFavoriteRepository();
@@ -583,19 +583,6 @@ public class ChatFragment extends Fragment {
 
     private void runIfUiAlive(@NonNull Runnable action) {
         FragmentUiSafe.runIfUiAlive(this, binding, action);
-    }
-
-    private void sendMediaToCapturedConversation(@NonNull Message message,
-                                                 long targetFlashNoteId,
-                                                 long targetPeerUserId,
-                                                 @NonNull Runnable onSuccess) {
-        if (targetPeerUserId > 0L) {
-            chatViewModel.sendMessageToContact(targetPeerUserId, message, onSuccess);
-            return;
-        }
-        if (targetFlashNoteId > 0L || targetFlashNoteId == INBOX_NOTE_ID) {
-            chatViewModel.sendMessageToFlashNote(targetFlashNoteId, message, onSuccess);
-        }
     }
 
     private void showToast(String message) {

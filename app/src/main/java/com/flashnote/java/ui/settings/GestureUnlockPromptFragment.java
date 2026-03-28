@@ -21,6 +21,7 @@ import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.databinding.FragmentGestureUnlockPromptBinding;
 import com.flashnote.java.security.GestureLockManager;
 import com.flashnote.java.ui.media.MediaUrlResolver;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 import java.io.File;
@@ -262,7 +263,7 @@ public class GestureUnlockPromptFragment extends Fragment {
             navigator.openMainShell();
             return;
         }
-        getActivity().getSupportFragmentManager().popBackStack();
+        FragmentUiSafe.navigateBack(this);
     }
 
     @Override

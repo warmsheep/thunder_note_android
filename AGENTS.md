@@ -31,6 +31,15 @@
 - `AuthViewModel.register()`：`RegisterFragment` 已接入 ViewModel，auth 模块内部消除回调嵌套模式，与 `LoginFragment` 保持一致。
 - `BaseTabPlaceholderFragment`、`PlaceholderTabFragment`、`fragment_tab_placeholder.xml`：已删除，属于迁移历史残余。
 - `FlashNoteTabFragment` popup：两处 `LayoutInflater.inflate + findViewById` 已升级为 ViewBinding。
+- `FragmentUiSafe.navigateBack()` / `getNavigatorOrNull()`：新增静态方法，12 个 Fragment 的本地 `navigateBack`/`getNavigator` 重复实现已全部消除。
+- `RepositoryAuthSupport.requireCurrentUserId()`：新建共享方法，4 个 RepositoryImpl 的重复实现已统一。
+- `ChatRecordingHelper`：`ChatFragment` 录音生命周期独立封装，MediaRecorder 状态机与 UI 解耦。
+- `ChatScrollController`：`ChatFragment` 滚动/自动滚动/分页加载逻辑独立封装。
+- `ChatInputHelper`、`ChatMessageActionsHelper`、`ChatMultiSelectHelper`、`ChatAttachmentFlowHelper`：`ChatFragment` 从 ~1400 行巨型类拆分为 6 个 Helper 组合。
+- `ExternalFlowGestureUnlockHelper.registerExternalFlow()`：4 个 Fragment 共享外部跳转免手势锁逻辑统一。
+- `MessageRepositoryPersistenceHelper`：MessageRepositoryImpl 持久化/映射逻辑（persistRemoteMessages 等 7 个方法）独立封装，Impl 改为协调者。
+- `ProfileOpsHelper`：合并 `ProfileStatsHelper` + `ProfileActionHelper`，统一 ProfileTabFragment 的操作入口。
+- `ChatFragment` 清理：删除未调用 `sendMediaToCapturedConversation()`；剩余 2 处 `popBackStack()` 直调改为 `FragmentUiSafe.navigateBack()`。
 
 ## 反模式
 - 不要把 Java 页面存在直接当成后端已接通的证据。
