@@ -16,6 +16,7 @@ import com.flashnote.java.R;
 import com.flashnote.java.data.repository.AuthRepository;
 import com.flashnote.java.databinding.FragmentGestureLockSetupBinding;
 import com.flashnote.java.security.GestureLockManager;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 public class GestureLockSetupFragment extends Fragment {
@@ -52,7 +53,7 @@ public class GestureLockSetupFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         gestureLockManager = FlashNoteApp.getInstance().getGestureLockManager();
         authRepository = FlashNoteApp.getInstance().getAuthRepository();
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.resetButton.setOnClickListener(v -> resetSetupFlow());
         binding.saveButton.setOnClickListener(v -> submitSetupResult());
         binding.patternView.setOnPatternListener(new GestureLockPatternView.OnPatternListener() {
@@ -182,7 +183,7 @@ public class GestureLockSetupFragment extends Fragment {
                                 return;
                             }
                             Toast.makeText(getContext(), getString(R.string.gesture_lock_setup_saved), Toast.LENGTH_SHORT).show();
-                            navigateBack();
+                            FragmentUiSafe.navigateBack(GestureLockSetupFragment.this);
                         });
                     }
 
@@ -222,13 +223,6 @@ public class GestureLockSetupFragment extends Fragment {
         binding.statusText.setText(message);
         binding.statusText.setTextColor(ContextCompat.getColor(getContext(), error ? R.color.danger : R.color.text_secondary));
         binding.statusText.setVisibility(View.VISIBLE);
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     @Override

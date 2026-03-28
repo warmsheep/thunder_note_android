@@ -215,7 +215,6 @@ public class FavoriteRepositoryImpl implements FavoriteRepository {
     }
 
     private long requireCurrentUserId() {
-        Long userId = tokenManager.getUserId();
-        return userId == null ? -1L : userId;
+        return Long.parseLong(RepositoryAuthSupport.requireCurrentUserId(tokenManager));
     }
 }

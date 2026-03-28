@@ -13,6 +13,7 @@ import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.databinding.FragmentChangePasswordBinding;
 import com.flashnote.java.data.repository.AuthRepository;
 import com.flashnote.java.security.GestureLockManager;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 public class ChangePasswordFragment extends Fragment {
@@ -35,7 +36,7 @@ public class ChangePasswordFragment extends Fragment {
         gestureLockManager = FlashNoteApp.getInstance().getGestureLockManager();
         authRepository = FlashNoteApp.getInstance().getAuthRepository();
 
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.changeLoginPasswordItem.setOnClickListener(v -> openChangeLoginPassword());
         binding.gestureLockItem.setOnClickListener(v -> openGestureEntry());
         binding.disableGestureLockItem.setOnClickListener(v -> disableGestureLock());
@@ -84,13 +85,6 @@ public class ChangePasswordFragment extends Fragment {
         if (binding != null) {
             binding.disableGestureLockItem.setVisibility(View.GONE);
         }
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     @Override

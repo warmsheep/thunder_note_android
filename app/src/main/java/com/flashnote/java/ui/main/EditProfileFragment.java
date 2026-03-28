@@ -88,7 +88,7 @@ public class EditProfileFragment extends Fragment {
         fileRepository = app.getFileRepository();
         tokenManager = app.getTokenManager();
 
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.avatarContainer.setOnClickListener(v -> showAvatarPicker());
         binding.saveButton.setOnClickListener(v -> saveProfile());
 
@@ -336,7 +336,7 @@ public class EditProfileFragment extends Fragment {
                     showProgress(false);
                     userRepository.refresh();
                     showToast("资料已保存");
-                    navigateBack();
+                    FragmentUiSafe.navigateBack(EditProfileFragment.this);
                 });
             }
 
@@ -356,13 +356,6 @@ public class EditProfileFragment extends Fragment {
         }
         binding.progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         binding.saveButton.setEnabled(!loading);
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {

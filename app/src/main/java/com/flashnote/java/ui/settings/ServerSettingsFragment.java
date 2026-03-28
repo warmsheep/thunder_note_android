@@ -16,6 +16,7 @@ import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.data.remote.ServerConfigStore;
 import com.flashnote.java.databinding.FragmentServerSettingsBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 public class ServerSettingsFragment extends Fragment {
@@ -36,7 +37,7 @@ public class ServerSettingsFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         serverConfigStore = FlashNoteApp.getInstance().getServerConfigStore();
 
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.saveButton.setOnClickListener(v -> saveServerConfig());
         binding.officialOption.setOnClickListener(v -> selectOfficialMode());
         binding.selfHostedOption.setOnClickListener(v -> selectSelfHostedMode());
@@ -107,7 +108,7 @@ public class ServerSettingsFragment extends Fragment {
             navigator.logoutToLogin();
             return;
         }
-        navigateBack();
+        FragmentUiSafe.navigateBack(this);
     }
 
     private void showError(@Nullable String message) {
@@ -124,13 +125,6 @@ public class ServerSettingsFragment extends Fragment {
         }
         binding.errorText.setVisibility(View.GONE);
         binding.errorText.setText("");
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     @Override

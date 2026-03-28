@@ -49,7 +49,7 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
         this.flashNoteLocalDao = flashNoteLocalDao;
         this.tokenManager = tokenManager;
         this.messageRepository = messageRepository;
-        long currentUserId = requireCurrentUserId();
+        long currentUserId = Long.parseLong(RepositoryAuthSupport.requireCurrentUserId(tokenManager));
         this.notesLiveData = Transformations.map(
                 flashNoteLocalDao.observeAllByUserId(currentUserId),
                 this::toModelList
@@ -431,8 +431,4 @@ public class FlashNoteRepositoryImpl implements FlashNoteRepository {
         return LocalDateTime.parse(value);
     }
 
-    private long requireCurrentUserId() {
-        Long userId = tokenManager.getUserId();
-        return userId == null ? -1L : userId;
-    }
 }

@@ -41,7 +41,7 @@ public class QuickCaptureTextFragment extends Fragment {
         messageRepository = FlashNoteApp.getInstance().getMessageRepository();
         flashNoteViewModel = new ViewModelProvider(requireActivity()).get(FlashNoteViewModel.class);
 
-        binding.cancelButton.setOnClickListener(v -> navigateBack());
+        binding.cancelButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.saveButton.setOnClickListener(v -> saveCaptureText());
 
         binding.formatBold.setOnClickListener(v -> insertToken("**", "**"));
@@ -69,7 +69,7 @@ public class QuickCaptureTextFragment extends Fragment {
                 Bundle result = new Bundle();
                 result.putString("inbox_preview", content);
                 getParentFragmentManager().setFragmentResult("quick_capture_saved", result);
-                navigateBack();
+                FragmentUiSafe.navigateBack(this);
             });
         });
     }
@@ -105,13 +105,6 @@ public class QuickCaptureTextFragment extends Fragment {
         }
         editable.insert(lineStart, prefix);
         binding.contentInput.setSelection(Math.min(start + prefix.length(), editable.length()));
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     private void showToast(@NonNull String text) {

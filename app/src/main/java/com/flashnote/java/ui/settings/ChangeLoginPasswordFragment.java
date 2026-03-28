@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.databinding.FragmentChangeLoginPasswordBinding;
 import com.flashnote.java.data.repository.AuthRepository;
+import com.flashnote.java.ui.FragmentUiSafe;
 
 public class ChangeLoginPasswordFragment extends Fragment {
     private static final int MIN_PASSWORD_LENGTH = 6;
@@ -34,7 +35,7 @@ public class ChangeLoginPasswordFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         authRepository = FlashNoteApp.getInstance().getAuthRepository();
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.saveButton.setOnClickListener(v -> savePassword());
     }
 
@@ -82,7 +83,7 @@ public class ChangeLoginPasswordFragment extends Fragment {
                     if (context != null) {
                         Toast.makeText(context, "密码修改成功", Toast.LENGTH_SHORT).show();
                     }
-                    navigateBack();
+                    FragmentUiSafe.navigateBack(ChangeLoginPasswordFragment.this);
                 });
             }
 
@@ -120,13 +121,6 @@ public class ChangeLoginPasswordFragment extends Fragment {
         }
         binding.progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
         binding.saveButton.setEnabled(!show);
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     @Override

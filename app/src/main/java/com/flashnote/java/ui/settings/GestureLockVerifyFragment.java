@@ -15,6 +15,7 @@ import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.databinding.FragmentGestureLockVerifyBinding;
 import com.flashnote.java.security.GestureLockManager;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 public class GestureLockVerifyFragment extends Fragment {
@@ -39,7 +40,7 @@ public class GestureLockVerifyFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         gestureLockManager = FlashNoteApp.getInstance().getGestureLockManager();
 
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.resetButton.setOnClickListener(v -> resetPattern());
         binding.switchToSetupButton.setOnClickListener(v -> openGestureSetup());
         binding.patternView.setOnPatternListener(new GestureLockPatternView.OnPatternListener() {
@@ -127,13 +128,6 @@ public class GestureLockVerifyFragment extends Fragment {
         if (getActivity() instanceof ShellNavigator navigator) {
             navigator.openGestureLockSetup();
         }
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     @Override

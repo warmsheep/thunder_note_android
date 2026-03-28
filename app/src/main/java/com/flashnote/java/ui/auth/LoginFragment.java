@@ -17,6 +17,7 @@ import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.remote.ServerConfigStore;
 import com.flashnote.java.data.model.LoginResponse;
 import com.flashnote.java.databinding.FragmentLoginBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 public class LoginFragment extends Fragment {
@@ -47,13 +48,13 @@ public class LoginFragment extends Fragment {
         }
 
         binding.goRegisterText.setOnClickListener(v -> {
-            ShellNavigator navigator = getNavigator();
+            ShellNavigator navigator = FragmentUiSafe.getNavigatorOrNull(this);
             if (navigator != null) {
                 navigator.openRegister();
             }
         });
         binding.serverText.setOnClickListener(v -> {
-            ShellNavigator navigator = getNavigator();
+            ShellNavigator navigator = FragmentUiSafe.getNavigatorOrNull(this);
             if (navigator != null) {
                 navigator.openServerSettings();
             }
@@ -148,7 +149,7 @@ public class LoginFragment extends Fragment {
         FlashNoteApp.getInstance().reloadSessionScopedDependencies();
         authViewModel.consumeLoginResponse();
 
-        ShellNavigator navigator = getNavigator();
+        ShellNavigator navigator = FragmentUiSafe.getNavigatorOrNull(this);
         if (navigator != null) {
             navigator.openMainShell();
         }
@@ -183,14 +184,6 @@ public class LoginFragment extends Fragment {
     private void clearError() {
         binding.errorText.setVisibility(View.GONE);
         binding.errorText.setText("");
-    }
-
-    @Nullable
-    private ShellNavigator getNavigator() {
-        if (getActivity() instanceof ShellNavigator navigator) {
-            return navigator;
-        }
-        return null;
     }
 
     @Override

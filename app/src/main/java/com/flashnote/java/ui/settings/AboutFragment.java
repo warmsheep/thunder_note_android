@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.flashnote.java.databinding.FragmentAboutBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 
 public class AboutFragment extends Fragment {
     private FragmentAboutBinding binding;
@@ -28,7 +29,7 @@ public class AboutFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         bindVersionText();
     }
 
@@ -42,13 +43,6 @@ public class AboutFragment extends Fragment {
             binding.versionText.setText(getString(com.flashnote.java.R.string.about_version, versionName));
         } catch (PackageManager.NameNotFoundException ignored) {
         }
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     @Override

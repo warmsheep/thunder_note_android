@@ -35,7 +35,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
         this.collectionService = collectionService;
         this.collectionLocalDao = collectionLocalDao;
         this.tokenManager = tokenManager;
-        long currentUserId = requireCurrentUserId();
+        long currentUserId = Long.parseLong(RepositoryAuthSupport.requireCurrentUserId(tokenManager));
         this.collectionsLiveData = Transformations.map(collectionLocalDao.observeAllByUserId(currentUserId), localMapper::toModelList);
     }
 
@@ -214,7 +214,7 @@ public class CollectionRepositoryImpl implements CollectionRepository {
 
     private void persistRemoteCollections(List<Collection> collections) {
         List<CollectionLocalEntity> entities = localMapper.toLocalList(collections);
-        long currentUserId = requireCurrentUserId();
+        long currentUserId = Long.parseLong(RepositoryAuthSupport.requireCurrentUserId(tokenManager));
         localExecutor.execute(() -> {
             collectionLocalDao.clearAllByUserId(currentUserId);
             if (!entities.isEmpty()) {
@@ -231,8 +231,4 @@ public class CollectionRepositoryImpl implements CollectionRepository {
         localExecutor.execute(() -> collectionLocalDao.upsert(entity));
     }
 
-    private long requireCurrentUserId() {
-        Long userId = tokenManager.getUserId();
-        return userId == null ? -1L : userId;
-    }
 }

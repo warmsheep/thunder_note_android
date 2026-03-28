@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment;
 
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.databinding.FragmentDebugLogViewerBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 
 public class DebugLogViewerFragment extends Fragment {
     private FragmentDebugLogViewerBinding binding;
@@ -28,7 +29,7 @@ public class DebugLogViewerFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         DebugLog.i("DebugLogViewer", "open debug log page");
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.clearLogButton.setOnClickListener(v -> DebugLog.clear());
 
         renderLogs(DebugLog.getCurrentSessionLog());
@@ -57,13 +58,6 @@ public class DebugLogViewerFragment extends Fragment {
             combined.append(effectiveCurrentLog.trim());
         }
         binding.debugLogText.setText(combined.length() == 0 ? "暂无日志" : combined.toString());
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     @Override

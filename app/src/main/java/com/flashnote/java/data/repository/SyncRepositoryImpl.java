@@ -490,8 +490,7 @@ public class SyncRepositoryImpl implements SyncRepository {
     }
 
     private long requireCurrentUserId() {
-        Long userId = tokenManager.getUserId();
-        return userId == null ? -1L : userId;
+        return Long.parseLong(RepositoryAuthSupport.requireCurrentUserId(tokenManager));
     }
 
     private LocalDateTime parseDateTime(String value) {

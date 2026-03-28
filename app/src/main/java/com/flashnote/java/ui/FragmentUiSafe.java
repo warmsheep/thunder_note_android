@@ -1,10 +1,15 @@
 package com.flashnote.java.ui;
 
+import android.app.Activity;
 import android.os.Handler;
 import android.os.Looper;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+
+import com.flashnote.java.ui.navigation.ShellNavigator;
 
 /**
  * UI 线程安全执行工具。统一 Fragment 生命周期边界判断，避免每个 Fragment 重复实现。
@@ -44,5 +49,27 @@ public final class FragmentUiSafe {
             return;
         }
         MAIN_HANDLER.post(action);
+    }
+
+    /**
+     * 安全返回上一个 Fragment，自动处理 null activity 边界。
+     */
+    public static void navigateBack(@NonNull Fragment fragment) {
+        FragmentActivity activity = fragment.getActivity();
+        if (activity != null) {
+            activity.getSupportFragmentManager().popBackStack();
+        }
+    }
+
+    /**
+     * 尝试获取 ShellNavigator，自动处理类型不匹配。
+     */
+    @Nullable
+    public static ShellNavigator getNavigatorOrNull(@NonNull Fragment fragment) {
+        Activity activity = fragment.getActivity();
+        if (activity instanceof ShellNavigator) {
+            return (ShellNavigator) activity;
+        }
+        return null;
     }
 }

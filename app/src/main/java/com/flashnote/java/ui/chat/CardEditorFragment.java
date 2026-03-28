@@ -113,7 +113,7 @@ public class CardEditorFragment extends Fragment {
         String pageTitle = getArguments() == null ? "新建卡片" : getArguments().getString(ARG_TITLE, "新建卡片");
         binding.pageTitleText.setText(pageTitle);
 
-        binding.cancelButton.setOnClickListener(v -> navigateBack());
+        binding.cancelButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.saveButton.setOnClickListener(v -> saveCard());
         binding.addImageVideoButton.setOnClickListener(v -> openMediaPicker());
         binding.addFileButton.setOnClickListener(v -> openFilePicker());
@@ -344,7 +344,7 @@ public class CardEditorFragment extends Fragment {
             items.add(item);
         }
         sendCompositeMessage(buildPayload(title, content, items));
-        navigateBack();
+        FragmentUiSafe.navigateBack(this);
     }
 
     private CardPayload buildPayload(@NonNull String title, @NonNull String content, @NonNull List<CardItem> items) {
@@ -593,13 +593,6 @@ public class CardEditorFragment extends Fragment {
 
     private String safeText(@Nullable Editable editable) {
         return editable == null ? "" : editable.toString().trim();
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     private void runIfUiAlive(@NonNull Runnable action) {

@@ -15,6 +15,7 @@ import com.flashnote.java.R;
 import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.repository.PendingMessageRepository;
 import com.flashnote.java.databinding.FragmentPendingSyncListBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 
 import java.util.List;
 
@@ -38,7 +39,7 @@ public class PendingSyncListFragment extends Fragment {
         FlashNoteApp app = FlashNoteApp.getInstance();
         pendingMessageRepository = app == null ? null : app.getPendingMessageRepository();
 
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.pendingRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         binding.pendingRecyclerView.setAdapter(adapter);
 
@@ -61,13 +62,6 @@ public class PendingSyncListFragment extends Fragment {
         binding.emptyText.setVisibility(count == 0 ? View.VISIBLE : View.GONE);
         binding.pendingRecyclerView.setVisibility(count == 0 ? View.GONE : View.VISIBLE);
         adapter.submitList(pendingMessages);
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     @Override

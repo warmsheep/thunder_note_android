@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 
 import com.flashnote.java.R;
 import com.flashnote.java.databinding.FragmentSettingsBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 
 public class SettingsFragment extends Fragment {
     private FragmentSettingsBinding binding;
@@ -31,7 +32,7 @@ public class SettingsFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         
-        binding.backButton.setOnClickListener(v -> navigateBack());
+        binding.backButton.setOnClickListener(v -> FragmentUiSafe.navigateBack(this));
         binding.pendingSyncItem.setOnClickListener(v -> openPendingSyncList());
         
         binding.aboutItem.setOnClickListener(v -> openAbout());
@@ -99,13 +100,6 @@ public class SettingsFragment extends Fragment {
             return;
         }
         Toast.makeText(getContext(), "感谢开源社区", Toast.LENGTH_SHORT).show();
-    }
-
-    private void navigateBack() {
-        if (!isAdded() || getActivity() == null) {
-            return;
-        }
-        getActivity().getSupportFragmentManager().popBackStack();
     }
 
     @Override
