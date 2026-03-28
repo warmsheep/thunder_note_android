@@ -36,4 +36,6 @@ public interface ShellNavigator {
     void openServerSettings();
 
     void logoutToLogin();
+
+    void registerExternalFlowForGestureUnlockSkip();
 }

@@ -931,6 +931,7 @@ public class FlashNoteTabFragment extends Fragment {
     }
 
     private void openImagePicker() {
+        registerExternalFlowForGestureUnlockSkip();
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "video/*"});
@@ -938,6 +939,7 @@ public class FlashNoteTabFragment extends Fragment {
     }
 
     private void openFilePicker() {
+        registerExternalFlowForGestureUnlockSkip();
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         filePickerLauncher.launch(intent);
@@ -954,6 +956,7 @@ public class FlashNoteTabFragment extends Fragment {
                     requireContext().getPackageName() + ".fileprovider",
                     photoFile
             );
+            registerExternalFlowForGestureUnlockSkip();
             Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
             intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
             intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
@@ -1033,6 +1036,12 @@ public class FlashNoteTabFragment extends Fragment {
             }
             action.run();
         });
+    }
+
+    private void registerExternalFlowForGestureUnlockSkip() {
+        if (getActivity() instanceof ShellNavigator navigator) {
+            navigator.registerExternalFlowForGestureUnlockSkip();
+        }
     }
 
     @NonNull

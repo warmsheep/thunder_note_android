@@ -428,19 +428,19 @@ public class ProfileTabFragment extends Fragment {
     }
 
     private void openGalleryPicker() {
-        if (!isAdded() || getContext() == null) {
+        if (!isAdded() || getContext() == null || !(getActivity() instanceof ShellNavigator navigator)) {
             return;
         }
 
-        avatarHelper.openGalleryPicker(galleryLauncher);
+        avatarHelper.openGalleryPicker(navigator, galleryLauncher);
     }
 
     private void startCrop(Uri sourceUri) {
-        if (!isAdded() || getContext() == null) {
+        if (!isAdded() || getContext() == null || !(getActivity() instanceof ShellNavigator navigator)) {
             return;
         }
 
-        avatarHelper.startCrop(requireContext(), sourceUri, ucropLauncher);
+        avatarHelper.startCrop(requireContext(), navigator, sourceUri, ucropLauncher);
     }
 
     private void handleCropResult(Uri resultUri) {

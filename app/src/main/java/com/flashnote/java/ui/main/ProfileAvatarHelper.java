@@ -11,6 +11,7 @@ import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.UserRepository;
+import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.yalantis.ucrop.UCrop;
 
 import java.io.File;
@@ -30,13 +31,16 @@ final class ProfileAvatarHelper {
         @NonNull Context requireContext();
     }
 
-    void openGalleryPicker(@NonNull androidx.activity.result.ActivityResultLauncher<Intent> galleryLauncher) {
+    void openGalleryPicker(@NonNull ShellNavigator navigator,
+                           @NonNull androidx.activity.result.ActivityResultLauncher<Intent> galleryLauncher) {
+        navigator.registerExternalFlowForGestureUnlockSkip();
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
         galleryLauncher.launch(intent);
     }
 
     void startCrop(@NonNull Context context,
+                   @NonNull ShellNavigator navigator,
                    @NonNull Uri sourceUri,
                    @NonNull androidx.activity.result.ActivityResultLauncher<Intent> ucropLauncher) {
         try {
@@ -56,6 +60,7 @@ final class ProfileAvatarHelper {
                     .withOptions(options)
                     .getIntent(context);
 
+            navigator.registerExternalFlowForGestureUnlockSkip();
             ucropLauncher.launch(ucropIntent);
         } catch (Exception e) {
             DebugLog.e("ProfileAvatar", "Failed to start avatar crop", e);

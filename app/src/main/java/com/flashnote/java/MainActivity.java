@@ -177,6 +177,11 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
         gestureUnlockResumeTracker.suppressNextUnlockCheck();
     }
 
+    @Override
+    public void registerExternalFlowForGestureUnlockSkip() {
+        suppressNextGestureUnlockForExternalFlow();
+    }
+
     private void replaceRootFragment(Fragment fragment, boolean addToBackStack, boolean clearBackStack) {
         if (clearBackStack) {
             clearBackStack();

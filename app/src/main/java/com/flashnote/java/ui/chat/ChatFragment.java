@@ -39,7 +39,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
-import com.flashnote.java.MainActivity;
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.Message;
@@ -1211,12 +1210,13 @@ public class ChatFragment extends Fragment {
     }
 
     private void suppressNextGestureUnlockForExternalFlow() {
-        if (getActivity() instanceof MainActivity mainActivity) {
-            mainActivity.suppressNextGestureUnlockForExternalFlow();
+        if (getActivity() instanceof ShellNavigator navigator) {
+            navigator.registerExternalFlowForGestureUnlockSkip();
         }
     }
 
     private void openFilePicker() {
+        suppressNextGestureUnlockForExternalFlow();
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         filePickerLauncher.launch(intent);
@@ -1233,6 +1233,7 @@ public class ChatFragment extends Fragment {
         File photoFile = mediaHelper.prepareCameraPhotoFile(context);
 
         if (photoFile != null) {
+            suppressNextGestureUnlockForExternalFlow();
             cameraPhotoUri = mediaHelper.buildCameraUri(context, photoFile);
             takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
             takePictureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);

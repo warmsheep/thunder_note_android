@@ -28,6 +28,7 @@ import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.data.repository.UserRepository;
 import com.flashnote.java.databinding.FragmentEditProfileBinding;
 import com.flashnote.java.ui.media.MediaUrlResolver;
+import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.yalantis.ucrop.UCrop;
 
 import java.io.File;
@@ -140,6 +141,7 @@ public class EditProfileFragment extends Fragment {
     }
 
     private void openGalleryPicker() {
+        registerExternalFlowForGestureUnlockSkip();
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
         galleryLauncher.launch(intent);
@@ -163,10 +165,17 @@ public class EditProfileFragment extends Fragment {
                     .withMaxResultSize(AVATAR_MAX_SIZE, AVATAR_MAX_SIZE)
                     .withOptions(options)
                     .getIntent(requireContext());
+            registerExternalFlowForGestureUnlockSkip();
             ucropLauncher.launch(ucropIntent);
         } catch (Exception e) {
             DebugLog.e("EditProfile", "Failed to start avatar crop", e);
             showToast("无法打开图片裁剪");
+        }
+    }
+
+    private void registerExternalFlowForGestureUnlockSkip() {
+        if (getActivity() instanceof ShellNavigator navigator) {
+            navigator.registerExternalFlowForGestureUnlockSkip();
         }
     }
 

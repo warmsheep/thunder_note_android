@@ -24,7 +24,6 @@ import androidx.fragment.app.Fragment;
 import com.bumptech.glide.Glide;
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.FlashNoteApp;
-import com.flashnote.java.MainActivity;
 import com.flashnote.java.data.model.CardItem;
 import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.Message;
@@ -136,12 +135,13 @@ public class CardEditorFragment extends Fragment {
     }
 
     private void suppressNextGestureUnlockForExternalFlow() {
-        if (getActivity() instanceof MainActivity mainActivity) {
-            mainActivity.suppressNextGestureUnlockForExternalFlow();
+        if (getActivity() instanceof ShellNavigator navigator) {
+            navigator.registerExternalFlowForGestureUnlockSkip();
         }
     }
 
     private void openFilePicker() {
+        suppressNextGestureUnlockForExternalFlow();
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
@@ -159,6 +159,7 @@ public class CardEditorFragment extends Fragment {
                     requireContext().getPackageName() + ".fileprovider",
                     photoFile
             );
+            suppressNextGestureUnlockForExternalFlow();
             Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
             intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
             intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);

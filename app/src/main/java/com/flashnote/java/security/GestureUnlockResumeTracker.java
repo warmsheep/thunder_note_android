@@ -2,19 +2,19 @@ package com.flashnote.java.security;
 
 public class GestureUnlockResumeTracker {
     private long backgroundAtElapsed = -1L;
-    private boolean suppressNextUnlockCheck;
+    private int pendingSkipUnlockChecks;
 
     public void markBackgrounded(long elapsedRealtime) {
         backgroundAtElapsed = elapsedRealtime;
     }
 
     public void suppressNextUnlockCheck() {
-        suppressNextUnlockCheck = true;
+        pendingSkipUnlockChecks++;
     }
 
     public ResumeState consumeResumeState(long elapsedRealtime) {
-        if (suppressNextUnlockCheck) {
-            suppressNextUnlockCheck = false;
+        if (pendingSkipUnlockChecks > 0) {
+            pendingSkipUnlockChecks--;
             backgroundAtElapsed = -1L;
             return new ResumeState(true, -1L);
         }
