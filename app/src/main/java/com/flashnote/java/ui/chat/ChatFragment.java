@@ -64,6 +64,8 @@ public class ChatFragment extends Fragment {
     private ChatViewModel chatViewModel;
     private FileRepository fileRepository;
     private MessageAdapter adapter;
+    private LinearLayoutManager layoutManager;
+    private ChatScrollController scrollController;
     private final ChatMediaHelper mediaHelper = new ChatMediaHelper();
     private final ChatShareHelper shareHelper = new ChatShareHelper();
     private ChatRecordingHelper recordingHelper;
@@ -72,17 +74,8 @@ public class ChatFragment extends Fragment {
     private long currentFlashNoteId = 0L;
     private boolean isLoadingMore = false;
     private boolean hasMoreMessages = true;
-    private boolean isInitialScrollCompleted = false;
-    private int loadMoreAnchorPosition = RecyclerView.NO_POSITION;
-    private int loadMoreAnchorOffset = 0;
-    private int messageCountBeforeLoadMore = 0;
     private boolean isMultiSelectMode = false;
     private boolean skipNextScroll = false;
-    private boolean autoScrollEnabled = true;
-    private int lastRenderedMessageCount = 0;
-    private String lastRenderedTailKey = "";
-    private boolean lastRenderedTailUploading = false;
-    private String lastPreloadedMediaKey = "";
 
     public static ChatFragment newInstance(long flashNoteId, String title) {
         ChatFragment fragment = new ChatFragment();
@@ -202,10 +195,49 @@ public class ChatFragment extends Fragment {
                 localId -> chatViewModel.retryPendingMessage(localId)
         );
         adapter.setOnSelectionChangedListener(this::updateMergeSelectionCount);
-        binding.recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        layoutManager = new LinearLayoutManager(requireContext());
+        binding.recyclerView.setLayoutManager(layoutManager);
         binding.recyclerView.setAdapter(adapter);
         binding.recyclerView.setItemAnimator(null);
         binding.recyclerView.setItemViewCacheSize(24);
+        scrollController = new ChatScrollController(
+                new ChatScrollController.ScrollCallback() {
+                    @Override
+                    public void scrollToBottomImmediate() {
+                        if (binding == null || adapter == null) {
+                            return;
+                        }
+                        int count = adapter.getItemCount();
+                        if (count > 0) {
+                            binding.recyclerView.scrollToPosition(count - 1);
+                        }
+                    }
+
+                    @Override
+                    public void scrollToPosition(int position, int offset) {
+                        if (layoutManager != null) {
+                            layoutManager.scrollToPositionWithOffset(position, offset);
+                        }
+                    }
+
+                    @Override
+                    public void onLoadMoreTriggered() {
+                        isLoadingMore = true;
+                        chatViewModel.loadMore();
+                    }
+
+                    @Override
+                    public void preloadRecentMedia(@NonNull List<Message> messages) {
+                        if (isAdded()) {
+                            adapter.preloadRecentMedia(messages, requireContext());
+                        }
+                    }
+                },
+                binding,
+                adapter,
+                layoutManager
+        );
+        scrollController.onViewReady();
 
         UserRepository userRepository = FlashNoteApp.getInstance().getUserRepository();
         userRepository.getProfile().observe(getViewLifecycleOwner(), profile -> {
@@ -236,25 +268,7 @@ public class ChatFragment extends Fragment {
         binding.recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                if (dy < 0) {
-                    autoScrollEnabled = false;
-                } else if (dy > 0) {
-                    autoScrollEnabled = isNearBottom();
-                }
-                if (!isInitialScrollCompleted || dy >= 0 || isLoadingMore || !hasMoreMessages) {
-                    return;
-                }
-                if (!recyclerView.canScrollVertically(-1)) {
-                    LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
-                    if (layoutManager != null) {
-                        loadMoreAnchorPosition = layoutManager.findFirstVisibleItemPosition();
-                        View anchorView = layoutManager.findViewByPosition(loadMoreAnchorPosition);
-                        loadMoreAnchorOffset = anchorView == null ? 0 : anchorView.getTop();
-                    }
-                    messageCountBeforeLoadMore = adapter.getItemCount();
-                    isLoadingMore = true;
-                    chatViewModel.loadMore();
-                }
+                scrollController.onScrolled(recyclerView, dy, isLoadingMore, hasMoreMessages);
             }
         });
 
@@ -269,25 +283,25 @@ public class ChatFragment extends Fragment {
             chatViewModel.getMessages().observe(getViewLifecycleOwner(), messages -> {
                 boolean wasLoadingMore = isLoadingMore;
                 isLoadingMore = false;
-                boolean shouldAutoScroll = shouldAutoScrollOnMessageUpdate(messages, wasLoadingMore, scrollToMessageId);
+                boolean shouldAutoScroll = scrollController.shouldAutoScrollOnMessageUpdate(messages, wasLoadingMore, scrollToMessageId);
                 adapter.submitList(messages);
-                if (isAdded() && shouldPreloadRecentMedia(messages)) {
-                    adapter.preloadRecentMedia(messages, requireContext());
+                if (isAdded()) {
+                    scrollController.shouldPreloadRecentMedia(messages);
                 }
                 // Scroll to bottom if not search location scenario
                 if (scrollToMessageId <= 0 && messages != null && !messages.isEmpty() && !wasLoadingMore) {
                     if (skipNextScroll) {
                         skipNextScroll = false;
                     } else if (shouldAutoScroll) {
-                        scrollToBottomAfterLayout(messages);
-                        autoScrollEnabled = true;
+                        scrollController.scrollToBottomAfterLayout(messages);
+                        scrollController.setAutoScrollEnabled(true);
                     } else {
-                        autoScrollEnabled = false;
+                        scrollController.setAutoScrollEnabled(false);
                     }
-                    isInitialScrollCompleted = true;
+                    scrollController.setInitialScrollCompleted(true);
                 }
                 if (wasLoadingMore && binding != null) {
-                    restoreAfterPrepend(messages == null ? 0 : messages.size());
+                    scrollController.restoreAfterPrepend(messages == null ? 0 : messages.size());
                 }
                 // Scroll to target message if specified
                 if (scrollToMessageId > 0 && messages != null) {
@@ -296,17 +310,17 @@ public class ChatFragment extends Fragment {
                             final int position = i;
                             binding.recyclerView.post(() -> {
                                 binding.recyclerView.scrollToPosition(position);
-                                isInitialScrollCompleted = true;
+                                scrollController.setInitialScrollCompleted(true);
                                 // Highlight after scroll completes
                                 binding.recyclerView.postDelayed(() -> highlightMessage(position), 300);
                             });
                             break;
                         }
                     }
-                } else if (!isInitialScrollCompleted) {
-                    isInitialScrollCompleted = true;
+                } else if (!scrollController.isInitialScrollCompleted()) {
+                    scrollController.setInitialScrollCompleted(true);
                 }
-                rememberRenderedTailState(messages);
+                scrollController.rememberRenderedTailState(messages);
             });
         }
         chatViewModel.getHasMore().observe(getViewLifecycleOwner(), hasMore -> {
@@ -340,7 +354,9 @@ public class ChatFragment extends Fragment {
 
                     @Override
                     public void scrollToBottomAfterLayout() {
-                        ChatFragment.this.scrollToBottomAfterLayout(null);
+                        if (scrollController != null) {
+                            scrollController.scrollToBottomAfterLayout(null);
+                        }
                     }
                 },
                 binding,
@@ -352,38 +368,6 @@ public class ChatFragment extends Fragment {
         binding.mergeDeleteButton.setOnClickListener(v -> handleBatchDelete());
         binding.mergeConfirmButton.setOnClickListener(v -> handleMergeAction());
         updateMergeSelectionCount(0);
-    }
-
-    private boolean shouldPreloadRecentMedia(@Nullable List<Message> messages) {
-        String mediaKey = buildRecentMediaKey(messages);
-        if (mediaKey.equals(lastPreloadedMediaKey)) {
-            return false;
-        }
-        lastPreloadedMediaKey = mediaKey;
-        return !mediaKey.isEmpty();
-    }
-
-    @NonNull
-    private String buildRecentMediaKey(@Nullable List<Message> messages) {
-        if (messages == null || messages.isEmpty()) {
-            return "";
-        }
-        StringBuilder builder = new StringBuilder();
-        int start = Math.max(0, messages.size() - 12);
-        for (int i = start; i < messages.size(); i++) {
-            Message message = messages.get(i);
-            if (message == null || message.isUploading()) {
-                continue;
-            }
-            String mediaType = message.getMediaType();
-            if (!"IMAGE".equalsIgnoreCase(mediaType) && !"VIDEO".equalsIgnoreCase(mediaType)) {
-                continue;
-            }
-            builder.append(message.getId()).append(':')
-                    .append(message.getMediaUrl()).append(':')
-                    .append(message.getThumbnailUrl()).append('|');
-        }
-        return builder.toString();
     }
 
     private void setupMessageInput(@NonNull ChatViewModel viewModel) {
@@ -425,59 +409,12 @@ public class ChatFragment extends Fragment {
                     binding.messageInput.setText(null);
                     viewModel.clearDraft();
                 }
-                autoScrollEnabled = true;
-                scrollToBottomAfterLayout(null);
+                if (scrollController != null) {
+                    scrollController.setAutoScrollEnabled(true);
+                    scrollController.scrollToBottomAfterLayout(null);
+                }
             });
         });
-    }
-
-    private void scrollToBottomAfterLayout(@Nullable List<Message> messages) {
-        if (binding == null || binding.recyclerView == null || adapter == null) {
-            return;
-        }
-        int count = adapter.getItemCount();
-        if (count <= 0) {
-            return;
-        }
-        autoScrollEnabled = true;
-        int last = count - 1;
-        binding.recyclerView.post(() -> {
-            if (binding == null) {
-                return;
-            }
-            ensureBottomVisible(last, isLastComplexMessage(messages, last) ? 10 : 4);
-            binding.recyclerView.postDelayed(() -> ensureBottomVisible(last, isLastComplexMessage(messages, last) ? 4 : 2), 420);
-        });
-    }
-
-    private void ensureBottomVisible(int lastPosition, int attempts) {
-        if (binding == null || attempts <= 0) {
-            return;
-        }
-        RecyclerView recyclerView = binding.recyclerView;
-        recyclerView.scrollToPosition(lastPosition);
-        recyclerView.postDelayed(() -> {
-            if (binding == null) {
-                return;
-            }
-            RecyclerView.LayoutManager manager = recyclerView.getLayoutManager();
-            if (!(manager instanceof LinearLayoutManager layoutManager)) {
-                return;
-            }
-            int lastVisible = layoutManager.findLastCompletelyVisibleItemPosition();
-            if (lastVisible >= lastPosition && !recyclerView.canScrollVertically(1)) {
-                return;
-            }
-            ensureBottomVisible(lastPosition, attempts - 1);
-        }, 120);
-    }
-
-    private boolean isLastComplexMessage(@Nullable List<Message> messages, int lastIndex) {
-        if (messages == null || messages.isEmpty() || lastIndex < 0 || lastIndex >= messages.size()) {
-            return false;
-        }
-        String mediaType = messages.get(lastIndex).getMediaType();
-        return mediaType != null && !mediaType.isBlank() && !"TEXT".equalsIgnoreCase(mediaType);
     }
 
     private void highlightMessage(int position) {
@@ -513,62 +450,6 @@ public class ChatFragment extends Fragment {
         }
     }
 
-    private boolean shouldAutoScrollOnMessageUpdate(@Nullable List<Message> messages, boolean wasLoadingMore, long scrollToMessageId) {
-        if (scrollToMessageId > 0 || wasLoadingMore || messages == null || messages.isEmpty()) {
-            return false;
-        }
-        boolean nearBottom = isNearBottom();
-        boolean tailAppended = messages.size() > lastRenderedMessageCount;
-        String newTailKey = buildTailKey(messages.get(messages.size() - 1));
-        boolean tailResolvedSuccess = !newTailKey.isEmpty()
-                && newTailKey.equals(lastRenderedTailKey)
-                && lastRenderedTailUploading
-                && !messages.get(messages.size() - 1).isUploading();
-        return (autoScrollEnabled || nearBottom) && (tailAppended || tailResolvedSuccess || !isInitialScrollCompleted);
-    }
-
-    private void rememberRenderedTailState(@Nullable List<Message> messages) {
-        lastRenderedMessageCount = messages == null ? 0 : messages.size();
-        if (messages == null || messages.isEmpty()) {
-            lastRenderedTailKey = "";
-            lastRenderedTailUploading = false;
-            return;
-        }
-        Message tail = messages.get(messages.size() - 1);
-        lastRenderedTailKey = buildTailKey(tail);
-        lastRenderedTailUploading = tail != null && tail.isUploading();
-    }
-
-    @NonNull
-    private String buildTailKey(@Nullable Message message) {
-        if (message == null) {
-            return "";
-        }
-        if (message.getClientRequestId() != null && !message.getClientRequestId().isBlank()) {
-            return "crid:" + message.getClientRequestId().trim();
-        }
-        if (message.getId() != null) {
-            return "id:" + message.getId();
-        }
-        Long localSortTimestamp = message.getLocalSortTimestamp();
-        return localSortTimestamp == null ? "" : "ts:" + localSortTimestamp;
-    }
-
-    private boolean isNearBottom() {
-        if (binding == null || binding.recyclerView == null || adapter == null) {
-            return true;
-        }
-        RecyclerView.LayoutManager manager = binding.recyclerView.getLayoutManager();
-        if (!(manager instanceof LinearLayoutManager layoutManager)) {
-            return true;
-        }
-        int itemCount = adapter.getItemCount();
-        if (itemCount <= 0) {
-            return true;
-        }
-        int lastVisible = layoutManager.findLastVisibleItemPosition();
-        return lastVisible >= itemCount - 2;
-    }
 
     private void showMessageActions(Message message,
                                     long currentFlashNoteId,
@@ -788,23 +669,6 @@ public class ChatFragment extends Fragment {
                 })
                 .setNegativeButton("取消", null)
                 .show();
-    }
-
-    private void restoreAfterPrepend(int totalMessageCount) {
-        if (binding == null || loadMoreAnchorPosition == RecyclerView.NO_POSITION) {
-            return;
-        }
-        int addedCount = Math.max(0, totalMessageCount - messageCountBeforeLoadMore);
-        LinearLayoutManager layoutManager = (LinearLayoutManager) binding.recyclerView.getLayoutManager();
-        if (layoutManager == null) {
-            return;
-        }
-        int target = loadMoreAnchorPosition + addedCount;
-        binding.recyclerView.post(() -> {
-            if (binding != null) {
-                layoutManager.scrollToPositionWithOffset(target, loadMoreAnchorOffset);
-            }
-        });
     }
 
     private void shareMessageToExternalApp(Message message) {
@@ -1094,7 +958,11 @@ public class ChatFragment extends Fragment {
                     originalFileName != null ? originalFileName : file.getName(),
                     file.length(),
                     null,
-                    () -> runIfUiAlive(() -> scrollToBottomAfterLayout(null))
+                    () -> runIfUiAlive(() -> {
+                        if (scrollController != null) {
+                            scrollController.scrollToBottomAfterLayout(null);
+                        }
+                    })
             );
         });
     }
@@ -1114,7 +982,11 @@ public class ChatFragment extends Fragment {
                     originalFileName != null ? originalFileName : file.getName(),
                     file.length(),
                     null,
-                    () -> runIfUiAlive(() -> scrollToBottomAfterLayout(null))
+                    () -> runIfUiAlive(() -> {
+                        if (scrollController != null) {
+                            scrollController.scrollToBottomAfterLayout(null);
+                        }
+                    })
             );
         });
     }
@@ -1133,7 +1005,11 @@ public class ChatFragment extends Fragment {
                     originalFileName != null ? originalFileName : file.getName(),
                     file.length(),
                     null,
-                    () -> runIfUiAlive(() -> scrollToBottomAfterLayout(null))
+                    () -> runIfUiAlive(() -> {
+                        if (scrollController != null) {
+                            scrollController.scrollToBottomAfterLayout(null);
+                        }
+                    })
             );
         });
     }
@@ -1152,7 +1028,11 @@ public class ChatFragment extends Fragment {
                     originalFileName != null ? originalFileName : file.getName(),
                     file.length(),
                     null,
-                    () -> runIfUiAlive(() -> scrollToBottomAfterLayout(null))
+                    () -> runIfUiAlive(() -> {
+                        if (scrollController != null) {
+                            scrollController.scrollToBottomAfterLayout(null);
+                        }
+                    })
             );
         });
     }
@@ -1200,6 +1080,11 @@ public class ChatFragment extends Fragment {
             recordingHelper.release();
             recordingHelper = null;
         }
+        if (scrollController != null) {
+            scrollController.release();
+        }
+        scrollController = null;
+        layoutManager = null;
         binding = null;
     }
 }
