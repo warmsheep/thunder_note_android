@@ -337,23 +337,6 @@ public class SyncRepositoryImpl implements SyncRepository {
         return result;
     }
 
-    private List<Map<String, Object>> loadPendingMessagesForSync() {
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (String status : PUSHABLE_PENDING_STATUSES) {
-            List<PendingMessage> pendingMessages = pendingMessageRepository.getByStatus(status);
-            if (pendingMessages == null || pendingMessages.isEmpty()) {
-                continue;
-            }
-            for (PendingMessage pendingMessage : pendingMessages) {
-                Map<String, Object> payload = toSyncMessagePayload(pendingMessage);
-                if (!payload.isEmpty()) {
-                    result.add(payload);
-                }
-            }
-        }
-        return result;
-    }
-
     private Map<String, Object> toSyncMessagePayload(PendingMessage pendingMessage) {
         Map<String, Object> payload = new HashMap<>();
         if (pendingMessage == null) {

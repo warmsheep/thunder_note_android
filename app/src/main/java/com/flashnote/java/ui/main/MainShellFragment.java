@@ -194,14 +194,6 @@ public class MainShellFragment extends Fragment {
         }
     }
 
-    private void setEmojiIcon(int itemId, @NonNull String emoji) {
-        MenuItem item = binding.bottomNav.getMenu().findItem(itemId);
-        if (item == null) {
-            return;
-        }
-        item.setIcon(createEmojiIcon(emoji));
-    }
-
     @NonNull
     private BitmapDrawable createEmojiIcon(@NonNull String emoji) {
         int sizePx = dp(24);

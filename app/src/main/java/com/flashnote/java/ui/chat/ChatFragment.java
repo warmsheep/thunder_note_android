@@ -1147,31 +1147,6 @@ public class ChatFragment extends Fragment {
         return String.format(Locale.getDefault(), "%d:%02d", mins, secs);
     }
 
-    private void showRecordingDialog() {
-        if (currentRecordingPath == null || !new File(currentRecordingPath).exists()) {
-            showToast("录音文件无效");
-            return;
-        }
-
-        new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("语音消息")
-                .setMessage("发送这段录音吗？")
-                .setPositiveButton("发送", (dialog, which) -> {
-                    sendVoiceMessage(currentRecordingPath);
-                    currentRecordingPath = null;
-                })
-                .setNegativeButton("取消", (dialog, which) -> {
-                    if (currentRecordingPath != null) {
-                        File file = new File(currentRecordingPath);
-                        if (file.exists()) {
-                            file.delete();
-                        }
-                    }
-                    currentRecordingPath = null;
-                })
-                .show();
-    }
-
     private void sendVoiceMessage(String filePath) {
         File file = new File(filePath);
         if (!file.exists()) {

@@ -846,19 +846,6 @@ public class FlashNoteTabFragment extends Fragment {
         }
     }
 
-    @NonNull
-    private TextView createDialogTitle(@NonNull Context context, int textResId) {
-        TextView titleView = new TextView(context);
-        int horizontal = (int) (20 * context.getResources().getDisplayMetrics().density);
-        int top = (int) (18 * context.getResources().getDisplayMetrics().density);
-        int bottom = (int) (6 * context.getResources().getDisplayMetrics().density);
-        titleView.setPadding(horizontal, top, horizontal, bottom);
-        titleView.setText(textResId);
-        titleView.setTextColor(getResources().getColor(R.color.text_primary));
-        titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        return titleView;
-    }
-
     private void showQuickCaptureMenu(@NonNull View anchor) {
         if (!isAdded()) {
             return;
