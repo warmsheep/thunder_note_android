@@ -31,8 +31,8 @@ import com.flashnote.java.data.repository.MessageRepository;
 import com.flashnote.java.databinding.FragmentCardEditorBinding;
 import com.flashnote.java.databinding.ItemCardEditorFileBinding;
 import com.flashnote.java.databinding.ItemCardEditorMediaBinding;
+import com.flashnote.java.ui.ExternalFlowGestureUnlockHelper;
 import com.flashnote.java.ui.FragmentUiSafe;
-import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.flashnote.java.util.VideoCompressor;
 
 import java.io.File;
@@ -127,7 +127,7 @@ public class CardEditorFragment extends Fragment {
     }
 
     private void openMediaPicker() {
-        suppressNextGestureUnlockForExternalFlow();
+        ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
@@ -135,14 +135,8 @@ public class CardEditorFragment extends Fragment {
         mediaPickerLauncher.launch(intent);
     }
 
-    private void suppressNextGestureUnlockForExternalFlow() {
-        if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.registerExternalFlowForGestureUnlockSkip();
-        }
-    }
-
     private void openFilePicker() {
-        suppressNextGestureUnlockForExternalFlow();
+        ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
@@ -160,7 +154,7 @@ public class CardEditorFragment extends Fragment {
                     requireContext().getPackageName() + ".fileprovider",
                     photoFile
             );
-            suppressNextGestureUnlockForExternalFlow();
+            ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
             Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
             intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
             intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);

@@ -54,6 +54,7 @@ import com.flashnote.java.databinding.DialogFlashNoteEditBinding;
 import com.flashnote.java.databinding.FragmentFlashNoteTabBinding;
 import com.flashnote.java.databinding.PopupFlashnoteActionsBinding;
 import com.flashnote.java.databinding.PopupQuickCaptureActionsBinding;
+import com.flashnote.java.ui.ExternalFlowGestureUnlockHelper;
 import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.google.android.material.chip.Chip;
@@ -923,7 +924,7 @@ public class FlashNoteTabFragment extends Fragment {
     }
 
     private void openImagePicker() {
-        registerExternalFlowForGestureUnlockSkip();
+        ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "video/*"});
@@ -931,7 +932,7 @@ public class FlashNoteTabFragment extends Fragment {
     }
 
     private void openFilePicker() {
-        registerExternalFlowForGestureUnlockSkip();
+        ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         filePickerLauncher.launch(intent);
@@ -948,7 +949,7 @@ public class FlashNoteTabFragment extends Fragment {
                     requireContext().getPackageName() + ".fileprovider",
                     photoFile
             );
-            registerExternalFlowForGestureUnlockSkip();
+            ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
             Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
             intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
             intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
@@ -1019,12 +1020,6 @@ public class FlashNoteTabFragment extends Fragment {
 
     private void runIfUiAlive(@NonNull Runnable action) {
         FragmentUiSafe.runIfUiAlive(this, binding, action);
-    }
-
-    private void registerExternalFlowForGestureUnlockSkip() {
-        if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.registerExternalFlowForGestureUnlockSkip();
-        }
     }
 
     @NonNull

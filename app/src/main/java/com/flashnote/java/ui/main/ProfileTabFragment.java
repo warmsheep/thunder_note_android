@@ -57,11 +57,10 @@ public class ProfileTabFragment extends Fragment {
     private TokenManager tokenManager;
     private SyncRepository syncRepository;
     private PendingMessageRepository pendingMessageRepository;
-    private final ProfileStatsHelper statsHelper = new ProfileStatsHelper();
+    private ProfileOpsHelper profileOpsHelper;
     private final ProfileSyncUiHelper syncUiHelper = new ProfileSyncUiHelper();
     private final ProfileEditHelper editHelper = new ProfileEditHelper();
     private final ProfileAvatarHelper avatarHelper = new ProfileAvatarHelper();
-    private final ProfileActionHelper actionHelper = new ProfileActionHelper();
     private UserProfile currentProfile;
     private LiveData<Integer> pendingSyncCountLiveData;
     private boolean syncInProgress;
@@ -113,6 +112,7 @@ public class ProfileTabFragment extends Fragment {
         tokenManager = app.getTokenManager();
         syncRepository = app.getSyncRepository();
         pendingMessageRepository = app.getPendingMessageRepository();
+        profileOpsHelper = new ProfileOpsHelper();
 
         String username = tokenManager.getUsername();
         if (username != null) {
@@ -175,20 +175,37 @@ public class ProfileTabFragment extends Fragment {
     private void loadStats() {
         FlashNoteApp app = FlashNoteApp.getInstance();
 
-        binding.flashNoteCount.setText(String.valueOf(statsHelper.resolveFlashNoteCount(app)));
-        binding.favoriteCount.setText(String.valueOf(statsHelper.resolveFavoriteCount(app)));
+        binding.flashNoteCount.setText(String.valueOf(profileOpsHelper.resolveFlashNoteCount(app)));
+        binding.favoriteCount.setText(String.valueOf(profileOpsHelper.resolveFavoriteCount(app)));
 
-        statsHelper.loadRecordCount(app, new ProfileStatsHelper.RecordCountCallback() {
+        profileOpsHelper.loadRecordCount(app, new ProfileOpsHelper.ProfileUiBridge() {
+            @Override
+            public void updateSyncProgress(boolean syncing) {
+            }
+
+            @Override
+            public void updateSyncBadge(int count) {
+            }
+
+            @Override
+            public void reloadStats() {
+            }
+
+            @Override
+            public void runIfUiAlive(@NonNull Runnable action) {
+                ProfileTabFragment.this.runIfUiAlive(action);
+            }
+
             @Override
             public void onCountReady(long count) {
                 runIfUiAlive(() -> {
                     binding.recordCount.setText(String.valueOf(count));
-                    statsHelper.persistRecordCount(getContext(), count);
+                    profileOpsHelper.persistRecordCount(getContext(), count);
                 });
             }
 
             @Override
-            public void onError() {
+            public void onCountError() {
                 runIfUiAlive(() -> binding.recordCount.setText("0"));
             }
         });
@@ -206,10 +223,10 @@ public class ProfileTabFragment extends Fragment {
         if (syncRepository == null || syncInProgress) {
             return;
         }
-        actionHelper.triggerSync(syncRepository, syncInProgress,
+        profileOpsHelper.triggerSync(syncRepository, syncInProgress,
                 () -> syncInProgress = true,
                 () -> syncInProgress = false,
-                new ProfileActionHelper.UiBridge() {
+                new ProfileOpsHelper.ProfileUiBridge() {
                     @Override
                     public void updateSyncProgress(boolean syncing) {
                         ProfileTabFragment.this.updateSyncProgress(syncing);
@@ -228,6 +245,14 @@ public class ProfileTabFragment extends Fragment {
                     @Override
                     public void runIfUiAlive(@NonNull Runnable action) {
                         ProfileTabFragment.this.runIfUiAlive(action);
+                    }
+
+                    @Override
+                    public void onCountReady(long count) {
+                    }
+
+                    @Override
+                    public void onCountError() {
                     }
                 });
     }
@@ -536,14 +561,14 @@ public class ProfileTabFragment extends Fragment {
         if (!isAdded() || binding == null) {
             return;
         }
-        Long cached = statsHelper.getCachedRecordCount(getContext());
+        Long cached = profileOpsHelper.getCachedRecordCount(getContext());
         if (cached != null) {
             binding.recordCount.setText(String.valueOf(cached));
         }
     }
 
     private void persistRecordCount(long count) {
-        statsHelper.persistRecordCount(getContext(), count);
+        profileOpsHelper.persistRecordCount(getContext(), count);
     }
 
     private void updateAvatarWithEmoji(String emoji) {
@@ -620,7 +645,7 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         if (getActivity() instanceof ShellNavigator navigator) {
-            actionHelper.openChangePassword(navigator);
+            profileOpsHelper.openChangePassword(navigator);
         }
     }
 
@@ -629,7 +654,7 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         if (getActivity() instanceof ShellNavigator navigator) {
-            actionHelper.openSettings(navigator);
+            profileOpsHelper.openSettings(navigator);
         }
     }
 
@@ -639,7 +664,7 @@ public class ProfileTabFragment extends Fragment {
         }
         AuthViewModel authViewModel = new ViewModelProvider(getActivity()).get(AuthViewModel.class);
         if (getActivity() instanceof ShellNavigator navigator) {
-            actionHelper.logout(authViewModel, navigator);
+            profileOpsHelper.logout(authViewModel, navigator);
         }
     }
 

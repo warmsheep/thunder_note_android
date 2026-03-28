@@ -45,6 +45,7 @@ import com.flashnote.java.databinding.DialogMergeCardTitleBinding;
 import com.flashnote.java.databinding.FragmentChatBinding;
 import com.flashnote.java.databinding.PopupMessageActionsBinding;
 import com.flashnote.java.ui.main.FlashNoteViewModel;
+import com.flashnote.java.ui.ExternalFlowGestureUnlockHelper;
 import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 import com.flashnote.java.util.VideoCompressor;
@@ -885,21 +886,15 @@ public class ChatFragment extends Fragment {
     }
 
     private void openMediaPicker() {
-        suppressNextGestureUnlockForExternalFlow();
+        ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "video/*"});
         mediaPickerLauncher.launch(intent);
     }
 
-    private void suppressNextGestureUnlockForExternalFlow() {
-        if (getActivity() instanceof ShellNavigator navigator) {
-            navigator.registerExternalFlowForGestureUnlockSkip();
-        }
-    }
-
     private void openFilePicker() {
-        suppressNextGestureUnlockForExternalFlow();
+        ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         filePickerLauncher.launch(intent);
@@ -916,7 +911,7 @@ public class ChatFragment extends Fragment {
         File photoFile = mediaHelper.prepareCameraPhotoFile(context);
 
         if (photoFile != null) {
-            suppressNextGestureUnlockForExternalFlow();
+            ExternalFlowGestureUnlockHelper.registerExternalFlow(this);
             cameraPhotoUri = mediaHelper.buildCameraUri(context, photoFile);
             takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraPhotoUri);
             takePictureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
