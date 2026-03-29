@@ -5,6 +5,7 @@ import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.MessageBatchDeleteRequest;
 import com.flashnote.java.data.model.MessageListRequest;
 import com.flashnote.java.data.model.MessageMergeRequest;
+import com.flashnote.java.data.model.PageData;
 
 import java.util.List;
 
@@ -17,7 +18,7 @@ import retrofit2.http.Path;
 
 public interface MessageService {
     @POST("api/messages/list")
-    Call<ApiResponse<List<Message>>> list(@Body MessageListRequest request);
+    Call<ApiResponse<PageData<Message>>> list(@Body MessageListRequest request);
 
     @POST("api/messages")
     Call<ApiResponse<Message>> send(@Body Message message);

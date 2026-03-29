@@ -2,6 +2,8 @@ package com.flashnote.java.data.model;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.time.LocalDateTime;
+
 public class UserProfile {
     @SerializedName("id")
     private Long id;
@@ -22,10 +24,10 @@ public class UserProfile {
     private String nickname;
 
     @SerializedName("createdAt")
-    private String createdAt;
+    private LocalDateTime createdAt;
 
     @SerializedName("updatedAt")
-    private String updatedAt;
+    private LocalDateTime updatedAt;
 
     public UserProfile() {}
 
@@ -69,7 +71,7 @@ public class UserProfile {
         this.avatar = avatar;
     }
 
-    public String getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
@@ -81,15 +83,15 @@ public class UserProfile {
         this.nickname = nickname;
     }
 
-    public void setCreatedAt(String createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    public String getUpdatedAt() {
+    public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(String updatedAt) {
+    public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
 }

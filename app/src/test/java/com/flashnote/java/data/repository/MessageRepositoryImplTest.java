@@ -22,6 +22,7 @@ import com.flashnote.java.data.model.CardItem;
 import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.PageData;
 import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.remote.MessageService;
 
@@ -55,7 +56,7 @@ public class MessageRepositoryImplTest {
     Call<ApiResponse<Message>> mockSendCall;
 
     @Mock
-    Call<ApiResponse<java.util.List<Message>>> mockListCall;
+    Call<ApiResponse<PageData<Message>>> mockListCall;
 
     @Mock
     PendingMessageRepository pendingMessageRepository;
@@ -500,7 +501,7 @@ public class MessageRepositoryImplTest {
     @Test
     public void loadMessages_pageOne_persistsRemoteMessagesToLocalDao() {
         @SuppressWarnings("unchecked")
-        org.mockito.ArgumentCaptor<Callback<ApiResponse<java.util.List<Message>>>> callbackCaptor = org.mockito.ArgumentCaptor.forClass(Callback.class);
+        org.mockito.ArgumentCaptor<Callback<ApiResponse<PageData<Message>>>> callbackCaptor = org.mockito.ArgumentCaptor.forClass(Callback.class);
         MessageRepositoryImpl repository = new MessageRepositoryImpl(
                 messageService,
                 pendingMessageRepository,
@@ -519,9 +520,11 @@ public class MessageRepositoryImplTest {
         repository.bindFlashNote(12L);
 
         verify(mockListCall).enqueue(callbackCaptor.capture());
+        PageData<Message> pageData = new PageData<>();
+        pageData.setRecords(java.util.List.of(remote));
         callbackCaptor.getValue().onResponse(
                 mockListCall,
-                retrofit2.Response.success(new ApiResponse<>(0, "ok", java.util.List.of(remote)))
+                retrofit2.Response.success(new ApiResponse<>(0, "ok", pageData))
         );
 
         try {
@@ -623,7 +626,7 @@ public class MessageRepositoryImplTest {
     @Test
     public void loadMessages_pageOne_preservesExistingVoiceDurationWhenRemoteDurationMissing() {
         @SuppressWarnings("unchecked")
-        org.mockito.ArgumentCaptor<Callback<ApiResponse<java.util.List<Message>>>> callbackCaptor = org.mockito.ArgumentCaptor.forClass(Callback.class);
+        org.mockito.ArgumentCaptor<Callback<ApiResponse<PageData<Message>>>> callbackCaptor = org.mockito.ArgumentCaptor.forClass(Callback.class);
         MessageRepositoryImpl repository = new MessageRepositoryImpl(
                 messageService,
                 pendingMessageRepository,
@@ -659,9 +662,11 @@ public class MessageRepositoryImplTest {
         repository.bindFlashNote(12L);
 
         verify(mockListCall).enqueue(callbackCaptor.capture());
+        PageData<Message> pageData = new PageData<>();
+        pageData.setRecords(java.util.List.of(remote));
         callbackCaptor.getValue().onResponse(
                 mockListCall,
-                retrofit2.Response.success(new ApiResponse<>(0, "ok", java.util.List.of(remote)))
+                retrofit2.Response.success(new ApiResponse<>(0, "ok", pageData))
         );
 
         try {

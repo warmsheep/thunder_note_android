@@ -4,6 +4,7 @@ import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.MessageListRequest;
+import com.flashnote.java.data.model.PageData;
 import com.flashnote.java.data.remote.MessageService;
 
 import java.util.List;
@@ -33,15 +34,15 @@ final class MessageRepositoryLoadHelper {
                       LoadStateBridge bridge) {
         bridge.onLoadingChanged(true);
         MessageListRequest request = new MessageListRequest(flashNoteId, peerUserId, page, limit);
-        messageService.list(request).enqueue(new Callback<ApiResponse<List<Message>>>() {
+        messageService.list(request).enqueue(new Callback<ApiResponse<PageData<Message>>>() {
             @Override
-            public void onResponse(Call<ApiResponse<List<Message>>> call, Response<ApiResponse<List<Message>>> response) {
+            public void onResponse(Call<ApiResponse<PageData<Message>>> call, Response<ApiResponse<PageData<Message>>> response) {
                 bridge.onLoadingChanged(false);
                 if (response.isSuccessful() && response.body() != null) {
-                    ApiResponse<List<Message>> apiResponse = response.body();
-                    if (apiResponse.isSuccess() && apiResponse.getData() != null) {
+                    ApiResponse<PageData<Message>> apiResponse = response.body();
+                    if (apiResponse.isSuccess() && apiResponse.getData() != null && apiResponse.getData().getRecords() != null) {
                         bridge.clearError();
-                        bridge.onMessagesLoaded(conversationKey, apiResponse.getData(), page, limit);
+                        bridge.onMessagesLoaded(conversationKey, apiResponse.getData().getRecords(), page, limit);
                     } else {
                         String errMsg = apiResponse.getMessage();
                         DebugLog.w("MessageRepo", errMsg);
@@ -55,7 +56,7 @@ final class MessageRepositoryLoadHelper {
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<List<Message>>> call, Throwable t) {
+            public void onFailure(Call<ApiResponse<PageData<Message>>> call, Throwable t) {
                 bridge.onLoadingChanged(false);
                 String errMsg = "Network error: " + t.getMessage();
                 DebugLog.w("MessageRepo", errMsg);

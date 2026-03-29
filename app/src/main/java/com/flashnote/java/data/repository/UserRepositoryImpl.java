@@ -15,7 +15,15 @@ import com.flashnote.java.data.model.FriendRequest;
 import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.remote.UserService;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +42,9 @@ public class UserRepositoryImpl implements UserRepository {
     private final MutableLiveData<List<ContactUser>> contactsLiveData = new MutableLiveData<>();
     private final MutableLiveData<List<FriendRequest>> friendRequestsLiveData = new MutableLiveData<>();
     private final MutableLiveData<Long> pendingRequestCountLiveData = new MutableLiveData<>(0L);
-    private final Gson gson = new Gson();
+    private final Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
+            .create();
 
     public UserRepositoryImpl(UserService userService) {
         this(userService, null);
@@ -339,6 +349,34 @@ public class UserRepositoryImpl implements UserRepository {
                 }
             }
         };
+    }
+
+    private static final class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {
+        private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+        @Override
+        public void write(JsonWriter out, LocalDateTime value) throws IOException {
+            if (value == null) {
+                out.nullValue();
+            } else {
+                out.value(FORMATTER.format(value));
+            }
+        }
+
+        @Override
+        public LocalDateTime read(JsonReader in) throws IOException {
+            if (in.peek() == JsonToken.NULL) {
+                in.nextNull();
+                return null;
+            }
+            String raw = in.nextString();
+            try {
+                return LocalDateTime.parse(raw, FORMATTER);
+            } catch (Exception exception) {
+                DebugLog.w("UserRepo", "Failed to parse LocalDateTime: " + raw);
+                return null;
+            }
+        }
     }
 
     private void notifySuccess(ProfileCallback callback, UserProfile profile) {

@@ -26,7 +26,7 @@ public class FlashNote {
     @SerializedName("tags")
     private String tags;
     
-    @SerializedName("isDeleted")
+    @SerializedName("deleted")
     private Boolean deleted;
 
     @SerializedName("pinned")
