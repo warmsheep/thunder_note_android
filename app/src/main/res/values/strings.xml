@@ -84,9 +84,6 @@
     <string name="settings_title">设置</string>
     <string name="settings_about">关于</string>
     <string name="settings_website">官网</string>
-    <string name="settings_privacy">隐私政策</string>
-    <string name="settings_credits">致谢</string>
-    <string name="settings_feedback_bug">反馈BUG</string>
     <string name="settings_debug_log">调试日志</string>
     <string name="settings_pending_sync">待同步列表</string>
     <string name="pending_sync_title">待同步列表</string>

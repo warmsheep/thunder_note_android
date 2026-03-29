@@ -36,10 +36,7 @@ public class SettingsFragment extends Fragment {
         
         binding.aboutItem.setOnClickListener(v -> openAbout());
         binding.websiteItem.setOnClickListener(v -> openWebsite());
-        binding.privacyItem.setOnClickListener(v -> showComingSoon("隐私政策"));
-        binding.creditsItem.setOnClickListener(v -> showCredits());
         binding.debugLogItem.setOnClickListener(v -> openDebugLogViewer());
-        binding.feedbackItem.setOnClickListener(v -> showComingSoon("反馈BUG"));
     }
 
     private void openAbout() {
@@ -58,7 +55,7 @@ public class SettingsFragment extends Fragment {
             return;
         }
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://flashnote.app"));
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/warmsheep/thunder_note_android"));
             startActivity(intent);
         } catch (Exception e) {
             Toast.makeText(getContext(), "无法打开浏览器", Toast.LENGTH_SHORT).show();
@@ -74,20 +71,6 @@ public class SettingsFragment extends Fragment {
                 .replace(R.id.rootFragmentContainer, new DebugLogViewerFragment())
                 .addToBackStack(null)
                 .commit();
-    }
-
-    private void showComingSoon(String feature) {
-        if (!isAdded() || getContext() == null) {
-            return;
-        }
-        Toast.makeText(getContext(), feature + "暂未上线", Toast.LENGTH_SHORT).show();
-    }
-
-    private void showCredits() {
-        if (!isAdded() || getContext() == null) {
-            return;
-        }
-        Toast.makeText(getContext(), "感谢开源社区", Toast.LENGTH_SHORT).show();
     }
 
     @Override
