@@ -588,11 +588,11 @@ public class MessageRepositoryImpl implements MessageRepository {
 
     @Override
     public void countMessages(CountCallback callback) {
-        messageService.countMessages().enqueue(new Callback<ApiResponse<Integer>>() {
+        messageService.countMessages().enqueue(new Callback<ApiResponse<Long>>() {
             @Override
-            public void onResponse(Call<ApiResponse<Integer>> call, Response<ApiResponse<Integer>> response) {
+            public void onResponse(Call<ApiResponse<Long>> call, Response<ApiResponse<Long>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    callback.onSuccess(response.body().getData().longValue());
+                    callback.onSuccess(response.body().getData() == null ? 0L : response.body().getData());
                 } else {
                     int code = response.body() == null ? response.code() : response.body().getCode();
                     String message = response.body() == null ? "Failed to get count" : response.body().getMessage();
@@ -601,7 +601,7 @@ public class MessageRepositoryImpl implements MessageRepository {
             }
 
             @Override
-            public void onFailure(Call<ApiResponse<Integer>> call, Throwable t) {
+            public void onFailure(Call<ApiResponse<Long>> call, Throwable t) {
                 callback.onError("Network error: " + t.getMessage(), -1);
             }
         });

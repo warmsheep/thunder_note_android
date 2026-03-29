@@ -3,14 +3,13 @@ package com.flashnote.java.data.repository;
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.TokenManager;
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.ChangePasswordRequest;
+import com.flashnote.java.data.model.GestureLockBackupRequest;
 import com.flashnote.java.data.model.LoginRequest;
 import com.flashnote.java.data.model.LoginResponse;
 import com.flashnote.java.data.model.RegisterRequest;
 import com.flashnote.java.data.model.User;
 import com.flashnote.java.data.remote.AuthService;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -129,9 +128,7 @@ public class AuthRepositoryImpl implements AuthRepository {
 
     @Override
     public void changePassword(String currentPassword, String newPassword, PasswordCallback callback) {
-        Map<String, String> body = new HashMap<>();
-        body.put("currentPassword", currentPassword);
-        body.put("newPassword", newPassword);
+        ChangePasswordRequest body = new ChangePasswordRequest(currentPassword, newPassword);
         
         authService.changePassword(body).enqueue(new Callback<ApiResponse<Void>>() {
             @Override
@@ -163,11 +160,7 @@ public class AuthRepositoryImpl implements AuthRepository {
 
     @Override
     public void saveGestureLockBackup(String ciphertext, String nonce, String kdfParams, String version, GestureLockBackupCallback callback) {
-        Map<String, String> body = new HashMap<>();
-        body.put("ciphertext", ciphertext);
-        body.put("nonce", nonce);
-        body.put("kdfParams", kdfParams);
-        body.put("version", version);
+        GestureLockBackupRequest body = new GestureLockBackupRequest(ciphertext, nonce, kdfParams, version);
 
         authService.saveGestureLockBackup(body).enqueue(new Callback<ApiResponse<Void>>() {
             @Override

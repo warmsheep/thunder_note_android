@@ -36,5 +36,5 @@ public interface MessageService {
     Call<ApiResponse<Void>> clearInbox();
 
     @GET("api/messages/count")
-    Call<ApiResponse<Integer>> countMessages();
+    Call<ApiResponse<Long>> countMessages();
 }

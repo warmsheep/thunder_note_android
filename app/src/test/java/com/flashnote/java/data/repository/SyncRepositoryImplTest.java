@@ -20,6 +20,7 @@ import com.flashnote.java.data.local.MessageLocalEntity;
 import com.flashnote.java.data.model.ApiResponse;
 import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.model.SyncPullRequest;
+import com.flashnote.java.data.model.SyncPushRequest;
 import com.flashnote.java.data.remote.SyncService;
 
 import org.junit.Before;
@@ -86,7 +87,7 @@ public class SyncRepositoryImplTest {
         ArgumentCaptor<Callback<ApiResponse<Map<String, Object>>>> pullCaptor = ArgumentCaptor.forClass(Callback.class);
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Callback<ApiResponse<Map<String, Object>>>> pushCaptor = ArgumentCaptor.forClass(Callback.class);
-        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<SyncPushRequest> payloadCaptor = ArgumentCaptor.forClass(SyncPushRequest.class);
 
         FlashNoteLocalEntity note = new FlashNoteLocalEntity();
         note.setId(11L);
@@ -148,11 +149,11 @@ public class SyncRepositoryImplTest {
 
         verify(pushCall).enqueue(pushCaptor.capture());
         verify(syncService).push(payloadCaptor.capture());
-        Map<String, Object> payload = payloadCaptor.getValue();
-        assertEquals(1, ((List<?>) payload.get("notes")).size());
-        assertEquals(1, ((List<?>) payload.get("collections")).size());
-        assertEquals(1, ((List<?>) payload.get("favorites")).size());
-        assertEquals(List.of(), payload.get("messages"));
+        SyncPushRequest payload = payloadCaptor.getValue();
+        assertEquals(1, payload.getNotes().size());
+        assertEquals(1, payload.getCollections().size());
+        assertEquals(1, payload.getFavorites().size());
+        assertEquals(List.of(), payload.getMessages());
 
         pushCaptor.getValue().onResponse(pushCall, Response.success(new ApiResponse<>(0, "ok", Map.of("accepted", true))));
 
@@ -223,19 +224,19 @@ public class SyncRepositoryImplTest {
         when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADED)).thenReturn(List.of());
         when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_SENDING)).thenReturn(List.of());
 
-        Map<String, Object> payload = repository.buildLocalStatePayload();
+        SyncPushRequest payload = repository.buildLocalStatePayload();
 
-        assertEquals(List.of(), payload.get("notes"));
-        assertEquals(List.of(), payload.get("collections"));
-        assertEquals(List.of(), payload.get("favorites"));
-        assertEquals(List.of(), payload.get("messages"));
+        assertEquals(List.of(), payload.getNotes());
+        assertEquals(List.of(), payload.getCollections());
+        assertEquals(List.of(), payload.getFavorites());
+        assertEquals(List.of(), payload.getMessages());
     }
 
     @Test
     public void pushLocalState_usesSharedLocalPayloadBuilder() {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Callback<ApiResponse<Map<String, Object>>>> pushCaptor = ArgumentCaptor.forClass(Callback.class);
-        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<SyncPushRequest> payloadCaptor = ArgumentCaptor.forClass(SyncPushRequest.class);
 
         when(flashNoteLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
         when(collectionLocalDao.getAllNowByUserId(7L)).thenReturn(List.of());
@@ -247,7 +248,7 @@ public class SyncRepositoryImplTest {
         when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_UPLOADED)).thenReturn(List.of());
         when(pendingMessageRepository.getByStatus(PendingMessageDispatcher.STATUS_SENDING)).thenReturn(List.of());
 
-        Map<String, Object> expectedPayload = repository.buildLocalStatePayload();
+        SyncPushRequest expectedPayload = repository.buildLocalStatePayload();
 
         repository.pushLocalState(new SyncRepository.SyncCallback() {
             @Override
@@ -267,11 +268,10 @@ public class SyncRepositoryImplTest {
 
         verify(syncService).push(payloadCaptor.capture());
         verify(pushCall).enqueue(pushCaptor.capture());
-        assertEquals(expectedPayload, payloadCaptor.getValue());
-        assertSame(expectedPayload.get("notes"), payloadCaptor.getValue().get("notes"));
-        assertSame(expectedPayload.get("collections"), payloadCaptor.getValue().get("collections"));
-        assertSame(expectedPayload.get("favorites"), payloadCaptor.getValue().get("favorites"));
-        assertEquals(expectedPayload.get("messages"), payloadCaptor.getValue().get("messages"));
+        assertEquals(expectedPayload.getNotes(), payloadCaptor.getValue().getNotes());
+        assertEquals(expectedPayload.getCollections(), payloadCaptor.getValue().getCollections());
+        assertEquals(expectedPayload.getFavorites(), payloadCaptor.getValue().getFavorites());
+        assertEquals(expectedPayload.getMessages(), payloadCaptor.getValue().getMessages());
     }
 
     @Test
@@ -319,9 +319,9 @@ public class SyncRepositoryImplTest {
         verify(pushCall).enqueue(pushCaptor.capture());
         verify(messageRepository).retryAllPendingMessages();
 
-        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<SyncPushRequest> payloadCaptor = ArgumentCaptor.forClass(SyncPushRequest.class);
         verify(syncService).push(payloadCaptor.capture());
-        assertEquals(List.of(), payloadCaptor.getValue().get("messages"));
+        assertEquals(List.of(), payloadCaptor.getValue().getMessages());
     }
 
     @Test

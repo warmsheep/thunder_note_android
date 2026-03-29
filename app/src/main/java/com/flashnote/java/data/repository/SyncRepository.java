@@ -2,6 +2,8 @@ package com.flashnote.java.data.repository;
 
 import androidx.lifecycle.LiveData;
 
+import com.flashnote.java.data.model.SyncPushRequest;
+
 import java.util.Map;
 
 public interface SyncRepository {
@@ -22,7 +24,7 @@ public interface SyncRepository {
 
     void pushLocalState(SyncCallback callback);
     
-    void push(Map<String, Object> payload, SyncCallback callback);
+    void push(SyncPushRequest payload, SyncCallback callback);
 
     interface CountCallback {
         void onResult(int count);

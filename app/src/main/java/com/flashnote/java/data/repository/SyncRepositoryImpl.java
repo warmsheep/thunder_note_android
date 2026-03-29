@@ -17,6 +17,7 @@ import com.flashnote.java.data.model.FlashNote;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.data.model.PendingMessage;
 import com.flashnote.java.data.model.SyncPullRequest;
+import com.flashnote.java.data.model.SyncPushRequest;
 import com.flashnote.java.data.remote.SyncService;
 
 import java.time.LocalDateTime;
@@ -175,7 +176,7 @@ public class SyncRepositoryImpl implements SyncRepository {
             @Override
             public void onSuccess(Map<String, Object> pullData) {
                 syncExecutor.execute(() -> {
-                    Map<String, Object> payload = buildLocalStatePayload();
+                    SyncPushRequest payload = buildLocalStatePayload();
 
                     push(payload, new SyncCallback() {
                         @Override
@@ -223,7 +224,7 @@ public class SyncRepositoryImpl implements SyncRepository {
     }
 
     @Override
-    public void push(Map<String, Object> payload, SyncCallback callback) {
+    public void push(SyncPushRequest payload, SyncCallback callback) {
         syncService.push(payload).enqueue(new Callback<ApiResponse<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<ApiResponse<Map<String, Object>>> call, 
@@ -253,13 +254,13 @@ public class SyncRepositoryImpl implements SyncRepository {
         });
     }
 
-    Map<String, Object> buildLocalStatePayload() {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("notes", safeList(loadLocalNotes()));
-        payload.put("collections", safeList(loadLocalCollections()));
-        payload.put("messages", List.of());
-        payload.put("favorites", safeList(loadLocalFavorites()));
-        return payload;
+    SyncPushRequest buildLocalStatePayload() {
+        return new SyncPushRequest(
+                safeList(loadLocalNotes()),
+                safeList(loadLocalCollections()),
+                List.of(),
+                safeList(loadLocalFavorites())
+        );
     }
 
     private List<FlashNote> loadLocalNotes() {

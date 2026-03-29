@@ -9,8 +9,11 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.flashnote.java.DebugLog;
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.AvatarUpdateRequest;
 import com.flashnote.java.data.model.ContactSearchUser;
 import com.flashnote.java.data.model.ContactUser;
+import com.flashnote.java.data.model.FriendRequestActionRequest;
+import com.flashnote.java.data.model.FriendRequestCreateRequest;
 import com.flashnote.java.data.model.FriendRequest;
 import com.flashnote.java.data.model.UserProfile;
 import com.flashnote.java.data.remote.UserService;
@@ -24,9 +27,7 @@ import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -125,8 +126,7 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void updateAvatar(String avatar, ProfileCallback callback) {
-        Map<String, String> body = new HashMap<>();
-        body.put("avatar", avatar);
+        AvatarUpdateRequest body = new AvatarUpdateRequest(avatar);
         
         userService.updateAvatar(body).enqueue(new Callback<ApiResponse<String>>() {
             @Override
@@ -277,23 +277,17 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void sendFriendRequest(Long targetUserId, ActionCallback callback) {
-        Map<String, Long> body = new HashMap<>();
-        body.put("targetUserId", targetUserId);
-        userService.sendFriendRequest(body).enqueue(wrapAction(callback));
+        userService.sendFriendRequest(new FriendRequestCreateRequest(targetUserId)).enqueue(wrapAction(callback));
     }
 
     @Override
     public void acceptFriendRequest(Long requestId, ActionCallback callback) {
-        Map<String, Long> body = new HashMap<>();
-        body.put("requestId", requestId);
-        userService.acceptFriendRequest(body).enqueue(wrapAction(callback));
+        userService.acceptFriendRequest(new FriendRequestActionRequest(requestId)).enqueue(wrapAction(callback));
     }
 
     @Override
     public void rejectFriendRequest(Long requestId, ActionCallback callback) {
-        Map<String, Long> body = new HashMap<>();
-        body.put("requestId", requestId);
-        userService.rejectFriendRequest(body).enqueue(wrapAction(callback));
+        userService.rejectFriendRequest(new FriendRequestActionRequest(requestId)).enqueue(wrapAction(callback));
     }
 
     @Override

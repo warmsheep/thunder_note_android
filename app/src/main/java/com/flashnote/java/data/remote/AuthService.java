@@ -1,11 +1,12 @@
 package com.flashnote.java.data.remote;
 
 import com.flashnote.java.data.model.ApiResponse;
+import com.flashnote.java.data.model.ChangePasswordRequest;
+import com.flashnote.java.data.model.GestureLockBackupRequest;
+import com.flashnote.java.data.model.GestureLockBackupResponse;
 import com.flashnote.java.data.model.LoginRequest;
 import com.flashnote.java.data.model.LoginResponse;
 import com.flashnote.java.data.model.RegisterRequest;
-
-import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.http.DELETE;
@@ -28,13 +29,13 @@ public interface AuthService {
     Call<ApiResponse<Void>> logout();
 
     @PUT("api/auth/password")
-    Call<ApiResponse<Void>> changePassword(@Body Map<String, String> body);
+    Call<ApiResponse<Void>> changePassword(@Body ChangePasswordRequest body);
 
     @PUT("api/auth/gesture-lock")
-    Call<ApiResponse<Void>> saveGestureLockBackup(@Body Map<String, String> body);
+    Call<ApiResponse<Void>> saveGestureLockBackup(@Body GestureLockBackupRequest body);
 
     @GET("api/auth/gesture-lock")
-    Call<ApiResponse<Map<String, Object>>> getGestureLockBackup();
+    Call<ApiResponse<GestureLockBackupResponse>> getGestureLockBackup();
 
     @DELETE("api/auth/gesture-lock")
     Call<ApiResponse<Void>> clearGestureLockBackup();

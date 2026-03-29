@@ -13,9 +13,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.webkit.MimeTypeMap;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
@@ -47,7 +49,7 @@ public class FileRepositoryImpl implements FileRepository {
 
     @Override
     public void upload(File file, FileCallback callback) {
-        RequestBody requestBody = RequestBody.create(file, MediaType.parse("application/octet-stream"));
+        RequestBody requestBody = RequestBody.create(file, MediaType.parse(resolveMimeType(file)));
         MultipartBody.Part filePart = MultipartBody.Part.createFormData("file", file.getName(), requestBody);
         fileService.upload(filePart).enqueue(new Callback<ApiResponse<FileUploadResult>>() {
             @Override
@@ -69,6 +71,42 @@ public class FileRepositoryImpl implements FileRepository {
                 dispatchError(callback, errMsg, -1);
             }
         });
+    }
+
+    private String resolveMimeType(File file) {
+        if (file == null || file.getName() == null) {
+            return "application/octet-stream";
+        }
+        String extension = MimeTypeMap.getFileExtensionFromUrl(file.getName());
+        if (extension != null && !extension.isBlank()) {
+            String normalized = extension.toLowerCase(Locale.ROOT);
+            switch (normalized) {
+                case "jpg":
+                case "jpeg":
+                    return "image/jpeg";
+                case "png":
+                    return "image/png";
+                case "gif":
+                    return "image/gif";
+                case "webp":
+                    return "image/webp";
+                case "mp4":
+                    return "video/mp4";
+                case "mp3":
+                    return "audio/mpeg";
+                case "m4a":
+                    return "audio/mp4";
+                case "pdf":
+                    return "application/pdf";
+                default:
+                    break;
+            }
+            String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(normalized);
+            if (mime != null && !mime.isBlank()) {
+                return mime;
+            }
+        }
+        return "application/octet-stream";
     }
 
     @Override
