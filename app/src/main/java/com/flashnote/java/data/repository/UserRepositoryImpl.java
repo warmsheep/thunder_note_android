@@ -35,6 +35,10 @@ import retrofit2.Response;
 
 public class UserRepositoryImpl implements UserRepository {
     private static final String KEY_CACHED_PROFILE = "cached_user_profile";
+    private static final long PROFILE_REFRESH_COOLDOWN_MS = 10_000L;
+    private static final long CONTACTS_REFRESH_COOLDOWN_MS = 10_000L;
+    private static final long FRIEND_REQUESTS_REFRESH_COOLDOWN_MS = 10_000L;
+    private static final long PENDING_COUNT_REFRESH_COOLDOWN_MS = 10_000L;
 
     private final UserService userService;
     private final SharedPreferences sharedPreferences;
@@ -46,6 +50,14 @@ public class UserRepositoryImpl implements UserRepository {
     private final Gson gson = new GsonBuilder()
             .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
             .create();
+    private boolean profileRefreshInFlight;
+    private boolean contactsRefreshInFlight;
+    private boolean friendRequestsRefreshInFlight;
+    private boolean pendingCountRefreshInFlight;
+    private long lastProfileRefreshAt;
+    private long lastContactsRefreshAt;
+    private long lastFriendRequestsRefreshAt;
+    private long lastPendingCountRefreshAt;
 
     public UserRepositoryImpl(UserService userService) {
         this(userService, null);
@@ -67,13 +79,22 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void fetchProfile(ProfileCallback callback) {
+        if (profileRefreshInFlight || isFresh(lastProfileRefreshAt, PROFILE_REFRESH_COOLDOWN_MS, profileLiveData.getValue())) {
+            if (callback != null && profileLiveData.getValue() != null) {
+                notifySuccess(callback, profileLiveData.getValue());
+            }
+            return;
+        }
+        profileRefreshInFlight = true;
         userService.getProfile().enqueue(new Callback<ApiResponse<UserProfile>>() {
             @Override
             public void onResponse(Call<ApiResponse<UserProfile>> call, Response<ApiResponse<UserProfile>> response) {
+                profileRefreshInFlight = false;
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<UserProfile> apiResponse = response.body();
                     if (apiResponse.getCode() == 0 && apiResponse.getData() != null) {
                         UserProfile profile = apiResponse.getData();
+                        lastProfileRefreshAt = System.currentTimeMillis();
                         persistProfile(profile);
                         profileLiveData.setValue(profile);
                         notifySuccess(callback, profile);
@@ -87,6 +108,7 @@ public class UserRepositoryImpl implements UserRepository {
 
             @Override
             public void onFailure(Call<ApiResponse<UserProfile>> call, Throwable t) {
+                profileRefreshInFlight = false;
                 notifyError(callback, t.getMessage(), -1);
             }
         });
@@ -168,14 +190,23 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void fetchContacts(ContactsCallback callback) {
+        if (contactsRefreshInFlight || isFresh(lastContactsRefreshAt, CONTACTS_REFRESH_COOLDOWN_MS, contactsLiveData.getValue())) {
+            if (callback != null && contactsLiveData.getValue() != null) {
+                notifyContactsSuccess(callback, contactsLiveData.getValue());
+            }
+            return;
+        }
+        contactsRefreshInFlight = true;
         userService.listContacts().enqueue(new Callback<ApiResponse<List<ContactUser>>>() {
             @Override
             public void onResponse(Call<ApiResponse<List<ContactUser>>> call, Response<ApiResponse<List<ContactUser>>> response) {
+                contactsRefreshInFlight = false;
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<List<ContactUser>> apiResponse = response.body();
                     if (apiResponse.getCode() == 0) {
                         List<ContactUser> contacts = apiResponse.getData();
-                        contactsLiveData.postValue(contacts);
+                        lastContactsRefreshAt = System.currentTimeMillis();
+                        contactsLiveData.setValue(contacts);
                         notifyContactsSuccess(callback, contacts);
                     } else {
                         notifyContactsError(callback, apiResponse.getMessage(), apiResponse.getCode());
@@ -187,6 +218,7 @@ public class UserRepositoryImpl implements UserRepository {
 
             @Override
             public void onFailure(Call<ApiResponse<List<ContactUser>>> call, Throwable t) {
+                contactsRefreshInFlight = false;
                 notifyContactsError(callback, t.getMessage(), -1);
             }
         });
@@ -204,15 +236,25 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void fetchFriendRequests(ContactsCallback callback) {
+        if (friendRequestsRefreshInFlight || isFresh(lastFriendRequestsRefreshAt, FRIEND_REQUESTS_REFRESH_COOLDOWN_MS, friendRequestsLiveData.getValue())) {
+            if (callback != null) {
+                notifyContactsSuccess(callback, contactsLiveData.getValue());
+            }
+            return;
+        }
+        friendRequestsRefreshInFlight = true;
         userService.listFriendRequests().enqueue(new Callback<ApiResponse<List<FriendRequest>>>() {
             @Override
             public void onResponse(Call<ApiResponse<List<FriendRequest>>> call, Response<ApiResponse<List<FriendRequest>>> response) {
+                friendRequestsRefreshInFlight = false;
                 if (response.isSuccessful() && response.body() != null) {
                     ApiResponse<List<FriendRequest>> apiResponse = response.body();
                     if (apiResponse.getCode() == 0) {
                         List<FriendRequest> requests = apiResponse.getData();
-                        friendRequestsLiveData.postValue(requests);
-                        pendingRequestCountLiveData.postValue(requests == null ? 0L : (long) requests.size());
+                        lastFriendRequestsRefreshAt = System.currentTimeMillis();
+                        friendRequestsLiveData.setValue(requests);
+                        pendingRequestCountLiveData.setValue(requests == null ? 0L : (long) requests.size());
+                        lastPendingCountRefreshAt = lastFriendRequestsRefreshAt;
                         notifyContactsSuccess(callback, contactsLiveData.getValue());
                     } else {
                         notifyContactsError(callback, apiResponse.getMessage(), apiResponse.getCode());
@@ -224,6 +266,7 @@ public class UserRepositoryImpl implements UserRepository {
 
             @Override
             public void onFailure(Call<ApiResponse<List<FriendRequest>>> call, Throwable t) {
+                friendRequestsRefreshInFlight = false;
                 notifyContactsError(callback, t.getMessage(), -1);
             }
         });
@@ -231,19 +274,30 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void refreshPendingRequestCount() {
+        if (pendingCountRefreshInFlight || isFresh(lastPendingCountRefreshAt, PENDING_COUNT_REFRESH_COOLDOWN_MS, pendingRequestCountLiveData.getValue())) {
+            return;
+        }
+        pendingCountRefreshInFlight = true;
         userService.countFriendRequests().enqueue(new Callback<ApiResponse<Long>>() {
             @Override
             public void onResponse(Call<ApiResponse<Long>> call, Response<ApiResponse<Long>> response) {
+                pendingCountRefreshInFlight = false;
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    pendingRequestCountLiveData.postValue(response.body().getData() == null ? 0L : response.body().getData());
+                    lastPendingCountRefreshAt = System.currentTimeMillis();
+                    pendingRequestCountLiveData.setValue(response.body().getData() == null ? 0L : response.body().getData());
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<Long>> call, Throwable t) {
+                pendingCountRefreshInFlight = false;
                 DebugLog.w("UserRepo", "refreshPendingRequestCount failed: " + t.getMessage());
             }
         });
+    }
+
+    private boolean isFresh(long lastRefreshAt, long cooldownMs, Object currentValue) {
+        return currentValue != null && (System.currentTimeMillis() - lastRefreshAt) < cooldownMs;
     }
 
     private void persistProfile(UserProfile profile) {

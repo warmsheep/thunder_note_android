@@ -27,6 +27,7 @@ import com.flashnote.java.data.model.ContactSearchUser;
 import com.flashnote.java.data.model.ContactUser;
 import com.flashnote.java.data.model.FriendRequest;
 import com.flashnote.java.databinding.FragmentContactTabBinding;
+import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
 
 import java.util.ArrayList;
@@ -320,6 +321,9 @@ public class ContactTabFragment extends Fragment {
     }
 
     private void performSearch(String query) {
+        if (binding == null || !isAdded() || getContext() == null) {
+            return;
+        }
         String keyword = query == null ? "" : query.trim();
         currentSearchQuery = keyword;
         if (keyword.isEmpty()) {
@@ -333,15 +337,17 @@ public class ContactTabFragment extends Fragment {
     }
 
     private void showSearchResults(List<ContactSearchUser> users) {
-        if (searchAdapter != null) {
-            searchAdapter.submitList(users);
-        }
-        boolean empty = users == null || users.isEmpty();
-        binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
-        binding.emptyIcon.setImageResource(android.R.drawable.ic_menu_search);
-        binding.emptyIcon.setColorFilter(getResources().getColor(com.flashnote.java.R.color.text_secondary, null));
-        binding.emptyTitleText.setText("未找到相关用户");
-        binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        FragmentUiSafe.runIfUiAlive(this, binding, () -> {
+            if (searchAdapter != null) {
+                searchAdapter.submitList(users);
+            }
+            boolean empty = users == null || users.isEmpty();
+            binding.emptyContainer.setVisibility(empty ? View.VISIBLE : View.GONE);
+            binding.emptyIcon.setImageResource(android.R.drawable.ic_menu_search);
+            binding.emptyIcon.setColorFilter(getResources().getColor(com.flashnote.java.R.color.text_secondary, null));
+            binding.emptyTitleText.setText("未找到相关用户");
+            binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+        });
     }
 
     private void toast(String text) {
@@ -352,6 +358,10 @@ public class ContactTabFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        if (pendingSearch != null) {
+            searchHandler.removeCallbacks(pendingSearch);
+            pendingSearch = null;
+        }
         super.onDestroyView();
         binding = null;
     }

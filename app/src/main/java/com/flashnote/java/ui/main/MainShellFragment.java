@@ -59,7 +59,6 @@ public class MainShellFragment extends Fragment {
             ContactViewModel contactViewModel = new ViewModelProvider(this).get(ContactViewModel.class);
             contactViewModel.getPendingRequestCount().observe(getViewLifecycleOwner(), count ->
                     updateContactBadge(count != null && count > 0));
-            contactViewModel.refreshContacts();
 
             binding.bottomNav.setSelectedItemId(selectedTabId);
         } catch (RuntimeException exception) {

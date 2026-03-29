@@ -24,7 +24,6 @@ public class ContactViewModel extends AndroidViewModel {
     public ContactViewModel(@NonNull Application application) {
         super(application);
         this.userRepository = ((FlashNoteApp) application).getUserRepository();
-        refreshContacts();
     }
 
     public LiveData<List<ContactUser>> getContacts() {
