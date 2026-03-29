@@ -54,6 +54,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless"
                 android:text="@string/action_sync"
                 android:textColor="#D9FFFFFF"
                 android:textSize="12sp" />

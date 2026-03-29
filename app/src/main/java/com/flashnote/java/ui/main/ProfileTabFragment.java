@@ -42,6 +42,7 @@ import com.flashnote.java.ui.media.MediaUrlResolver;
 import com.flashnote.java.ui.auth.AuthViewModel;
 import com.flashnote.java.ui.FragmentUiSafe;
 import com.flashnote.java.ui.navigation.ShellNavigator;
+import com.flashnote.java.ui.settings.PendingSyncListFragment;
 import com.flashnote.java.databinding.FragmentProfileTabBinding;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -141,10 +142,22 @@ public class ProfileTabFragment extends Fragment {
             return;
         }
         binding.avatarContainer.setOnClickListener(v -> openEditProfile());
+        binding.syncHintText.setOnClickListener(v -> openPendingSyncList());
         binding.syncButton.setOnClickListener(v -> triggerSync());
         binding.menuChangePassword.setOnClickListener(v -> openChangePassword());
         binding.menuSettings.setOnClickListener(v -> openSettings());
         binding.menuLogout.setOnClickListener(v -> logout());
+    }
+
+    private void openPendingSyncList() {
+        if (!isAdded() || getActivity() == null) {
+            return;
+        }
+        getActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.rootFragmentContainer, new PendingSyncListFragment())
+                .addToBackStack(null)
+                .commit();
     }
 
     private void openEditProfile() {
