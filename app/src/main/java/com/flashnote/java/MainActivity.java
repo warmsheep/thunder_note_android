@@ -192,8 +192,18 @@ public class MainActivity extends AppCompatActivity implements ShellNavigator {
         }
 
         FragmentManager fragmentManager = getSupportFragmentManager();
-        androidx.fragment.app.FragmentTransaction transaction = fragmentManager.beginTransaction()
-                .replace(binding.rootFragmentContainer.getId(), fragment, fragment.getClass().getSimpleName());
+        androidx.fragment.app.FragmentTransaction transaction = fragmentManager.beginTransaction();
+
+        if (fragment instanceof ChatFragment) {
+            transaction.setCustomAnimations(
+                    R.anim.chat_card_open_enter,
+                    R.anim.chat_card_open_exit,
+                    R.anim.chat_card_pop_enter,
+                    R.anim.chat_card_pop_exit
+            );
+        }
+
+        transaction.replace(binding.rootFragmentContainer.getId(), fragment, fragment.getClass().getSimpleName());
 
         if (addToBackStack) {
             transaction.addToBackStack(fragment.getClass().getSimpleName());
