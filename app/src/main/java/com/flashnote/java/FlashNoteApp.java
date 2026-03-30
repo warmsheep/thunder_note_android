@@ -100,9 +100,40 @@ public class FlashNoteApp extends Application {
                 database.messageLocalDao(),
                 database.flashNoteLocalDao()
         );
-        flashNoteRepository = new FlashNoteRepositoryImpl(apiClient.getFlashNoteService(), database.flashNoteLocalDao(), tokenManager, messageRepository);
-        collectionRepository = new CollectionRepositoryImpl(apiClient.getCollectionService(), database.collectionLocalDao(), tokenManager);
-        favoriteRepository = new FavoriteRepositoryImpl(apiClient.getFavoriteService(), database.favoriteLocalDao(), tokenManager);
+        userRepository = new UserRepositoryImpl(
+                apiClient.getUserService(),
+                getSharedPreferences("flashnote_user_cache", MODE_PRIVATE)
+        );
+        clearSessionScopedRepositories();
+        initializeSessionScopedDependenciesIfLoggedIn();
+
+        if (recoverPendingMessages) {
+            recoverInterruptedPendingMessages();
+        }
+
+    }
+
+    private void initializeSessionScopedDependenciesIfLoggedIn() {
+        if (tokenManager.getUserId() == null) {
+            clearSessionScopedRepositories();
+            return;
+        }
+        flashNoteRepository = new FlashNoteRepositoryImpl(
+                apiClient.getFlashNoteService(),
+                database.flashNoteLocalDao(),
+                tokenManager,
+                messageRepository
+        );
+        collectionRepository = new CollectionRepositoryImpl(
+                apiClient.getCollectionService(),
+                database.collectionLocalDao(),
+                tokenManager
+        );
+        favoriteRepository = new FavoriteRepositoryImpl(
+                apiClient.getFavoriteService(),
+                database.favoriteLocalDao(),
+                tokenManager
+        );
         syncRepository = new SyncRepositoryImpl(
                 apiClient.getSyncService(),
                 tokenManager,
@@ -116,15 +147,13 @@ public class FlashNoteApp extends Application {
                 favoriteRepository,
                 messageRepository
         );
-        userRepository = new UserRepositoryImpl(
-                apiClient.getUserService(),
-                getSharedPreferences("flashnote_user_cache", MODE_PRIVATE)
-        );
+    }
 
-        if (recoverPendingMessages) {
-            recoverInterruptedPendingMessages();
-        }
-
+    private void clearSessionScopedRepositories() {
+        flashNoteRepository = null;
+        collectionRepository = null;
+        favoriteRepository = null;
+        syncRepository = null;
     }
 
     private void recoverInterruptedPendingMessages() {
@@ -165,6 +194,9 @@ public class FlashNoteApp extends Application {
     }
 
     public FlashNoteRepository getFlashNoteRepository() {
+        if (flashNoteRepository == null) {
+            initializeSessionScopedDependenciesIfLoggedIn();
+        }
         return flashNoteRepository;
     }
 
@@ -173,10 +205,16 @@ public class FlashNoteApp extends Application {
     }
 
     public CollectionRepository getCollectionRepository() {
+        if (collectionRepository == null) {
+            initializeSessionScopedDependenciesIfLoggedIn();
+        }
         return collectionRepository;
     }
 
     public SyncRepository getSyncRepository() {
+        if (syncRepository == null) {
+            initializeSessionScopedDependenciesIfLoggedIn();
+        }
         return syncRepository;
     }
 
@@ -185,6 +223,9 @@ public class FlashNoteApp extends Application {
     }
 
     public FavoriteRepository getFavoriteRepository() {
+        if (favoriteRepository == null) {
+            initializeSessionScopedDependenciesIfLoggedIn();
+        }
         return favoriteRepository;
     }
 
@@ -215,7 +256,7 @@ public class FlashNoteApp extends Application {
     }
 
     public void reloadSessionScopedDependencies() {
-        initializeDependencies(false);
+        initializeSessionScopedDependenciesIfLoggedIn();
     }
 
     private void clearPendingMessages() {

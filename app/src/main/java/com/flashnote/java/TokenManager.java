@@ -123,7 +123,7 @@ public class TokenManager {
 
     public void saveUserId(Long userId) {
         if (userId != null) {
-            encryptedPrefs.edit().putLong(KEY_USER_ID, userId).apply();
+            encryptedPrefs.edit().putLong(KEY_USER_ID, userId).commit();
         }
     }
 
@@ -134,7 +134,7 @@ public class TokenManager {
 
     public void saveUsername(String username) {
         if (username != null) {
-            encryptedPrefs.edit().putString(KEY_USERNAME, username).apply();
+            encryptedPrefs.edit().putString(KEY_USERNAME, username).commit();
         }
     }
 
