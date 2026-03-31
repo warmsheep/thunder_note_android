@@ -44,8 +44,10 @@ public class ContactTabFragment extends Fragment {
     private String currentSearchQuery = "";
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingSearch;
+    private boolean suppressSearchTextWatcher = false;
     private List<ContactUser> latestContacts = new ArrayList<>();
     private List<FriendRequest> latestRequests = new ArrayList<>();
+    private List<ContactSearchUser> latestSearchResults = new ArrayList<>();
 
     @Nullable
     @Override
@@ -107,6 +109,9 @@ public class ContactTabFragment extends Fragment {
 
             @Override
             public void afterTextChanged(Editable s) {
+                if (suppressSearchTextWatcher || !isSearchVisible) {
+                    return;
+                }
                 if (pendingSearch != null) {
                     searchHandler.removeCallbacks(pendingSearch);
                 }
@@ -140,10 +145,11 @@ public class ContactTabFragment extends Fragment {
         });
 
         viewModel.getSearchResults().observe(getViewLifecycleOwner(), users -> {
+            latestSearchResults = users == null ? new ArrayList<>() : new ArrayList<>(users);
             if (!isSearchVisible) {
                 return;
             }
-            showSearchResults(users);
+            showSearchResults(latestSearchResults);
         });
 
         viewModel.getPendingRequestCount().observe(getViewLifecycleOwner(), count -> {
@@ -167,6 +173,12 @@ public class ContactTabFragment extends Fragment {
 
         switchTab(false);
         viewModel.refreshContacts();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        reconcileVisibleState();
     }
 
     private void attachContactSwipeDelete() {
@@ -296,24 +308,29 @@ public class ContactTabFragment extends Fragment {
             isSearchVisible = true;
             binding.searchContainer.setVisibility(View.VISIBLE);
             binding.searchInput.requestFocus();
-            if (searchAdapter == null) {
-                searchAdapter = new ContactSearchAdapter(user -> {
-                    viewModel.sendFriendRequest(user.getUserId());
-                    // Re-search current query to refresh the list
-                    if (!currentSearchQuery.isEmpty()) {
-                        viewModel.searchContacts(currentSearchQuery);
-                    }
-                });
-            }
+            ensureSearchAdapter();
             binding.recyclerView.setAdapter(searchAdapter);
+            if (!currentSearchQuery.isEmpty()) {
+                showSearchResults(latestSearchResults);
+            }
         }
     }
 
     private void closeSearchContainer() {
+        if (pendingSearch != null) {
+            searchHandler.removeCallbacks(pendingSearch);
+            pendingSearch = null;
+        }
         isSearchVisible = false;
         currentSearchQuery = "";
+        latestSearchResults = new ArrayList<>();
         binding.searchContainer.setVisibility(View.GONE);
+        suppressSearchTextWatcher = true;
         binding.searchInput.setText("");
+        suppressSearchTextWatcher = false;
+        if (searchAdapter != null) {
+            searchAdapter.submitList(new ArrayList<>());
+        }
         if (binding.recyclerView.getAdapter() != contactAdapter && binding.recyclerView.getAdapter() != requestAdapter) {
             binding.recyclerView.setAdapter(showingRequests ? requestAdapter : contactAdapter);
         }
@@ -326,18 +343,33 @@ public class ContactTabFragment extends Fragment {
         }
         String keyword = query == null ? "" : query.trim();
         currentSearchQuery = keyword;
+        if (!isSearchVisible) {
+            return;
+        }
         if (keyword.isEmpty()) {
             if (searchAdapter != null) {
                 searchAdapter.submitList(new ArrayList<>());
             }
-            showSearchResults(new ArrayList<>());
+            binding.emptyContainer.setVisibility(View.GONE);
+            binding.recyclerView.setVisibility(View.VISIBLE);
             return;
         }
         viewModel.searchContacts(keyword);
     }
 
     private void showSearchResults(List<ContactSearchUser> users) {
+        if (!isSearchVisible) {
+            return;
+        }
         FragmentUiSafe.runIfUiAlive(this, binding, () -> {
+            if (!isSearchVisible) {
+                return;
+            }
+            ensureSearchAdapter();
+            binding.searchContainer.setVisibility(View.VISIBLE);
+            if (binding.recyclerView.getAdapter() != searchAdapter) {
+                binding.recyclerView.setAdapter(searchAdapter);
+            }
             if (searchAdapter != null) {
                 searchAdapter.submitList(users);
             }
@@ -348,6 +380,34 @@ public class ContactTabFragment extends Fragment {
             binding.emptyTitleText.setText("未找到相关用户");
             binding.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
         });
+    }
+
+    private void ensureSearchAdapter() {
+        if (searchAdapter != null) {
+            return;
+        }
+        searchAdapter = new ContactSearchAdapter(user -> {
+            viewModel.sendFriendRequest(user.getUserId());
+            if (!currentSearchQuery.isEmpty()) {
+                viewModel.searchContacts(currentSearchQuery);
+            }
+        });
+    }
+
+    private void reconcileVisibleState() {
+        if (binding == null) {
+            return;
+        }
+        if (isSearchVisible) {
+            if (currentSearchQuery == null || currentSearchQuery.trim().isEmpty()) {
+                closeSearchContainer();
+                return;
+            }
+            showSearchResults(latestSearchResults);
+            return;
+        }
+        binding.searchContainer.setVisibility(View.GONE);
+        renderCurrentTab();
     }
 
     private void toast(String text) {
