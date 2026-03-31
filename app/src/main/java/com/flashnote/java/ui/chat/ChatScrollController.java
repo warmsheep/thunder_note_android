@@ -94,7 +94,8 @@ public class ChatScrollController {
                 return;
             }
             ensureBottomVisible(last, isLastComplexMessage(messages, last) ? 10 : 4);
-            binding.recyclerView.postDelayed(() -> ensureBottomVisible(last, isLastComplexMessage(messages, last) ? 4 : 2), 420);
+            binding.recyclerView.postDelayed(() -> ensureBottomVisible(last,
+                    isLastComplexMessage(messages, last) ? 4 : 2), 420);
         });
     }
 

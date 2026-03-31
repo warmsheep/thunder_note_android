@@ -287,6 +287,7 @@ public class ChatFragment extends Fragment {
         });
         adapter.setOnSelectionChangedListener(multiSelectHelper::updateMergeSelectionCount);
         layoutManager = new LinearLayoutManager(requireContext());
+        layoutManager.setStackFromEnd(true);
         binding.recyclerView.setLayoutManager(layoutManager);
         binding.recyclerView.setAdapter(adapter);
         binding.recyclerView.setItemAnimator(null);
