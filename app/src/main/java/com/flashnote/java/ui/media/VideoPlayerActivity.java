@@ -49,8 +49,8 @@ public class VideoPlayerActivity extends AppCompatActivity {
             return;
         }
 
-        File cacheFile = new File(getCacheDir(), mediaUrl.replace('/', '_'));
-        if (cacheFile.exists() && cacheFile.length() > 0) {
+        File cacheFile = MediaUrlResolver.resolveCachedFile(this, mediaUrl);
+        if (cacheFile != null) {
             playLocalFile(cacheFile);
             return;
         }

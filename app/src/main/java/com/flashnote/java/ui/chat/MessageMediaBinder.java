@@ -9,10 +9,14 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.Message;
 import com.flashnote.java.ui.media.ImageViewerActivity;
 import com.flashnote.java.ui.media.VideoPlayerActivity;
+
+import java.io.File;
 
 final class MessageMediaBinder {
 
@@ -24,6 +28,10 @@ final class MessageMediaBinder {
         boolean isLocalOnlyMediaPath(String mediaPathOrUrl);
 
         Object resolveMediaModel(String mediaPathOrUrl);
+
+        File resolveCachedMediaFile(String mediaPathOrUrl);
+
+        String resolveRemoteMediaUrl(String mediaPathOrUrl);
 
         void hideAllMediaContainers(@NonNull MessageAdapter.MessageViewHolder holder, boolean mine);
 
@@ -51,15 +59,7 @@ final class MessageMediaBinder {
 
         String preview = TextUtils.isEmpty(message.getThumbnailUrl()) ? message.getMediaUrl() : message.getThumbnailUrl();
         if (!TextUtils.isEmpty(preview)) {
-            Glide.with(context)
-                    .load(actions.resolveMediaModel(preview))
-                    .placeholder(R.drawable.bg_placeholder_card)
-                    .error(R.drawable.bg_placeholder_card)
-                    .fitCenter()
-                    .dontAnimate()
-                    .thumbnail(0.25f)
-                    .override(maxWidthPx, maxHeightPx)
-                    .into(refs.imageView);
+            loadPreviewInto(context, actions, preview, refs.imageView, maxWidthPx, maxHeightPx);
 
             refs.imageContainer.setOnClickListener(v -> {
                 Intent intent = new Intent(v.getContext(), ImageViewerActivity.class);
@@ -98,15 +98,7 @@ final class MessageMediaBinder {
             refs.imageContainer.setOnClickListener(v -> Toast.makeText(context, R.string.chat_video_send_failed, Toast.LENGTH_SHORT).show());
         }
         if (!TextUtils.isEmpty(preview)) {
-            Glide.with(context)
-                    .load(actions.resolveMediaModel(preview))
-                    .placeholder(R.drawable.bg_placeholder_card)
-                    .error(R.drawable.bg_placeholder_card)
-                    .fitCenter()
-                    .dontAnimate()
-                    .thumbnail(0.25f)
-                    .override(maxWidthPx, maxHeightPx)
-                    .into(refs.imageView);
+            loadPreviewInto(context, actions, preview, refs.imageView, maxWidthPx, maxHeightPx);
 
             refs.imageContainer.setOnClickListener(v -> {
                 Context clickContext = v.getContext();
@@ -173,5 +165,61 @@ final class MessageMediaBinder {
             refs.fileContainer.setOnClickListener(v -> actions.openFileMessage(v.getContext(), message));
         }
         actions.bindRetryState(message, mine, holder);
+    }
+
+    private void loadPreviewInto(@NonNull Context context,
+                                 @NonNull MediaActionHandler actions,
+                                 @NonNull String preview,
+                                 @NonNull android.widget.ImageView imageView,
+                                 int maxWidthPx,
+                                 int maxHeightPx) {
+        File cachedFile = actions.resolveCachedMediaFile(preview);
+        if (cachedFile != null) {
+            Glide.with(context)
+                    .load(cachedFile)
+                    .placeholder(R.drawable.bg_placeholder_card)
+                    .error(R.drawable.bg_placeholder_card)
+                    .fitCenter()
+                    .dontAnimate()
+                    .override(maxWidthPx, maxHeightPx)
+                    .listener(new RequestListener<android.graphics.drawable.Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(com.bumptech.glide.load.engine.GlideException e,
+                                                    Object model,
+                                                    Target<android.graphics.drawable.Drawable> target,
+                                                    boolean isFirstResource) {
+                            Glide.with(context)
+                                    .load(actions.resolveRemoteMediaUrl(preview))
+                                    .placeholder(R.drawable.bg_placeholder_card)
+                                    .error(R.drawable.bg_placeholder_card)
+                                    .fitCenter()
+                                    .dontAnimate()
+                                    .thumbnail(0.25f)
+                                    .override(maxWidthPx, maxHeightPx)
+                                    .into(imageView);
+                            return true;
+                        }
+
+                        @Override
+                        public boolean onResourceReady(android.graphics.drawable.Drawable resource,
+                                                       Object model,
+                                                       Target<android.graphics.drawable.Drawable> target,
+                                                       com.bumptech.glide.load.DataSource dataSource,
+                                                       boolean isFirstResource) {
+                            return false;
+                        }
+                    })
+                    .into(imageView);
+            return;
+        }
+        Glide.with(context)
+                .load(actions.resolveMediaModel(preview))
+                .placeholder(R.drawable.bg_placeholder_card)
+                .error(R.drawable.bg_placeholder_card)
+                .fitCenter()
+                .dontAnimate()
+                .thumbnail(0.25f)
+                .override(maxWidthPx, maxHeightPx)
+                .into(imageView);
     }
 }

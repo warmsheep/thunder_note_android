@@ -21,6 +21,8 @@ import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.R;
 import com.flashnote.java.data.model.CardItem;
@@ -358,7 +360,42 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
                 binding.mediaPreviewImage.setImageResource(R.drawable.bg_placeholder_card);
                 return;
             }
-            Glide.with(binding.getRoot().getContext())
+            Context context = binding.getRoot().getContext();
+            File cachedFile = MediaUrlResolver.resolveCachedFile(context, mediaUrl);
+            if (cachedFile != null) {
+                Glide.with(context)
+                        .load(cachedFile)
+                        .placeholder(R.drawable.bg_placeholder_card)
+                        .error(R.drawable.bg_placeholder_card)
+                        .fitCenter()
+                        .listener(new RequestListener<android.graphics.drawable.Drawable>() {
+                            @Override
+                            public boolean onLoadFailed(com.bumptech.glide.load.engine.GlideException e,
+                                                        Object model,
+                                                        Target<android.graphics.drawable.Drawable> target,
+                                                        boolean isFirstResource) {
+                                Glide.with(context)
+                                        .load(resolveMediaUrl(mediaUrl))
+                                        .placeholder(R.drawable.bg_placeholder_card)
+                                        .error(R.drawable.bg_placeholder_card)
+                                        .fitCenter()
+                                        .into(binding.mediaPreviewImage);
+                                return true;
+                            }
+
+                            @Override
+                            public boolean onResourceReady(android.graphics.drawable.Drawable resource,
+                                                           Object model,
+                                                           Target<android.graphics.drawable.Drawable> target,
+                                                           com.bumptech.glide.load.DataSource dataSource,
+                                                           boolean isFirstResource) {
+                                return false;
+                            }
+                        })
+                        .into(binding.mediaPreviewImage);
+                return;
+            }
+            Glide.with(context)
                     .load(resolveMediaUrl(mediaUrl))
                     .placeholder(R.drawable.bg_placeholder_card)
                     .error(R.drawable.bg_placeholder_card)

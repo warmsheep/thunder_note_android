@@ -320,9 +320,6 @@ public class ChatFragment extends Fragment {
 
                     @Override
                     public void preloadRecentMedia(@NonNull List<Message> messages) {
-                        if (isAdded()) {
-                            adapter.preloadRecentMedia(messages, requireContext());
-                        }
                     }
                 },
                 binding,

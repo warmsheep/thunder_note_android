@@ -34,6 +34,13 @@ public class ImageViewerActivity extends AppCompatActivity {
         }
 
         String mediaUrl = getIntent().getStringExtra(EXTRA_MEDIA_URL);
+        File cachedFile = MediaUrlResolver.resolveCachedFile(this, mediaUrl);
+        if (cachedFile != null) {
+            Glide.with(this)
+                    .load(cachedFile)
+                    .into(binding.photoView);
+            return;
+        }
         String requestUrl = MediaUrlResolver.resolve(mediaUrl);
 
         Glide.with(this)

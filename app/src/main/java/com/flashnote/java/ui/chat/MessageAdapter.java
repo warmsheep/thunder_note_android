@@ -335,6 +335,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         return MediaUrlResolver.resolve(mediaPathOrUrl);
     }
 
+    @Nullable
+    private File resolveCachedMediaFile(String mediaPathOrUrl) {
+        FlashNoteApp app = FlashNoteApp.getInstance();
+        return app == null ? null : MediaUrlResolver.resolveCachedFile(app, mediaPathOrUrl);
+    }
+
     private Object resolveMediaModel(String mediaPathOrUrl) {
         if (isLocalOnlyMediaPath(mediaPathOrUrl)) {
             String path = mediaPathOrUrl.startsWith("file://") ? mediaPathOrUrl.substring("file://".length()) : mediaPathOrUrl;
@@ -425,6 +431,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             @Override
             public Object resolveMediaModel(String mediaPathOrUrl) {
                 return MessageAdapter.this.resolveMediaModel(mediaPathOrUrl);
+            }
+
+            @Override
+            public File resolveCachedMediaFile(String mediaPathOrUrl) {
+                return MessageAdapter.this.resolveCachedMediaFile(mediaPathOrUrl);
+            }
+
+            @Override
+            public String resolveRemoteMediaUrl(String mediaPathOrUrl) {
+                return MessageAdapter.this.resolveMediaUrl(mediaPathOrUrl);
             }
 
             @Override
