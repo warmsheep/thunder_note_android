@@ -14,8 +14,8 @@
 
         <ImageView
             android:id="@+id/logoBox"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
+            android:layout_width="140dp"
+            android:layout_height="140dp"
             android:background="@drawable/bg_splash_logo"
             android:padding="12dp"
             android:scaleType="fitCenter"
