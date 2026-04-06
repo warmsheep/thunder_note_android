@@ -27,11 +27,13 @@ import okhttp3.OkHttpClient;
 
 public class VideoPlayerActivity extends AppCompatActivity {
     public static final String EXTRA_MEDIA_URL = "extra_media_url";
+    public static final String EXTRA_DISPLAY_NAME = "extra_display_name";
 
     private ActivityVideoPlayerBinding binding;
     private ExoPlayer player;
     private String mediaUrl;
     private File localMediaFile;
+    private String saveDisplayName;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -46,6 +48,10 @@ public class VideoPlayerActivity extends AppCompatActivity {
 
     private void initializePlayer() {
         mediaUrl = getIntent().getStringExtra(EXTRA_MEDIA_URL);
+        String extraDisplayName = getIntent().getStringExtra(EXTRA_DISPLAY_NAME);
+        saveDisplayName = TextUtils.isEmpty(extraDisplayName)
+                ? resolveDisplayName(mediaUrl)
+                : extraDisplayName;
         if (TextUtils.isEmpty(mediaUrl)) {
             Toast.makeText(this, "视频地址无效", Toast.LENGTH_SHORT).show();
             finish();
@@ -123,7 +129,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.media_save_loading, Toast.LENGTH_SHORT).show();
             return;
         }
-        MediaSaveHelper.showSaveMenu(this, binding.moreBtn, localMediaFile, resolveDisplayName(mediaUrl));
+        MediaSaveHelper.showSaveMenu(this, binding.moreBtn, localMediaFile, saveDisplayName);
     }
 
     private String resolveDisplayName(String urlOrPath) {

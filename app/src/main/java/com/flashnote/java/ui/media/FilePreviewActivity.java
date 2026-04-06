@@ -29,11 +29,13 @@ import java.util.Locale;
 public class FilePreviewActivity extends AppCompatActivity {
     public static final String EXTRA_FILE_PATH = "extra_file_path";
     public static final String EXTRA_FILE_NAME = "extra_file_name";
+    public static final String EXTRA_DISPLAY_NAME = "extra_display_name";
 
     private ActivityFilePreviewBinding binding;
     private File file;
     private PdfRenderer pdfRenderer;
     private ParcelFileDescriptor pdfFd;
+    private String saveDisplayName;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -48,11 +50,14 @@ public class FilePreviewActivity extends AppCompatActivity {
                     Toast.makeText(this, R.string.media_save_failed, Toast.LENGTH_SHORT).show();
                     return;
                 }
-                MediaSaveHelper.showSaveMenu(this, binding.moreBtn, file, file.getName());
+                String fallbackName = file.getName();
+                String displayName = TextUtils.isEmpty(saveDisplayName) ? fallbackName : saveDisplayName;
+                MediaSaveHelper.showSaveMenu(this, binding.moreBtn, file, displayName);
             });
 
             String filePath = getIntent().getStringExtra(EXTRA_FILE_PATH);
             String fileName = getIntent().getStringExtra(EXTRA_FILE_NAME);
+            String extraDisplayName = getIntent().getStringExtra(EXTRA_DISPLAY_NAME);
             if (TextUtils.isEmpty(filePath)) {
                 showUnsupported(getString(R.string.file_preview_unsupported));
                 return;
@@ -67,12 +72,14 @@ public class FilePreviewActivity extends AppCompatActivity {
             if (TextUtils.isEmpty(fileName)) {
                 fileName = file.getName();
             }
+            saveDisplayName = TextUtils.isEmpty(extraDisplayName) ? fileName : extraDisplayName;
             binding.fileNameText.setText(fileName);
 
             String ext = getFileExtension(fileName);
             if (isImage(ext)) {
                 Intent intent = new Intent(this, ImageViewerActivity.class);
                 intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+                intent.putExtra(ImageViewerActivity.EXTRA_DISPLAY_NAME, saveDisplayName);
                 startActivity(intent);
                 finish();
                 return;

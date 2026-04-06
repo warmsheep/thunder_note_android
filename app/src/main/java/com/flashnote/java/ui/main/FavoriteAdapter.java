@@ -410,12 +410,14 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
         private void openImagePreview(Context context, FavoriteItem item) {
             Intent intent = new Intent(context, ImageViewerActivity.class);
             intent.putExtra(ImageViewerActivity.EXTRA_MEDIA_URL, item.getMediaUrl());
+            intent.putExtra(ImageViewerActivity.EXTRA_DISPLAY_NAME, item.getFileName());
             context.startActivity(intent);
         }
 
         private void openVideoPlayer(Context context, FavoriteItem item) {
             Intent intent = new Intent(context, VideoPlayerActivity.class);
             intent.putExtra(VideoPlayerActivity.EXTRA_MEDIA_URL, item.getMediaUrl());
+            intent.putExtra(VideoPlayerActivity.EXTRA_DISPLAY_NAME, item.getFileName());
             context.startActivity(intent);
         }
 
@@ -452,12 +454,14 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
             if ("jpg".equals(ext) || "jpeg".equals(ext) || "png".equals(ext) || "gif".equals(ext)) {
                 Intent intent = new Intent(context, ImageViewerActivity.class);
                 intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+                intent.putExtra(ImageViewerActivity.EXTRA_DISPLAY_NAME, fileName);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(intent);
             } else {
                 Intent intent = new Intent(context, FilePreviewActivity.class);
                 intent.putExtra(FilePreviewActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
                 intent.putExtra(FilePreviewActivity.EXTRA_FILE_NAME, fileName);
+                intent.putExtra(FilePreviewActivity.EXTRA_DISPLAY_NAME, fileName);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(intent);
             }

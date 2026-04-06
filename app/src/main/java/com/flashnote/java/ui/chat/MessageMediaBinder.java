@@ -63,6 +63,7 @@ final class MessageMediaBinder {
 
             refs.imageContainer.setOnClickListener(v -> {
                 Intent intent = new Intent(v.getContext(), ImageViewerActivity.class);
+                intent.putExtra(ImageViewerActivity.EXTRA_DISPLAY_NAME, message.getFileName());
                 if (actions.isLocalOnlyMediaPath(message.getMediaUrl())) {
                     String localPath = message.getMediaUrl().startsWith("file://")
                             ? message.getMediaUrl().substring("file://".length())
@@ -104,6 +105,7 @@ final class MessageMediaBinder {
                 Context clickContext = v.getContext();
                 Intent intent = new Intent(clickContext, VideoPlayerActivity.class);
                 intent.putExtra(VideoPlayerActivity.EXTRA_MEDIA_URL, message.getMediaUrl());
+                intent.putExtra(VideoPlayerActivity.EXTRA_DISPLAY_NAME, message.getFileName());
                 clickContext.startActivity(intent);
             });
         }

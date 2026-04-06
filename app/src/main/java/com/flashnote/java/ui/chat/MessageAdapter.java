@@ -779,6 +779,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             if (isImageExtension(ext)) {
                 Intent intent = new Intent(context, ImageViewerActivity.class);
                 intent.putExtra(ImageViewerActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
+                intent.putExtra(ImageViewerActivity.EXTRA_DISPLAY_NAME, fileName);
                 if (!isActivityContext) {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 }
@@ -790,6 +791,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 Intent intent = new Intent(context, FilePreviewActivity.class);
                 intent.putExtra(FilePreviewActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
                 intent.putExtra(FilePreviewActivity.EXTRA_FILE_NAME, fileName);
+                intent.putExtra(FilePreviewActivity.EXTRA_DISPLAY_NAME, fileName);
                 if (!isActivityContext) {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 }
