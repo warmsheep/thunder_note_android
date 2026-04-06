@@ -71,6 +71,7 @@
     <string name="media_save_failed">保存失败</string>
     <string name="media_save_loading">请等待加载完成后再保存</string>
     <string name="media_save_action">保存</string>
+    <string name="media_open_external">用其他应用打开</string>
 
     <string name="status_unknown_user">未知用户</string>
     <string name="status_profile_loading">加载中...</string>

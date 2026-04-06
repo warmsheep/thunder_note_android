@@ -52,7 +52,7 @@ public class FilePreviewActivity extends AppCompatActivity {
                 }
                 String fallbackName = file.getName();
                 String displayName = TextUtils.isEmpty(saveDisplayName) ? fallbackName : saveDisplayName;
-                MediaSaveHelper.showSaveMenu(this, binding.moreBtn, file, displayName);
+                MediaSaveHelper.showSaveMenu(this, binding.moreBtn, file, displayName, this::openExternal);
             });
 
             String filePath = getIntent().getStringExtra(EXTRA_FILE_PATH);

@@ -1,11 +1,15 @@
 package com.flashnote.java.ui.media;
 
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 
 import com.bumptech.glide.Glide;
 import com.flashnote.java.FlashNoteApp;
@@ -88,7 +92,42 @@ public class ImageViewerActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.media_save_loading, Toast.LENGTH_SHORT).show();
             return;
         }
-        MediaSaveHelper.showSaveMenu(this, binding.moreBtn, previewFile, previewDisplayName);
+        MediaSaveHelper.showSaveMenu(this, binding.moreBtn, previewFile, previewDisplayName, this::openExternal);
+    }
+
+    private void openExternal() {
+        if (previewFile == null || !previewFile.exists()) {
+            Toast.makeText(this, R.string.media_save_loading, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", previewFile);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, resolveMimeType(previewFile.getName()));
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (intent.resolveActivity(getPackageManager()) == null) {
+                Toast.makeText(this, "未找到可打开该文件的应用", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "未找到可打开该文件的应用", Toast.LENGTH_SHORT).show();
+        } catch (IllegalArgumentException | SecurityException e) {
+            Toast.makeText(this, "文件打开失败，请重试", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private String resolveMimeType(String fileName) {
+        if (fileName == null) {
+            return "image/*";
+        }
+        String lower = fileName.toLowerCase(java.util.Locale.ROOT);
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        return "image/*";
     }
 
     private String resolveDisplayName(String mediaUrl) {

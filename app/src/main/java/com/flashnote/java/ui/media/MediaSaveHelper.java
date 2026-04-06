@@ -51,6 +51,32 @@ public final class MediaSaveHelper {
         popupMenu.show();
     }
 
+    public static void showSaveMenu(Context context, View anchor, File sourceFile, String displayName, Runnable openExternalAction) {
+        if (context == null || anchor == null) {
+            return;
+        }
+        PopupMenu popupMenu = new PopupMenu(context, anchor);
+        popupMenu.getMenu().add(Menu.NONE, Menu.FIRST, Menu.NONE, R.string.media_save_action);
+        if (openExternalAction != null) {
+            popupMenu.getMenu().add(Menu.NONE, Menu.FIRST + 1, Menu.NONE, R.string.media_open_external);
+        }
+        popupMenu.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == Menu.FIRST) {
+                boolean success = saveToDownload(context, sourceFile, displayName);
+                Toast.makeText(context,
+                        success ? R.string.media_save_success : R.string.media_save_failed,
+                        Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            if (item.getItemId() == Menu.FIRST + 1 && openExternalAction != null) {
+                openExternalAction.run();
+                return true;
+            }
+            return false;
+        });
+        popupMenu.show();
+    }
+
     public static boolean saveToDownload(Context context, File sourceFile, String displayName) {
         if (context == null || sourceFile == null || !sourceFile.exists() || !sourceFile.isFile()) {
             return false;
