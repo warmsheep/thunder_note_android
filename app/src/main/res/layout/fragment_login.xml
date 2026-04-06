@@ -14,15 +14,13 @@
         android:paddingRight="24dp"
         android:paddingBottom="20dp">
 
-        <TextView
+        <ImageView
             android:id="@+id/logoText"
-            android:layout_width="@dimen/icon_size_logo_large"
-            android:layout_height="@dimen/icon_size_logo_large"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
             android:layout_gravity="center_horizontal"
-            android:background="@drawable/bg_logo_primary_soft"
-            android:gravity="center"
-            android:text="@string/logo_emoji"
-            android:textSize="@dimen/icon_text_size_logo_large" />
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_page_logo_login" />
 
         <TextView
             android:id="@+id/loginTitle"

@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#FFD700"
-        android:pathData="M58.5,22L36,56h18l-5.4,30L71,52H53l5.5,-30z"/>
-</vector>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="18dp"
+    android:insetTop="18dp"
+    android:insetRight="18dp"
+    android:insetBottom="18dp">
+
+    <bitmap
+        android:gravity="center"
+        android:src="@drawable/ic_brand_logo_mark" />
+
+</inset>

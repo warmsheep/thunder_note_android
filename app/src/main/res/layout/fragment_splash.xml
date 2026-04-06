@@ -12,14 +12,14 @@
         android:gravity="center"
         android:orientation="vertical">
 
-        <TextView
+        <ImageView
             android:id="@+id/logoBox"
-            android:layout_width="100dp"
-            android:layout_height="100dp"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
             android:background="@drawable/bg_splash_logo"
-            android:gravity="center"
-            android:text="@string/splash_logo"
-            android:textSize="50sp" />
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_page_logo_splash" />
 
         <TextView
             android:id="@+id/titleText"
