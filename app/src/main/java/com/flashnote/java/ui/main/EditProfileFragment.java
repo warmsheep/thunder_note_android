@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -36,7 +37,6 @@ import java.io.File;
 
 public class EditProfileFragment extends Fragment {
     private static final int AVATAR_MAX_SIZE = 512;
-    private static final String[] AVATAR_EMOJIS = {"💼", "📚", "❤️", "🌟", "🎯", "🚀", "🎨", "🎵", "📷", "🍕", "⚽", "😊"};
 
     private FragmentEditProfileBinding binding;
     private UserRepository userRepository;
@@ -226,21 +226,38 @@ public class EditProfileFragment extends Fragment {
         }
         GridLayout gridLayout = new GridLayout(getContext());
         gridLayout.setColumnCount(4);
-        gridLayout.setPadding(32, 32, 32, 32);
+        int gridPadding = (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                32f,
+                getResources().getDisplayMetrics()
+        );
+        int itemSpacing = (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                8f,
+                getResources().getDisplayMetrics()
+        );
+        gridLayout.setPadding(gridPadding, gridPadding, gridPadding, gridPadding);
         final String[] selected = {null};
         final TextView[] selectedView = {null};
 
-        for (String emoji : AVATAR_EMOJIS) {
+        for (String emoji : getResources().getStringArray(R.array.profile_avatar_emojis)) {
             TextView textView = new TextView(getContext());
             textView.setText(emoji);
             textView.setTextSize(28f);
             textView.setGravity(Gravity.CENTER);
+            textView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+            textView.setIncludeFontPadding(false);
 
-            int size = (int) (56 * getResources().getDisplayMetrics().density);
+            int size = (int) TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP,
+                    56f,
+                    getResources().getDisplayMetrics()
+            );
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
             params.width = size;
             params.height = size;
-            params.setMargins(8, 8, 8, 8);
+            params.setMargins(itemSpacing, itemSpacing, itemSpacing, itemSpacing);
+            params.setGravity(Gravity.CENTER);
             textView.setLayoutParams(params);
             textView.setOnClickListener(v -> {
                 selected[0] = emoji;

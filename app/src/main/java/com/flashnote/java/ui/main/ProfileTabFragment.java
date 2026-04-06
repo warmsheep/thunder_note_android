@@ -67,7 +67,6 @@ public class ProfileTabFragment extends Fragment {
     private boolean syncInProgress;
     private int pendingSyncCount;
     
-    private static final String[] AVATAR_EMOJIS = {"💼", "📚", "❤️", "🌟", "🎯", "🚀", "🎨", "🎵", "📷", "🍕", "⚽", "😊"};
     private static final int AVATAR_MAX_SIZE = 512;
 
     // Activity result launchers
@@ -522,7 +521,22 @@ public class ProfileTabFragment extends Fragment {
 
         GridLayout gridLayout = new GridLayout(getContext());
         gridLayout.setColumnCount(4);
-        gridLayout.setPadding(32, 32, 32, 32);
+        int gridPadding = (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                32f,
+                getResources().getDisplayMetrics()
+        );
+        int itemSpacing = (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                8f,
+                getResources().getDisplayMetrics()
+        );
+        int itemSize = (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                56f,
+                getResources().getDisplayMetrics()
+        );
+        gridLayout.setPadding(gridPadding, gridPadding, gridPadding, gridPadding);
         final String[] selectedEmoji = {null};
         final TextView[] selectedView = {null};
         
@@ -531,12 +545,14 @@ public class ProfileTabFragment extends Fragment {
             textView.setText(emoji);
             textView.setTextSize(28f);
             textView.setGravity(android.view.Gravity.CENTER);
-            
-            int size = (int) (56 * getResources().getDisplayMetrics().density);
+            textView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+            textView.setIncludeFontPadding(false);
+
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-            params.width = size;
-            params.height = size;
-            params.setMargins(8, 8, 8, 8);
+            params.width = itemSize;
+            params.height = itemSize;
+            params.setMargins(itemSpacing, itemSpacing, itemSpacing, itemSpacing);
+            params.setGravity(android.view.Gravity.CENTER);
             textView.setLayoutParams(params);
             
             textView.setOnClickListener(v -> {
