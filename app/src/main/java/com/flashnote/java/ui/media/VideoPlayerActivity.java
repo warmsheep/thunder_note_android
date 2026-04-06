@@ -16,6 +16,7 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
+import com.flashnote.java.R;
 import com.flashnote.java.FlashNoteApp;
 import com.flashnote.java.data.repository.FileRepository;
 import com.flashnote.java.databinding.ActivityVideoPlayerBinding;
@@ -30,6 +31,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
     private ActivityVideoPlayerBinding binding;
     private ExoPlayer player;
     private String mediaUrl;
+    private File localMediaFile;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -38,6 +40,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         binding.closeBtn.setOnClickListener(v -> finish());
+        binding.moreBtn.setOnClickListener(v -> onMoreClicked());
         initializePlayer();
     }
 
@@ -51,6 +54,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
 
         File cacheFile = MediaUrlResolver.resolveCachedFile(this, mediaUrl);
         if (cacheFile != null) {
+            localMediaFile = cacheFile;
             playLocalFile(cacheFile);
             return;
         }
@@ -64,6 +68,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     File localFile = new File(path);
                     if (localFile.exists() && localFile.length() > 0) {
+                        localMediaFile = localFile;
                         binding.playerView.setVisibility(View.VISIBLE);
                         playLocalFile(localFile);
                     } else {
@@ -82,10 +87,13 @@ public class VideoPlayerActivity extends AppCompatActivity {
         });
     }
 
+    @OptIn(markerClass = UnstableApi.class)
     private void playLocalFile(File file) {
         releasePlayer();
         player = new ExoPlayer.Builder(this).build();
         binding.playerView.setPlayer(player);
+        binding.playerView.setControllerAutoShow(false);
+        binding.playerView.setControllerShowTimeoutMs(3000);
         player.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)));
         player.prepare();
         player.play();
@@ -103,9 +111,31 @@ public class VideoPlayerActivity extends AppCompatActivity {
                 .build();
 
         binding.playerView.setPlayer(player);
+        binding.playerView.setControllerAutoShow(false);
+        binding.playerView.setControllerShowTimeoutMs(3000);
         player.setMediaItem(MediaItem.fromUri(requestUrl));
         player.prepare();
         player.play();
+    }
+
+    private void onMoreClicked() {
+        if (localMediaFile == null || !localMediaFile.exists()) {
+            Toast.makeText(this, R.string.media_save_loading, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        MediaSaveHelper.showSaveMenu(this, binding.moreBtn, localMediaFile, resolveDisplayName(mediaUrl));
+    }
+
+    private String resolveDisplayName(String urlOrPath) {
+        String objectName = MediaUrlResolver.extractObjectName(urlOrPath);
+        if (!TextUtils.isEmpty(objectName)) {
+            int split = objectName.lastIndexOf('/');
+            if (split >= 0 && split < objectName.length() - 1) {
+                return objectName.substring(split + 1);
+            }
+            return objectName;
+        }
+        return "video_" + System.currentTimeMillis() + ".mp4";
     }
 
     @Override

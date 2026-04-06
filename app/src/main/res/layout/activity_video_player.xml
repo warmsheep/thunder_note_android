@@ -9,7 +9,9 @@
         android:id="@+id/playerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/dark_background" />
+        android:background="@color/dark_background"
+        app:hide_on_touch="true"
+        app:show_timeout="3000" />
 
     <ImageButton
         android:id="@+id/closeBtn"
@@ -20,6 +22,17 @@
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="关闭"
         android:src="@drawable/ic_chat_back"
+        app:tint="@color/white" />
+
+    <ImageButton
+        android:id="@+id/moreBtn"
+        android:layout_width="@dimen/media_overlay_button_size"
+        android:layout_height="@dimen/media_overlay_button_size"
+        android:layout_gravity="top|end"
+        android:layout_margin="@dimen/media_overlay_button_margin"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="更多"
+        android:src="@drawable/ic_chat_more"
         app:tint="@color/white" />
 
 </FrameLayout>

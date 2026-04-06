@@ -43,7 +43,13 @@ public class FilePreviewActivity extends AppCompatActivity {
             setContentView(binding.getRoot());
 
             binding.backBtn.setOnClickListener(v -> finish());
-            binding.openExternalBtn.setOnClickListener(v -> openExternal());
+            binding.moreBtn.setOnClickListener(v -> {
+                if (file == null || !file.exists()) {
+                    Toast.makeText(this, R.string.media_save_failed, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                MediaSaveHelper.showSaveMenu(this, binding.moreBtn, file, file.getName());
+            });
 
             String filePath = getIntent().getStringExtra(EXTRA_FILE_PATH);
             String fileName = getIntent().getStringExtra(EXTRA_FILE_NAME);

@@ -39,17 +39,14 @@
             android:textColor="@color/text_primary"
             android:textSize="@dimen/text_size_body" />
 
-        <TextView
-            android:id="@+id/openExternalBtn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingStart="@dimen/chat_media_spacing_small"
-            android:paddingEnd="@dimen/chat_media_spacing_small"
-            android:paddingTop="@dimen/chat_media_spacing_small"
-            android:paddingBottom="@dimen/chat_media_spacing_small"
-            android:text="@string/file_preview_open_external"
-            android:textColor="@color/primary"
-            android:textSize="@dimen/text_size_caption" />
+        <ImageButton
+            android:id="@+id/moreBtn"
+            android:layout_width="@dimen/icon_size_toolbar"
+            android:layout_height="@dimen/icon_size_toolbar"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="更多"
+            android:src="@drawable/ic_chat_more"
+            app:tint="@color/text_primary" />
     </LinearLayout>
 
     <FrameLayout

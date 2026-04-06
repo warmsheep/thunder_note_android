@@ -67,6 +67,10 @@
     <string name="file_preview_read_failed">文件读取失败</string>
     <string name="file_preview_pdf_failed">PDF 预览失败，已为你保留外部打开</string>
     <string name="file_preview_back">返回</string>
+    <string name="media_save_success">已保存到 Download/ThunderNote</string>
+    <string name="media_save_failed">保存失败</string>
+    <string name="media_save_loading">请等待加载完成后再保存</string>
+    <string name="media_save_action">保存</string>
 
     <string name="status_unknown_user">未知用户</string>
     <string name="status_profile_loading">加载中...</string>
