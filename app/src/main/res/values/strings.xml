@@ -213,6 +213,10 @@
     <string name="flashnote_inbox_card_title">收集箱卡片</string>
     <string name="flashnote_open_camera_failed">无法打开相机</string>
     <string name="flashnote_file_process_failed">文件处理失败</string>
+    <string name="share_receive_success">已保存到收集箱</string>
+    <string name="share_receive_failed">分享保存失败</string>
+    <string name="share_receive_no_content">无法处理分享内容</string>
+    <string name="share_receive_not_logged_in">请先登录闪记</string>
 
     <string name="splash_version_prefix">v%1$s</string>
     <string name="splash_version_default">v1.0.0</string>
