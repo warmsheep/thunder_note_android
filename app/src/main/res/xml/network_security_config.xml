@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  D1-W28-15 开发期网络安全策略
-  - 当前项目处于 MVP 开发阶段，后端服务运行在开发者本机（局域网 IP 经常变动：
-    家里 / 办公室 / 不同 WiFi 段），逐个白名单 IP 维护成本高且容易遗漏。
-  - 解决方案：开发期 base-config 直接 cleartextTrafficPermitted="true"，允许
-    所有局域网 HTTP 明文访问。
-  - 正式发布前必须改回 cleartextTrafficPermitted="false"，仅对生产 HTTPS
-    域名开放，或通过 build variants 拆分 debug/release 两套配置。
+  D1-W28-15 网络安全策略：开源 + 自托管定位下永久放开 cleartext
+  - 闪记是开源 / 可自部署项目，用户可能把后端跑在：
+      * 局域网 / 家庭 NAS / 公司内网（http://192.168.x.x、http://10.x.x.x）
+      * VPS / 云主机但未配置 HTTPS（http://example.com:8080）
+      * 自签名证书 / Let's Encrypt 域名（https://...）
+  - APP 必须对任意 baseUrl 透明，不能限制目标 IP / 域名 / 协议。
+  - 因此 base-config 全开 cleartext。这是产品定位决定的，不是发布前需要收紧
+    的"调试开关"——任何收紧都会阻断自托管用户的合法使用。
+  - 安全责任划分：是否使用 HTTPS 由部署者决定；APP 只负责忠实访问用户填的地址。
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true" />

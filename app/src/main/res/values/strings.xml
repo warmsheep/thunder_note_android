@@ -118,9 +118,9 @@
     <string name="server_settings_intro">你可以继续使用官方闪记服务器，也可以切换到自托管服务地址。切换服务器后将回到登录页，并清理当前站点会话，避免不同站点数据混淆。</string>
     <string name="server_settings_official_option">使用闪记服务器</string>
     <string name="server_settings_self_hosted_option">使用自托管服务器</string>
-    <string name="server_settings_address_hint">输入服务器地址，例如 https://example.com/</string>
+    <string name="server_settings_address_hint">输入服务器地址，例如 http://192.168.1.10:8080 或 https://flashnote.example.com</string>
     <string name="server_settings_official_hint">当前会继续使用默认官方地址。</string>
-    <string name="server_settings_custom_hint">仅支持 http/https 主机地址，不支持额外路径。</string>
+    <string name="server_settings_custom_hint">支持 http 或 https；局域网 / 未配 HTTPS 的自托管请务必加上 http:// 前缀。</string>
     <string name="server_settings_invalid_address">服务器地址格式不正确</string>
     <string name="server_settings_saved_restart_login">服务器已切换，请重新登录</string>
     <string name="security_password_title">密码与手势锁</string>
