@@ -688,6 +688,21 @@ public class MessageRepositoryImpl implements MessageRepository {
         });
     }
 
+    void refreshLocalConversations(List<Long> conversationKeys) {
+        if (conversationKeys == null || conversationKeys.isEmpty()) {
+            return;
+        }
+        for (Long conversationKey : conversationKeys) {
+            if (conversationKey == null || conversationKey == 0L || !conversations.containsKey(conversationKey)) {
+                continue;
+            }
+            List<MessageLocalEntity> entities = messageLocalDao.getByConversationKeyNow(conversationKey);
+            List<Message> confirmed = toMessageList(entities);
+            MutableLiveData<List<Message>> liveData = ensureLiveData(conversationKey);
+            setLiveDataValue(liveData, confirmed);
+            refreshMergedConversation(conversationKey, confirmed, pendingConversationCache.get(conversationKey));
+        }
+    }
 
     private MutableLiveData<List<Message>> ensureMergedLiveDataInternal(long conversationKey) {
         MutableLiveData<List<Message>> existing = mergedConversations.get(conversationKey);

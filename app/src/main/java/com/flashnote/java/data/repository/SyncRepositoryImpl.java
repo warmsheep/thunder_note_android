@@ -123,8 +123,7 @@ public class SyncRepositoryImpl implements SyncRepository {
                     if (response.isSuccessful() && response.body() != null) {
                         ApiResponse<Map<String, Object>> apiResponse = response.body();
                         if (apiResponse.isSuccess() && apiResponse.getData() != null) {
-                            persistPulledMessages(apiResponse.getData());
-                            callback.onSuccess(apiResponse.getData());
+                            persistPulledMessages(apiResponse.getData(), () -> callback.onSuccess(apiResponse.getData()));
                         } else {
                             String errMsg = apiResponse.getMessage();
                             DebugLog.w("SyncRepo", errMsg);
@@ -398,15 +397,22 @@ public class SyncRepositoryImpl implements SyncRepository {
     }
 
     @SuppressWarnings("unchecked")
-    private void persistPulledMessages(Map<String, Object> data) {
+    private void persistPulledMessages(Map<String, Object> data, Runnable onPersisted) {
         if (data == null) {
+            if (onPersisted != null) {
+                onPersisted.run();
+            }
             return;
         }
         Object messagesRaw = data.get("messages");
         if (!(messagesRaw instanceof List<?> messageMaps) || messageMaps.isEmpty()) {
+            if (onPersisted != null) {
+                onPersisted.run();
+            }
             return;
         }
         List<MessageLocalEntity> entities = new ArrayList<>();
+        List<Long> conversationKeys = new ArrayList<>();
         for (Object rawItem : messageMaps) {
             if (!(rawItem instanceof Map<?, ?> map)) {
                 continue;
@@ -414,10 +420,26 @@ public class SyncRepositoryImpl implements SyncRepository {
             MessageLocalEntity entity = toMessageLocalEntity((Map<String, Object>) map);
             if (entity != null) {
                 entities.add(entity);
+                long conversationKey = entity.getConversationKey();
+                if (conversationKey != 0L && !conversationKeys.contains(conversationKey)) {
+                    conversationKeys.add(conversationKey);
+                }
             }
         }
         if (!entities.isEmpty()) {
-            syncExecutor.execute(() -> messageLocalDao.upsertAll(entities));
+            syncExecutor.execute(() -> {
+                messageLocalDao.upsertAll(entities);
+                if (messageRepository instanceof MessageRepositoryImpl) {
+                    ((MessageRepositoryImpl) messageRepository).refreshLocalConversations(conversationKeys);
+                }
+                if (onPersisted != null) {
+                    onPersisted.run();
+                }
+            });
+            return;
+        }
+        if (onPersisted != null) {
+            onPersisted.run();
         }
     }
 

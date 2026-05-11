@@ -473,6 +473,33 @@ public class MessageRepositoryImplTest {
     }
 
     @Test
+    public void refreshLocalConversations_updatesExistingFlashNoteConversationFromLocalDao() {
+        MessageRepositoryImpl repository = new MessageRepositoryImpl(
+                messageService,
+                pendingMessageRepository,
+                fileRepository,
+                videoPreparationService,
+                messageLocalDao,
+                true
+        );
+        androidx.lifecycle.LiveData<List<Message>> messages = repository.getMessages(7L);
+        MessageLocalEntity synced = new MessageLocalEntity();
+        synced.setId(701L);
+        synced.setConversationKey(7L);
+        synced.setFlashNoteId(7L);
+        synced.setContent("from web");
+        synced.setMediaType("TEXT");
+        synced.setRole("user");
+        synced.setCreatedAt("2026-05-11T10:30:00");
+        when(messageLocalDao.getByConversationKeyNow(7L)).thenReturn(List.of(synced));
+
+        repository.refreshLocalConversations(List.of(7L));
+
+        assertEquals(1, messages.getValue().size());
+        assertEquals("from web", messages.getValue().get(0).getContent());
+    }
+
+    @Test
     public void addLocalMessage_persistsConfirmedMessageIntoLocalDao() {
         MessageRepositoryImpl repository = new MessageRepositoryImpl(
                 messageService,
