@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  D1-W28-15 开发期网络安全策略
+  - 当前项目处于 MVP 开发阶段，后端服务运行在开发者本机（局域网 IP 经常变动：
+    家里 / 办公室 / 不同 WiFi 段），逐个白名单 IP 维护成本高且容易遗漏。
+  - 解决方案：开发期 base-config 直接 cleartextTrafficPermitted="true"，允许
+    所有局域网 HTTP 明文访问。
+  - 正式发布前必须改回 cleartextTrafficPermitted="false"，仅对生产 HTTPS
+    域名开放，或通过 build variants 拆分 debug/release 两套配置。
+-->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">192.168.3.7</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>
