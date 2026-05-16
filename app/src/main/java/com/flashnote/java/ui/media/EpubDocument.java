@@ -185,8 +185,8 @@ final class EpubDocument {
         setFeatureIfSupported(factory, "http://xml.org/sax/features/external-general-entities", false);
         setFeatureIfSupported(factory, "http://xml.org/sax/features/external-parameter-entities", false);
         setFeatureIfSupported(factory, "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        factory.setXIncludeAware(false);
-        factory.setExpandEntityReferences(false);
+        setXIncludeAwareIfSupported(factory, false);
+        setExpandEntityReferencesIfSupported(factory, false);
         setAttributeIfSupported(factory, "http://javax.xml.XMLConstants/property/accessExternalDTD", "");
         setAttributeIfSupported(factory, "http://javax.xml.XMLConstants/property/accessExternalSchema", "");
         DocumentBuilder builder = factory.newDocumentBuilder();
@@ -205,8 +205,8 @@ final class EpubDocument {
         setFeatureIfSupported(factory, "http://xml.org/sax/features/external-general-entities", false);
         setFeatureIfSupported(factory, "http://xml.org/sax/features/external-parameter-entities", false);
         setFeatureIfSupported(factory, "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        factory.setXIncludeAware(false);
-        factory.setExpandEntityReferences(false);
+        setXIncludeAwareIfSupported(factory, false);
+        setExpandEntityReferencesIfSupported(factory, false);
         setAttributeIfSupported(factory, "http://javax.xml.XMLConstants/property/accessExternalDTD", "");
         setAttributeIfSupported(factory, "http://javax.xml.XMLConstants/property/accessExternalSchema", "");
         DocumentBuilder builder = factory.newDocumentBuilder();
@@ -226,6 +226,21 @@ final class EpubDocument {
         try {
             factory.setAttribute(name, value);
         } catch (IllegalArgumentException ignored) {
+        }
+    }
+
+    private static void setXIncludeAwareIfSupported(DocumentBuilderFactory factory, boolean value) {
+        try {
+            factory.setXIncludeAware(value);
+        } catch (RuntimeException ignored) {
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static void setExpandEntityReferencesIfSupported(DocumentBuilderFactory factory, boolean value) {
+        try {
+            factory.setExpandEntityReferences(value);
+        } catch (RuntimeException ignored) {
         }
     }
 
