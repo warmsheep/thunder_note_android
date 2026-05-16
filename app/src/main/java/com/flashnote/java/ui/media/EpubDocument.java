@@ -3,6 +3,7 @@ package com.flashnote.java.ui.media;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -10,6 +11,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +23,7 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -62,7 +65,7 @@ final class EpubDocument {
             throw new EpubException("EPUB 缺少 OPF 包描述文件");
         }
 
-        File opfFile = safeFile(root, opfPath);
+        File opfFile = safeFile(root, stripFragmentAndQuery(opfPath));
         if (!opfFile.exists()) {
             throw new EpubException("EPUB 缺少 OPF 包描述文件");
         }
@@ -81,7 +84,7 @@ final class EpubDocument {
                 continue;
             }
             String mediaType = lower(item.mediaType);
-            String href = lower(item.href);
+            String href = lower(stripFragmentAndQuery(item.href));
             if (mediaType.contains("html") || href.endsWith(".html") || href.endsWith(".xhtml") || href.endsWith(".htm")) {
                 htmlItems.add(item);
             }
@@ -126,7 +129,7 @@ final class EpubDocument {
         if (relativePath == null || relativePath.indexOf('\0') >= 0) {
             throw new EpubException("EPUB 内包含不安全路径，已阻止打开");
         }
-        String normalized = relativePath.replace('\\', '/');
+        String normalized = decodePath(stripFragmentAndQuery(relativePath).replace('\\', '/'));
         String lower = normalized.toLowerCase(Locale.ROOT);
         if (normalized.startsWith("/") || lower.contains("://") || normalized.equals("..") || normalized.startsWith("../") || normalized.contains("/../") || normalized.endsWith("/..")) {
             throw new EpubException("EPUB 内包含不安全路径，已阻止打开");
@@ -145,7 +148,7 @@ final class EpubDocument {
         if (relativePath == null || relativePath.indexOf('\0') >= 0) {
             throw new EpubException("EPUB 内包含不安全路径，已阻止打开");
         }
-        String normalized = relativePath.replace('\\', '/');
+        String normalized = decodePath(stripFragmentAndQuery(relativePath).replace('\\', '/'));
         String lower = normalized.toLowerCase(Locale.ROOT);
         if (normalized.startsWith("/") || lower.contains("://")) {
             throw new EpubException("EPUB 内包含不安全路径，已阻止打开");
@@ -161,9 +164,24 @@ final class EpubDocument {
     }
 
     private static Document parseXml(File file) throws Exception {
+        try {
+            return parseXml(file, true);
+        } catch (Exception firstException) {
+            try {
+                return parseXmlWithoutDoctype(file);
+            } catch (Exception ignored) {
+                throw firstException;
+            }
+        }
+    }
+
+    private static Document parseXml(File file, boolean disallowDoctype) throws Exception {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        setFeatureIfSupported(factory, XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        if (disallowDoctype) {
+            setFeatureIfSupported(factory, "http://apache.org/xml/features/disallow-doctype-decl", true);
+        }
         setFeatureIfSupported(factory, "http://xml.org/sax/features/external-general-entities", false);
         setFeatureIfSupported(factory, "http://xml.org/sax/features/external-parameter-entities", false);
         setFeatureIfSupported(factory, "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
@@ -172,9 +190,28 @@ final class EpubDocument {
         setAttributeIfSupported(factory, "http://javax.xml.XMLConstants/property/accessExternalDTD", "");
         setAttributeIfSupported(factory, "http://javax.xml.XMLConstants/property/accessExternalSchema", "");
         DocumentBuilder builder = factory.newDocumentBuilder();
+        builder.setEntityResolver((publicId, systemId) -> new InputSource(new StringReader("")));
         try (FileInputStream inputStream = new FileInputStream(file)) {
             return builder.parse(inputStream);
         }
+    }
+
+    private static Document parseXmlWithoutDoctype(File file) throws Exception {
+        String xml = stripDoctype(readUtf8(file));
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        setFeatureIfSupported(factory, XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        setFeatureIfSupported(factory, "http://apache.org/xml/features/disallow-doctype-decl", true);
+        setFeatureIfSupported(factory, "http://xml.org/sax/features/external-general-entities", false);
+        setFeatureIfSupported(factory, "http://xml.org/sax/features/external-parameter-entities", false);
+        setFeatureIfSupported(factory, "http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        factory.setXIncludeAware(false);
+        factory.setExpandEntityReferences(false);
+        setAttributeIfSupported(factory, "http://javax.xml.XMLConstants/property/accessExternalDTD", "");
+        setAttributeIfSupported(factory, "http://javax.xml.XMLConstants/property/accessExternalSchema", "");
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        builder.setEntityResolver((publicId, systemId) -> new InputSource(new StringReader("")));
+        return builder.parse(new InputSource(new StringReader(xml)));
     }
 
     private static void setFeatureIfSupported(DocumentBuilderFactory factory, String feature, boolean value) {
@@ -229,7 +266,7 @@ final class EpubDocument {
     private static String buildReaderHtml(List<ManifestItem> htmlItems, File opfBase, File root) throws Exception {
         List<String> sections = new ArrayList<>();
         for (ManifestItem item : htmlItems) {
-            File itemFile = resolvedFile(root, opfBase, item.href);
+            File itemFile = resolvedFile(root, opfBase, stripFragmentAndQuery(item.href));
             if (!itemFile.exists()) {
                 continue;
             }
@@ -259,7 +296,7 @@ final class EpubDocument {
                 continue;
             }
             try {
-                File resolved = resolvedFile(root, base, value);
+                File resolved = resolvedFile(root, base, stripFragmentAndQuery(value));
                 matcher.appendReplacement(output, Matcher.quoteReplacement(key + "=\"" + escapeHtml(resolved.toURI().toString()) + "\""));
             } catch (Exception ignored) {
                 matcher.appendReplacement(output, "");
@@ -272,6 +309,48 @@ final class EpubDocument {
     private static String firstMatch(String text, Pattern pattern) {
         Matcher matcher = pattern.matcher(text);
         return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private static String stripDoctype(String xml) {
+        return xml.replaceFirst("(?is)<!DOCTYPE\\s+[^>]*(\\[[\\s\\S]*?\\]\\s*)?>", "");
+    }
+
+    private static String stripFragmentAndQuery(String path) {
+        if (path == null) {
+            return null;
+        }
+        int fragmentIndex = path.indexOf('#');
+        int queryIndex = path.indexOf('?');
+        int end = path.length();
+        if (fragmentIndex >= 0) {
+            end = Math.min(end, fragmentIndex);
+        }
+        if (queryIndex >= 0) {
+            end = Math.min(end, queryIndex);
+        }
+        return path.substring(0, end);
+    }
+
+    private static String decodePath(String path) throws EpubException {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < path.length(); i++) {
+            char ch = path.charAt(i);
+            if (ch != '%') {
+                result.append(ch);
+                continue;
+            }
+            if (i + 2 >= path.length()) {
+                throw new EpubException("EPUB 内包含不安全路径，已阻止打开");
+            }
+            int high = Character.digit(path.charAt(i + 1), 16);
+            int low = Character.digit(path.charAt(i + 2), 16);
+            if (high < 0 || low < 0) {
+                throw new EpubException("EPUB 内包含不安全路径，已阻止打开");
+            }
+            result.append((char) ((high << 4) + low));
+            i += 2;
+        }
+        return result.toString();
     }
 
     private static String readUtf8(File file) throws IOException {

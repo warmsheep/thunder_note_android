@@ -32,6 +32,38 @@ public class EpubDocumentTest {
         assertTrue(html.contains("你好 EPUB"));
     }
 
+    @Test
+    public void prepare_allowsDoctypeWithoutLoadingExternalEntities() throws Exception {
+        File epub = temporaryFolder.newFile("doctype.epub");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(epub))) {
+            add(zip, "META-INF/container.xml", "<?xml version=\"1.0\"?><!DOCTYPE container SYSTEM \"http://example.invalid/container.dtd\"><container><rootfiles><rootfile full-path=\"OPS/package.opf\"/></rootfiles></container>");
+            add(zip, "OPS/package.opf", "<?xml version=\"1.0\"?><package><manifest><item id=\"c1\" href=\"chapter.xhtml\" media-type=\"application/xhtml+xml\"/></manifest><spine><itemref idref=\"c1\"/></spine></package>");
+            add(zip, "OPS/chapter.xhtml", "<html><body><p>带 DOCTYPE 的 EPUB</p></body></html>");
+        }
+
+        EpubDocument.PreparedDocument document = EpubDocument.prepare(epub, temporaryFolder.newFolder("doctype-cache"));
+
+        String html = new String(java.nio.file.Files.readAllBytes(document.htmlFile.toPath()), StandardCharsets.UTF_8);
+        assertTrue(html.contains("带 DOCTYPE 的 EPUB"));
+    }
+
+    @Test
+    public void prepare_resolvesEncodedHrefAndFragment() throws Exception {
+        File epub = temporaryFolder.newFile("encoded.epub");
+        try (ZipOutputStream zip = new ZipOutputStream(new FileOutputStream(epub))) {
+            add(zip, "META-INF/container.xml", "<?xml version=\"1.0\"?><container><rootfiles><rootfile full-path=\"OPS/package%20file.opf#opf\"/></rootfiles></container>");
+            add(zip, "OPS/package file.opf", "<?xml version=\"1.0\"?><package><manifest><item id=\"c1\" href=\"Text/chapter%201.xhtml#start\" media-type=\"application/xhtml+xml\"/><item id=\"cover\" href=\"Images/cover%20image.png\" media-type=\"image/png\"/></manifest><spine><itemref idref=\"c1\"/></spine></package>");
+            add(zip, "OPS/Text/chapter 1.xhtml", "<html><body><img src=\"../Images/cover%20image.png#cover\"/><p>编码路径 EPUB</p></body></html>");
+            add(zip, "OPS/Images/cover image.png", "png");
+        }
+
+        EpubDocument.PreparedDocument document = EpubDocument.prepare(epub, temporaryFolder.newFolder("encoded-cache"));
+
+        String html = new String(java.nio.file.Files.readAllBytes(document.htmlFile.toPath()), StandardCharsets.UTF_8);
+        assertTrue(html.contains("编码路径 EPUB"));
+        assertTrue(html.contains("cover%20image.png"));
+    }
+
     @Test(expected = EpubDocument.EpubException.class)
     public void prepare_rejectsZipSlipEntry() throws Exception {
         File epub = temporaryFolder.newFile("evil.epub");
