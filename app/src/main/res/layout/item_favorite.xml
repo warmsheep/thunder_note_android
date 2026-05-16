@@ -83,10 +83,10 @@
 
                 <GridLayout
                     android:id="@+id/compositeGrid"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:useDefaultMargins="true"
+                    android:useDefaultMargins="false"
                     android:visibility="gone" />
 
                 <View

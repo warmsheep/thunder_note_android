@@ -245,13 +245,18 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
                     if (item == null) {
                         continue;
                     }
-                    if ("IMAGE".equalsIgnoreCase(item.getType()) && item.getUrl() != null && !item.getUrl().isEmpty()) {
-                        mediaUrls.add(item.getUrl());
-                    } else if ("VIDEO".equalsIgnoreCase(item.getType())) {
-                        String preview = item.getThumbnailUrl() == null || item.getThumbnailUrl().isEmpty() ? item.getUrl() : item.getThumbnailUrl();
+                    String type = item.getType();
+                    String mediaUrl = item.getUrl();
+                    if ("IMAGE".equalsIgnoreCase(type) && mediaUrl != null && !mediaUrl.isEmpty()) {
+                        mediaUrls.add(mediaUrl);
+                    } else if ("VIDEO".equalsIgnoreCase(type)) {
+                        String preview = item.getThumbnailUrl() == null || item.getThumbnailUrl().isEmpty() ? mediaUrl : item.getThumbnailUrl();
                         if (preview != null && !preview.isEmpty()) {
                             mediaUrls.add(preview);
                         }
+                    }
+                    if (mediaUrls.size() >= 9) {
+                        break;
                     }
                 }
             }

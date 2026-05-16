@@ -3,13 +3,13 @@ package com.flashnote.java.data.model;
 import com.google.gson.annotations.SerializedName;
 
 public class CardItem {
-    @SerializedName("type")
+    @SerializedName(value = "type", alternate = {"mediaType"})
     private String type;
 
     @SerializedName("content")
     private String content;
 
-    @SerializedName("url")
+    @SerializedName(value = "url", alternate = {"mediaUrl"})
     private String url;
 
     @SerializedName("thumbnailUrl")

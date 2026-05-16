@@ -82,6 +82,13 @@
             android:scaleType="fitCenter"
             android:visibility="gone" />
 
+        <WebView
+            android:id="@+id/epubWebView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/surface"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/unsupportedText"
             android:layout_width="wrap_content"

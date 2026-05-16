@@ -9,6 +9,10 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -36,6 +40,7 @@ public class FilePreviewActivity extends AppCompatActivity {
     private PdfRenderer pdfRenderer;
     private ParcelFileDescriptor pdfFd;
     private String saveDisplayName;
+    private EpubDocument.PreparedDocument epubDocument;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -95,6 +100,11 @@ public class FilePreviewActivity extends AppCompatActivity {
                 return;
             }
 
+            if ("epub".equals(ext)) {
+                showEpubPreview(file);
+                return;
+            }
+
             showUnsupported(getString(R.string.file_preview_unsupported));
         } catch (Throwable throwable) {
             DebugLog.e("FilePreview", "FilePreviewActivity onCreate failed", throwable);
@@ -106,6 +116,9 @@ public class FilePreviewActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         closePdfRenderer();
+        if (binding != null && binding.epubWebView != null) {
+            binding.epubWebView.destroy();
+        }
     }
 
     private void showTextPreview(File previewFile, boolean markdown) {
@@ -127,6 +140,7 @@ public class FilePreviewActivity extends AppCompatActivity {
             }
             binding.textPreviewContainer.setVisibility(android.view.View.VISIBLE);
             binding.pdfPreviewImage.setVisibility(android.view.View.GONE);
+            binding.epubWebView.setVisibility(android.view.View.GONE);
             binding.unsupportedText.setVisibility(android.view.View.GONE);
         } catch (IOException exception) {
             showUnsupported(getString(R.string.file_preview_read_failed));
@@ -156,6 +170,7 @@ public class FilePreviewActivity extends AppCompatActivity {
 
             binding.pdfPreviewImage.setImageBitmap(bitmap);
             binding.textPreviewContainer.setVisibility(android.view.View.GONE);
+            binding.epubWebView.setVisibility(android.view.View.GONE);
             binding.pdfPreviewImage.setVisibility(android.view.View.VISIBLE);
             binding.unsupportedText.setVisibility(android.view.View.GONE);
         } catch (Throwable t) {
@@ -168,10 +183,54 @@ public class FilePreviewActivity extends AppCompatActivity {
         }
     }
 
+    private void showEpubPreview(File previewFile) {
+        try {
+            epubDocument = EpubDocument.prepare(previewFile, new File(getCacheDir(), "tn_epub"));
+            WebSettings settings = binding.epubWebView.getSettings();
+            settings.setJavaScriptEnabled(false);
+            settings.setAllowFileAccess(true);
+            settings.setAllowContentAccess(false);
+            settings.setAllowFileAccessFromFileURLs(false);
+            settings.setAllowUniversalAccessFromFileURLs(false);
+            settings.setBuiltInZoomControls(true);
+            settings.setDisplayZoomControls(false);
+            binding.epubWebView.setWebViewClient(new WebViewClient() {
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                    Uri uri = request == null ? null : request.getUrl();
+                    if (uri == null) {
+                        return true;
+                    }
+                    String scheme = uri.getScheme();
+                    return !("file".equalsIgnoreCase(scheme) || "about".equalsIgnoreCase(scheme));
+                }
+
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                    if (url == null) {
+                        return true;
+                    }
+                    Uri uri = Uri.parse(url);
+                    String scheme = uri.getScheme();
+                    return !("file".equalsIgnoreCase(scheme) || "about".equalsIgnoreCase(scheme));
+                }
+            });
+            binding.epubWebView.loadUrl(Uri.fromFile(epubDocument.htmlFile).toString());
+            binding.textPreviewContainer.setVisibility(android.view.View.GONE);
+            binding.pdfPreviewImage.setVisibility(android.view.View.GONE);
+            binding.epubWebView.setVisibility(android.view.View.VISIBLE);
+            binding.unsupportedText.setVisibility(android.view.View.GONE);
+        } catch (Throwable throwable) {
+            DebugLog.e("FilePreview", "EPUB preview failed: " + previewFile.getAbsolutePath() + " size=" + previewFile.length(), throwable);
+            showUnsupported(getString(R.string.file_preview_epub_failed));
+        }
+    }
+
     private void showUnsupported(String message) {
         binding.unsupportedText.setText(message);
         binding.textPreviewContainer.setVisibility(android.view.View.GONE);
         binding.pdfPreviewImage.setVisibility(android.view.View.GONE);
+        binding.epubWebView.setVisibility(android.view.View.GONE);
         binding.unsupportedText.setVisibility(android.view.View.VISIBLE);
     }
 
@@ -246,6 +305,8 @@ public class FilePreviewActivity extends AppCompatActivity {
         switch (ext) {
             case "pdf":
                 return "application/pdf";
+            case "epub":
+                return "application/epub+zip";
             case "doc":
                 return "application/msword";
             case "docx":
