@@ -118,7 +118,7 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
 
             CardPayload payload = item.getPayload();
             String mediaType = item.getMediaType();
-            if (("COMPOSITE".equalsIgnoreCase(mediaType) || "CARD".equalsIgnoreCase(mediaType)) && payload != null) {
+            if (isCompositeFavorite(item)) {
                 bindCompositeCard(item, payload);
             } else if (mediaType == null || mediaType.isEmpty() || "TEXT".equalsIgnoreCase(mediaType)) {
                 binding.contentText.setVisibility(View.VISIBLE);
@@ -163,8 +163,7 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
             }
 
             binding.getRoot().setOnClickListener(v -> {
-                if (("COMPOSITE".equalsIgnoreCase(item.getMediaType()) || "CARD".equalsIgnoreCase(item.getMediaType()))
-                        && item.getPayload() != null) {
+                if (isCompositeFavorite(item)) {
                     String detailTitle = item.getPayload().getTitle() == null || item.getPayload().getTitle().isEmpty()
                             ? item.getContent()
                             : item.getPayload().getTitle();
@@ -177,6 +176,18 @@ public class FavoriteAdapter extends ListAdapter<FavoriteItem, FavoriteAdapter.F
                 showFavoriteActions(item, v);
                 return true;
             });
+        }
+
+        private boolean isCompositeFavorite(FavoriteItem item) {
+            CardPayload payload = item.getPayload();
+            if (payload == null) {
+                return false;
+            }
+            String mediaType = item.getMediaType();
+            return "COMPOSITE".equalsIgnoreCase(mediaType)
+                    || "CARD".equalsIgnoreCase(mediaType)
+                    || (payload.getItems() != null && !payload.getItems().isEmpty())
+                    || (payload.getTitle() != null && !payload.getTitle().isEmpty());
         }
 
         private void bindCompositeCard(FavoriteItem item, CardPayload payload) {

@@ -48,6 +48,9 @@ public class FavoriteLocalEntity {
     @ColumnInfo(name = "media_duration")
     private Integer mediaDuration;
 
+    @ColumnInfo(name = "payload_json")
+    private String payloadJson;
+
     @ColumnInfo(name = "favorited_at")
     private String favoritedAt;
 
@@ -157,6 +160,14 @@ public class FavoriteLocalEntity {
 
     public void setMediaDuration(Integer mediaDuration) {
         this.mediaDuration = mediaDuration;
+    }
+
+    public String getPayloadJson() {
+        return payloadJson;
+    }
+
+    public void setPayloadJson(String payloadJson) {
+        this.payloadJson = payloadJson;
     }
 
     public String getFavoritedAt() {

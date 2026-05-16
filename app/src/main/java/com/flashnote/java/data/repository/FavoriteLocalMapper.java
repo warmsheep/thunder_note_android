@@ -1,13 +1,17 @@
 package com.flashnote.java.data.repository;
 
 import com.flashnote.java.data.local.FavoriteLocalEntity;
+import com.flashnote.java.data.model.CardPayload;
 import com.flashnote.java.data.model.FavoriteItem;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 final class FavoriteLocalMapper {
+    private static final Gson GSON = new Gson();
 
     List<FavoriteLocalEntity> toLocalList(List<FavoriteItem> items, long currentUserId) {
         List<FavoriteLocalEntity> result = new ArrayList<>();
@@ -41,6 +45,7 @@ final class FavoriteLocalMapper {
         entity.setFileName(item.getFileName());
         entity.setFileSize(item.getFileSize());
         entity.setMediaDuration(item.getMediaDuration());
+        entity.setPayloadJson(item.getPayload() == null ? null : GSON.toJson(item.getPayload()));
         entity.setFavoritedAt(item.getFavoritedAt() == null ? null : item.getFavoritedAt().toString());
         entity.setMessageCreatedAt(item.getMessageCreatedAt() == null ? null : item.getMessageCreatedAt().toString());
         return entity;
@@ -65,6 +70,13 @@ final class FavoriteLocalMapper {
             item.setFileName(entity.getFileName());
             item.setFileSize(entity.getFileSize());
             item.setMediaDuration(entity.getMediaDuration());
+            if (entity.getPayloadJson() != null && !entity.getPayloadJson().trim().isEmpty()) {
+                try {
+                    item.setPayload(GSON.fromJson(entity.getPayloadJson(), CardPayload.class));
+                } catch (JsonSyntaxException ignored) {
+                    item.setPayload(null);
+                }
+            }
             if (entity.getFavoritedAt() != null && !entity.getFavoritedAt().trim().isEmpty()) {
                 item.setFavoritedAt(LocalDateTime.parse(entity.getFavoritedAt()));
             }

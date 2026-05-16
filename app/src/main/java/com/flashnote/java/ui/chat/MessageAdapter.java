@@ -787,7 +787,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
                 return;
             }
 
-            if (isTextPreviewExtension(ext) || "pdf".equals(ext)) {
+            if (isInlineFilePreviewExtension(ext)) {
                 Intent intent = new Intent(context, FilePreviewActivity.class);
                 intent.putExtra(FilePreviewActivity.EXTRA_FILE_PATH, file.getAbsolutePath());
                 intent.putExtra(FilePreviewActivity.EXTRA_FILE_NAME, fileName);
@@ -841,7 +841,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         return "jpg".equals(ext) || "jpeg".equals(ext) || "png".equals(ext) || "gif".equals(ext);
     }
 
-    private boolean isTextPreviewExtension(String ext) {
+    static boolean isInlineFilePreviewExtension(String ext) {
+        return isTextPreviewExtension(ext)
+                || "pdf".equals(ext)
+                || "epub".equals(ext);
+    }
+
+    private static boolean isTextPreviewExtension(String ext) {
         return "txt".equals(ext)
                 || "json".equals(ext)
                 || "xml".equals(ext)
